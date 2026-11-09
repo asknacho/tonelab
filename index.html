@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tonelab</title>
+  <meta name="description" content="See how audio effects reshape a waveform, live." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="masthead">
+    <div>
+      <h1>Tonelab</h1>
+      <p class="lede">See what audio effects do to a signal. The grey shape is the dry input; the ink is what comes out.</p>
+    </div>
+    <ol class="chain" aria-label="Signal chain">
+      <li>Source</li>
+      <li class="chain-gate" data-fx="gate">Noise gate</li>
+      <li class="chain-comp" data-fx="comp">Compressor</li>
+      <li>Output</li>
+    </ol>
+  </header>
+
+  <main>
+    <section class="panel scope-panel">
+      <div class="toolbar">
+        <div class="field">
+          <span class="field-label">Source</span>
+          <div class="segmented" id="source" role="radiogroup">
+            <button data-value="guitar" class="on">Guitar</button>
+            <button data-value="drums">Drums</button>
+            <button data-value="voice">Voice</button>
+          </div>
+        </div>
+        <label class="field">
+          <span class="field-label">Noise floor <output id="noise-out">−48 dB</output></span>
+          <input type="range" id="noise" min="-80" max="-20" step="1" value="-48" />
+        </label>
+        <div class="field">
+          <span class="field-label">Scale</span>
+          <div class="segmented" id="scale" role="radiogroup">
+            <button data-value="db" class="on">Decibels</button>
+            <button data-value="lin">Linear</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label">Speed</span>
+          <div class="segmented" id="speed" role="radiogroup">
+            <button data-value="0.25">¼×</button>
+            <button data-value="0.5">½×</button>
+            <button data-value="1" class="on">1×</button>
+          </div>
+        </div>
+        <button class="play" id="play" aria-label="Pause">Pause</button>
+      </div>
+
+      <div class="scope-wrap">
+        <canvas id="scope" class="scope"></canvas>
+        <canvas id="lanes" class="lanes"></canvas>
+      </div>
+
+      <ul class="legend">
+        <li><i class="sw sw-in"></i>Input (dry)</li>
+        <li><i class="sw sw-out"></i>Output</li>
+        <li class="lg-gate"><i class="sw sw-dash gate"></i>Gate threshold</li>
+        <li class="lg-comp"><i class="sw sw-dash comp"></i>Compressor threshold</li>
+      </ul>
+    </section>
+
+    <section class="effects">
+      <article class="panel fx" id="fx-gate" data-fx="gate">
+        <header class="fx-head">
+          <div>
+            <h2>Noise gate</h2>
+            <p class="fx-sub">Silences everything quieter than the threshold.</p>
+          </div>
+          <label class="switch"><input type="checkbox" id="gate-on" checked /><span></span></label>
+        </header>
+        <div class="fx-body">
+          <div class="params" id="gate-params"></div>
+          <figure class="curve">
+            <canvas id="gate-curve"></canvas>
+            <figcaption>
+              <span class="badge" id="gate-state">Closed</span>
+              <span class="readout" id="gate-readout">−∞ dB</span>
+            </figcaption>
+          </figure>
+        </div>
+        <p class="explain">
+          When the input rises above the <b>threshold</b> the gate opens in <b>attack</b> time.
+          Once it drops below, the gate stays open for <b>hold</b>, then fades out over <b>release</b>.
+          <b>Range</b> sets how far down it turns the signal when closed. Raise the noise floor and watch
+          the hiss between notes disappear, but notice how a high threshold also chops off the tails of quiet notes.
+        </p>
+      </article>
+
+      <article class="panel fx" id="fx-comp" data-fx="comp">
+        <header class="fx-head">
+          <div>
+            <h2>Compressor</h2>
+            <p class="fx-sub">Turns loud parts down so the level is more even.</p>
+          </div>
+          <label class="switch"><input type="checkbox" id="comp-on" checked /><span></span></label>
+        </header>
+        <div class="fx-body">
+          <div class="params" id="comp-params"></div>
+          <figure class="curve">
+            <canvas id="comp-curve"></canvas>
+            <figcaption>
+              <span class="badge" id="comp-state">Idle</span>
+              <span class="readout" id="comp-readout">0.0 dB</span>
+            </figcaption>
+          </figure>
+        </div>
+        <p class="explain">
+          Above the <b>threshold</b>, every <b>ratio</b> dB of input becomes 1 dB of output, so at 4:1 a peak
+          12 dB over the threshold comes out only 3 dB over it. <b>Attack</b> and <b>release</b> set how
+          fast it reacts: a slow attack lets the start of each hit through. <b>Knee</b> eases the change in
+          around the threshold, and <b>makeup</b> raises everything back up afterwards.
+        </p>
+      </article>
+    </section>
+  </main>
+
+  <footer class="foot">Signals are generated in your browser. Nothing is recorded or uploaded.</footer>
+
+  <script src="js/dsp.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
