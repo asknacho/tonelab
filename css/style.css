@@ -410,7 +410,7 @@ body { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
 /* While editing, the chain and a smaller scope stay pinned at the top. */
 .editing .workspace-top { position: sticky; top: 0; z-index: 20; padding-bottom: 6px; box-shadow: 0 10px 14px -12px #1f1d1840; }
 .editing .scope-card .scope { height: 120px; }
-.editing .scope-card .legend, .editing .strip-hint, .editing #toggle-meters, .editing .lanes { display: none; }
+.editing .scope-card .legend, .editing .strip-hint, .editing .scope-card .journey-meta, .editing .lanes { display: none; }
 .editing .chain-strip-wrap { padding-top: 6px; }
 
 /* Sticky player dock */
@@ -469,7 +469,7 @@ body { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
   .workspace-side .curve { max-width: 240px; }
   .editing .workspace-top { position: sticky; top: 12px; box-shadow: none; padding-bottom: 0; }
   .editing .scope-card .scope { height: 250px; }
-  .editing .scope-card .legend, .editing .strip-hint, .editing #toggle-meters { display: revert; }
+  .editing .strip-hint, .editing .scope-card .journey-meta { display: revert; }
   .editing .scope-card .legend { display: flex; }
   .editing .lanes:not([hidden]) { display: block; }
   /* The player floats as a rounded bar instead of spanning the screen. */
@@ -485,3 +485,48 @@ body { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
 /* Inline in the pedal editor */
 .undo-toast.inline { position: static; translate: none; max-width: none; margin: 0 0 10px; box-shadow: none; background: var(--paper); font-size: 13px; }
 .journey-diff + .journey-listen { margin-left: 8px; }
+
+/* Compact header: title and search on one row, status line under it */
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.masthead { display: flex; align-items: center; gap: 12px 20px; padding-top: 16px; padding-bottom: 6px; }
+.masthead h1 { flex: none; margin: 0; font-size: 30px; }
+.masthead .tone-hero { flex: 1; min-width: 0; max-width: 680px; margin: 0; padding: 0; }
+.masthead .combo > input { min-height: 48px; padding-left: 40px; border-radius: 10px; font: 600 15px/1.25 var(--sans); text-overflow: ellipsis; }
+.masthead .combo > input::placeholder { font-size: 15px; }
+.combo > .combo-search { left: 14px; right: auto; color: var(--ink-2); margin-top: -8px; transition: none; }
+.combo > input[aria-expanded="true"] + svg { transform: rotate(180deg); }
+.masthead .combo-list { left: auto; right: 0; width: min(520px, calc(100vw - 32px)); }
+.status-home { max-width: 1180px; margin: 0 auto; padding: 0 24px; min-height: 8px; }
+.undo-toast.home { margin: 2px 0 0; padding: 0; border: 0; background: none; box-shadow: none; animation: none; color: var(--ink-2); font-size: 13px; gap: 6px; }
+.undo-toast.home button { min-height: 32px; padding: 0 4px; border: 0; background: none; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.undo-toast.home button:hover { background: none; color: var(--ink-2); }
+.undo-toast.home::after { content: none; }
+.journey.workspace { margin-top: 6px; }
+.workspace-top { margin-top: 0; }
+.link-button { border: 0; background: none; padding: 0 2px; min-height: 32px; color: var(--ink); font: 600 12px var(--sans); text-decoration: underline; text-underline-offset: 3px; }
+.scope-card .view-toggle button { min-height: 36px; }
+.scope-card .journey-meta { margin: 0 14px 12px; }
+.listening-at { min-width: 150px; }
+
+/* Compare A and B */
+.compare-card { margin-top: 18px; padding: 14px 16px 16px; background: var(--card); border: 1px solid var(--rule); border-radius: 12px; }
+.compare-card .steps-title { margin-top: 0; }
+.compare-card .tone-summary { margin: 4px 0 12px; }
+.compare-card .slot-row { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.compare-card .slot-key { width: 44px; }
+.compare-card .select-wrap select { min-height: 44px; }
+.compare-card .whatif-box { margin-top: 12px; padding: 12px 0 0; background: none; border: 0; border-top: 1px solid var(--rule); border-radius: 0; }
+@media (max-width: 560px) {
+  .masthead { padding-top: 12px; gap: 10px; }
+  .masthead h1 { font-size: 22px; }
+  .masthead .combo > input { min-height: 46px; font-size: 14px; padding-right: 36px; }
+  .status-home { padding-inline: 16px; }
+  .compare-card { padding: 12px; }
+}
+.workspace-side > .compare-card + .steps-title { margin-top: 26px; }
+.scope-card .link-button { font-size: 12px; min-height: 24px; }
+@media (max-width: 560px) {
+  .chain-strip { gap: 0; }
+  .strip-dot { width: 40px; }
+  .strip-pedal button { min-width: 46px; padding-inline: 2px; }
+}
