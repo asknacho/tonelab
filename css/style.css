@@ -361,7 +361,9 @@ canvas { display: block; width: 100%; }
 
 /* One signal-chain workspace: chain strip, one live scope, inline editor */
 body { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
-.journey > .workspace-top, .journey > .inspector { max-width: 900px; }
+.journey > .workspace-top { max-width: 900px; }
+.workspace-side > * { max-width: 760px; }
+.workspace-side > .inspector { max-width: 900px; }
 .workspace-top { margin-top: 12px; background: var(--paper); }
 .chain-strip-wrap { padding: 10px 0 4px; }
 .chain-strip { list-style: none; display: flex; align-items: center; gap: 4px; margin: 0; padding: 4px 2px 8px; overflow-x: auto; scrollbar-width: thin; }
@@ -444,3 +446,42 @@ body { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
   .inspector { padding: 14px 12px; }
   .sheet-actions button { flex: 1 1 auto; }
 }
+
+/* Tablet: status messages sit in the top-right corner, clear of the chain. */
+@media (min-width: 561px) {
+  .undo-toast { left: auto; right: 16px; translate: none; max-width: min(440px, calc(100% - 32px)); }
+}
+
+/* Desktop and landscape tablet: two columns. The chain and the live scope
+ * stay in view on the left; the editor and the explanations scroll on the
+ * right, so nothing needs to shrink or pin while you edit. */
+@media (min-width: 1024px) {
+  .workspace { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(360px, 1fr); gap: 0 32px; align-items: start; }
+  .journey.workspace > * { max-width: none; }
+  .workspace > .journey-head, .workspace > .journey-meta { grid-column: 1 / -1; }
+  .workspace-top { grid-column: 1; position: sticky; top: 12px; z-index: 5; }
+  .workspace-side { grid-column: 2; padding-top: 12px; }
+  .workspace-side > * { max-width: none; }
+  .workspace-side > .inspector { margin-top: 0; }
+  .workspace-side > .inspector + .steps-title { margin-top: 26px; }
+  .workspace-side > .steps-title:first-of-type { margin-top: 0; }
+  .workspace-side .settings-body { grid-template-columns: 1fr; }
+  .workspace-side .curve { max-width: 240px; }
+  .editing .workspace-top { position: sticky; top: 12px; box-shadow: none; padding-bottom: 0; }
+  .editing .scope-card .scope { height: 250px; }
+  .editing .scope-card .legend, .editing .strip-hint, .editing #toggle-meters { display: revert; }
+  .editing .scope-card .legend { display: flex; }
+  .editing .lanes:not([hidden]) { display: block; }
+  /* The player floats as a rounded bar instead of spanning the screen. */
+  .player-dock { left: 50%; right: auto; bottom: 16px; translate: -50% 0; width: min(680px, calc(100% - 48px)); border-radius: 18px; padding: 10px 12px; }
+  .dock-panel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dock-chip { max-width: none; }
+}
+@media (min-width: 1024px) and (max-height: 820px) {
+  .scope { height: 210px; }
+  .editing .scope-card .scope { height: 210px; }
+}
+
+/* Inline in the pedal editor */
+.undo-toast.inline { position: static; translate: none; max-width: none; margin: 0 0 10px; box-shadow: none; background: var(--paper); font-size: 13px; }
+.journey-diff + .journey-listen { margin-left: 8px; }
