@@ -60,7 +60,7 @@
   try { savedView = localStorage.getItem('tonelab-view') === 'tone' ? 'tone' : 'level'; } catch {}
   const state = { view: savedView, playing: true, speed: 1, scale: 'db', chain: ['gate', 'comp', 'drive', 'delay'].map(type => createPedal(type)), dirty: true };
   const clone = value => JSON.parse(JSON.stringify(value));
-  const PATTERNS = ['guitar', 'eighths'];
+  const PATTERNS = Object.keys(TL.PATTERNS);
   const storageKey = 'tonelab-board-v1';
   let activeBank = 'A';
   let banks = { A: clone(state.chain), B: clone(state.chain) };
@@ -227,15 +227,39 @@
 
   // What the synthesized guitar plays: free picking or steady eighth notes.
   const patternSelect = document.getElementById('pattern');
+  const speed = document.getElementById('speed');
+  const speedOut = document.getElementById('speed-out');
+  patternSelect.replaceChildren(...['Free', 'Single notes', 'Strums', 'Picking', 'Rhythm'].map(name => {
+    const group = document.createElement('optgroup');
+    group.label = name;
+    for (const [id, pattern] of Object.entries(TL.PATTERNS)) if (pattern.group === name) group.appendChild(new Option(pattern.label, id));
+    return group;
+  }));
+  // Free picking has no tempo; every other pattern follows the Speed slider.
   function syncPattern() {
-    patternSelect.querySelector('[value="eighths"]').textContent = 'Steady eighths · ' + Math.round(source.tempo) + ' BPM';
     patternSelect.value = source.kind;
+    const tempo = Math.round(source.tempo);
+    const free = !TL.PATTERNS[source.kind]?.tempo;
+    speed.value = tempo;
+    speed.disabled = free;
+    speedOut.textContent = free ? 'not used' : tempo + ' BPM';
   }
   patternSelect.onchange = () => {
     source.setKind(patternSelect.value);
+    // Start at the pattern's own tempo; Speed changes it from there.
+    if (TL.PATTERNS[source.kind]?.tempo) source.tempo = TL.PATTERNS[source.kind].tempo;
+    syncPattern();
     state.dirty = true;
+    onBoardChange();
     saveBoard();
   };
+  speed.addEventListener('input', () => {
+    source.tempo = Number(speed.value);
+    syncPattern();
+    state.dirty = true;
+    onBoardChange();
+    saveBoard();
+  });
   syncPattern();
 
   function segmented(id, onChange) {
@@ -535,7 +559,7 @@
     {
       id: 'hendrix-octave', group: 'Songs', title: 'Jimi Hendrix · octave fuzz', short: 'Hendrix',
       summary: 'The ringing octave fuzz of his “Purple Haze” solo: a thick buzz with a bell-like note an octave above.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'lead', tempo: 100, noise: -60 },
       play: 'Play single notes high up the neck. Octave effects get confused by chords.',
       chain: [
         ['octave', { dry: 0.7, sub: 0, up: 0.7 }, 'Adds a note one octave higher by folding the wave over on itself. It goes first, so it gets your clean signal to work with, and the fuzz after it makes the octave ring like a bell.'],
@@ -552,7 +576,7 @@
     {
       id: 'gilmour-lead', group: 'Songs', title: 'David Gilmour · singing lead', short: 'Gilmour',
       summary: 'Smooth, long sustain with a soft echo behind it, in the spirit of his “Comfortably Numb” solo.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'sustain', tempo: 60, noise: -60 },
       play: 'Play slow single notes and let each one ring as long as it can.',
       chain: [
         ['comp', { threshold: -24, ratio: 3, attack: 20, release: 300, knee: 6, makeup: 4 }, 'Holds each note up as it fades, so long notes keep singing.'],
@@ -588,7 +612,7 @@
     {
       id: 'boost-drive', group: 'Techniques', title: 'Boost into overdrive', short: 'Boost + drive',
       summary: 'Why guitarists put a clean boost in front of an overdrive: more crunch and sustain from the same pedal. It also shows why the order matters.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'power', tempo: 100, noise: -60 },
       play: 'Play notes or chords and listen to how hard the overdrive breaks up.',
       chain: [
         ['boost', { boost: 10 }, 'Sends a louder signal into the overdrive. It doesn’t distort by itself; it makes the next pedal work harder.'],
@@ -605,7 +629,7 @@
     {
       id: 'metal', group: 'Techniques', title: 'Tight metal rhythm', short: 'Metal',
       summary: 'High-gain distortion kept tight by a noise gate, with the mids scooped out for a huge, heavy sound.',
-      source: { kind: 'guitar', noise: -55 },
+      source: { kind: 'chug', tempo: 120, noise: -55 },
       play: 'Play short, heavy notes with rests in between, and listen to the silence in the rests.',
       chain: [
         ['gate', { threshold: -45, attack: 0.5, hold: 20, release: 60, range: -80 }, 'First in line, it shuts off the hiss and hum between notes, so the rests are silent.'],
@@ -640,7 +664,7 @@
     {
       id: 'ambient', group: 'Techniques', title: 'Ambient swells', short: 'Swells',
       summary: 'Notes that fade in with no pick attack, into long echoes and a big reverb: the soft, violin-like pad of ambient guitar.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'sustain', tempo: 50, noise: -60 },
       play: 'Play slow single notes or chords and let them ring. The swell hides the pick.',
       chain: [
         ['swell', { rise: 400, sensitivity: -40 }, 'Fades every new note in, as if you rolled a volume pedal up by foot after each pick.'],
@@ -658,7 +682,7 @@
     {
       id: 'eighties', group: 'Techniques', title: 'Lush 80s clean', short: '80s clean',
       summary: 'A shimmering clean sound: chorus for width, a short echo and a little reverb.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'arp-slow', tempo: 100, noise: -60 },
       play: 'Play clean chords or arpeggios and let them ring.',
       chain: [
         ['comp', { threshold: -24, ratio: 3, attack: 15, release: 200, knee: 6, makeup: 3 }, 'Keeps the clean notes even and helps them ring.'],
@@ -677,7 +701,7 @@
     {
       id: 'auto-wah', group: 'Techniques', title: 'Funky auto-wah', short: 'Auto-wah', view: 'tone',
       summary: 'The quacky funk sound: an envelope filter (auto-wah) that opens each time you pick, so every note goes “wow”.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'funk', tempo: 100, noise: -60 },
       play: 'Pick short notes. Picking harder opens the wah wider.',
       chain: [
         ['comp', { threshold: -28, ratio: 4, attack: 8, release: 120, knee: 6, makeup: 6 }, 'Evens out your picking, so the wah opens about the same amount on every note.'],
@@ -694,7 +718,7 @@
     {
       id: 'phaser', group: 'Techniques', title: 'Slow phaser swirl', short: 'Phaser', view: 'tone',
       summary: 'A slow, swirling sweep that makes a simple part move: a classic 70s texture.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'strum-rock', tempo: 110, noise: -60 },
       play: 'Play steady chords or a riff and listen for the slow whoosh.',
       chain: [
         ['drive', { drive: 8, mix: 0.5 }, 'A bit of grit gives the phaser more to sweep through.'],
@@ -711,7 +735,7 @@
     {
       id: 'cerati-persiana', group: 'Songs', title: 'Gustavo Cerati · Persiana Americana', short: 'Persiana',
       summary: 'A clean, shimmering guitar floating in a wide space: soft chorus, a gentle echo and a big room. In the spirit of the song, not a copy of its recording.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'strum-wash', tempo: 80, noise: -60 },
       play: 'Play clean chords, or single notes with space between them, and let them ring into the echo.',
       chain: [
         ['comp', { threshold: -26, ratio: 2.5, attack: 12, release: 220, knee: 6, makeup: 2, blend: 1 }, 'Keeps the clean notes even, so the chorus and echoes sit at a steady level.'],
@@ -730,7 +754,7 @@
     {
       id: 'audioslave-stone', group: 'Songs', title: 'Audioslave · Like a Stone', short: 'Like a Stone',
       summary: 'A clean, ringing intro that opens up into a warm, driven lead: chorus and a wide room over a little overdrive. In the spirit of the song, not a copy of its recording.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'arp-slow', tempo: 108, noise: -60 },
       play: 'Play a clean, ringing arpeggio, then dig in with a few single notes and listen to the room catch them.',
       chain: [
         ['drive:ts9', { drive: 5, tone: 0.5, level: -3, mix: 0.6 }, 'A light overdrive, just enough to thicken the notes without losing the clean sparkle. The chorus comes after it, so the wobble only touches your playing, and the room stays steady.'],
@@ -748,7 +772,7 @@
     {
       id: 'mayer-daughters', group: 'Songs', title: 'John Mayer · Daughters', short: 'Daughters',
       summary: 'A warm, clean single-coil tone with a little compression and body from a boost, sitting in a small room. In the spirit of the song, not a copy of its recording.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'fingerstyle', tempo: 84, noise: -60 },
       play: 'Play clean, warm single notes and chords with a light touch. Notice how evenly the picks come out.',
       chain: [
         ['comp:keeley', { threshold: -24, makeup: 2, tone: 0.5, input: 0, blend: 0.7 }, 'Evens out the picking gently, so soft and loud notes sit close together.'],
@@ -766,7 +790,7 @@
     {
       id: 'srv-texas', group: 'Songs', title: 'Stevie Ray Vaughan · Texas blues', short: 'Texas blues',
       summary: 'A punchy blues crunch: a tight compressor and a mid-focused overdrive that makes single notes sing and sustain. In the spirit of the style, not a copy of any recording.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'shuffle', tempo: 120, noise: -60 },
       play: 'Hit single notes hard and let them ring. Listen to the sustain and the edge on each note.',
       chain: [
         ['comp:keeley', { threshold: -28, makeup: 4, tone: 0.5, input: 0, blend: 0.8 }, 'Evens out your picking, so hard and soft notes sit at a similar level and sustain longer.'],
@@ -783,7 +807,7 @@
     {
       id: 'summers-chorus', group: 'Songs', title: 'Andy Summers · clean chorus', short: 'Clean chorus',
       summary: 'Clean, bright chords with a wide, warm chorus and a soft echo. In the spirit of the clean chorus sound of the early 80s, not a copy of any recording.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'reggae', tempo: 104, noise: -60 },
       play: 'Play clean arpeggios and chords with a light touch, and let the chorus spread them out.',
       chain: [
         ['comp:keeley', { threshold: -24, makeup: 1, tone: 0.55, input: 0, blend: 0.8 }, 'Keeps clean notes at a steady level, so the chorus and echo don’t jump around.'],
@@ -802,7 +826,7 @@
     {
       id: 'marr-jangle', group: 'Songs', title: 'Johnny Marr · jangle', short: 'Jangle',
       summary: 'Bright, ringing clean chords with a light chorus and a plate room. In the spirit of the jangly clean style, not a copy of any recording.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'strum-jangle', tempo: 124, noise: -60 },
       play: 'Strum open chords with a bright, quick attack, and let them ring.',
       chain: [
         ['comp:keeley', { threshold: -22, makeup: 1, tone: 0.6, input: 0, blend: 0.8 }, 'Keeps the strums even, so every chord rings out at the same level.'],
@@ -820,7 +844,7 @@
     {
       id: 'queen-layers', group: 'Songs', title: 'Brian May · layered lead echo', short: 'Layered lead',
       summary: 'A singing lead with mild overdrive and two echoes at different times, so each note comes back in layers. In the spirit of the style, not a copy of any recording.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'lead', tempo: 90, noise: -60 },
       play: 'Play a melody with long notes and bends. Listen for the echoes stacking up behind each note.',
       chain: [
         ['drive:ts9', { drive: 8, tone: 0.6, level: -1, mix: 0.9, voicing: 0, clipping: 1 }, 'A mild, warm overdrive: enough to make the lead sing, without hiding the notes.'],
@@ -839,7 +863,7 @@
     {
       id: 'beck-wah', group: 'Songs', title: 'Jeff Beck · wah lead', short: 'Wah lead',
       summary: 'A vocal wah lead on a bright overdrive, with the wah parked in the middle. In the spirit of the style, not a copy of any recording.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'lead', tempo: 100, noise: -60 },
       play: 'Bend a note and rock the wah with your foot. Hold the wah still and play single notes to hear it sing.',
       chain: [
         ['drive:ts9', { drive: 12, tone: 0.7, level: 0, mix: 1, voicing: 0, clipping: 0 }, 'A bright overdrive that gives the wah something to shape.'],
@@ -857,7 +881,7 @@
     {
       id: 'lizzy-harmony', group: 'Songs', title: 'Thin Lizzy · harmony lead', short: 'Harmony lead',
       summary: 'Melodies with a harmony a third above, on a bright overdrive and a plate-like room. The harmony follows the key, so it stays in the scale. In the spirit of the style, not a copy of any recording.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'melody', tempo: 112, noise: -60 },
       play: 'Play a melody in A major, mostly single notes. Single notes give the cleanest harmony.',
       chain: [
         ['drive:ts9', { drive: 8, tone: 0.6, level: -2, mix: 0.8, voicing: 1, clipping: 0 }, 'A moderate overdrive: enough sustain for the lead, with the notes still clear.'],
@@ -875,7 +899,7 @@
     {
       id: 'shoegaze-wall', group: 'Techniques', title: 'Shoegaze wall of sound', short: 'Wall of sound',
       summary: 'A huge, washed-out wall: fuzz, a wide chorus, a long echo and a big reverb. In the spirit of the shoegaze style.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'strum-wash', tempo: 72, noise: -60 },
       play: 'Hold big chords and let them swell into the fuzz. The sound is in the sustain.',
       chain: [
         ['fuzz:bigmuff', { fuzz: 28, tone: 0.5, level: -8, bias: 0.5, gate: 0, compress: 0.3, stability: 1 }, 'Heavy, sustaining fuzz: it turns chords into a thick, smooth wall.'],
@@ -894,7 +918,7 @@
     {
       id: 'dub-echo', group: 'Techniques', title: 'Dub echo', short: 'Dub echo',
       summary: 'A long, dark tape echo over a spring-like room, the sound of studio dub reggae. In the spirit of the style.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'reggae', tempo: 72, noise: -60 },
       play: 'Play short, sparse chords or single stabs, then let the echoes do the rest.',
       chain: [
         ['delay:multi', { time: 480, feedback: 0.6, mix: 0.45, character: 0.5, type: 2, subdivision: 0, modDepth: 0.2, modRate: 0.6 }, 'A tape echo: each repeat gets darker and wobbles a little, the core of the dub sound.'],
@@ -911,7 +935,7 @@
     {
       id: 'country-twang', group: 'Techniques', title: 'Country twang', short: 'Twang',
       summary: 'A snappy, clean twang with a touch of drive and a spring room. In the spirit of the style.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'boomchick', tempo: 130, noise: -60 },
       play: 'Pick quick single notes and double-stops, and listen for the snap on each attack.',
       chain: [
         ['comp:dynacomp', { threshold: -26, ratio: 4, attack: 3, release: 120, knee: 3, makeup: 3, tone: 0.5, input: 0 }, 'A quick compressor that keeps the snap of each pick even.'],
@@ -929,7 +953,7 @@
     {
       id: 'funk-chank', group: 'Techniques', title: 'Funk chank', short: 'Funk chank',
       summary: 'Tight, bright, percussive rhythm guitar: a fast compressor and a little presence and mid lift for the chicken-scratch sound. In the spirit of the style.',
-      source: { kind: 'guitar', noise: -60 },
+      source: { kind: 'funk', tempo: 100, noise: -60 },
       play: 'Play short, muted chords on the upbeats. Listen for the tight, percussive “chank”.',
       chain: [
         ['comp:cali76', { threshold: -30, makeup: 4, ratio: 6, attack: 2, release: 90, blend: 1 }, 'A fast, tight compressor: it grabs each chord and lets it go quickly, so the rhythm stays crisp.'],
@@ -1323,7 +1347,11 @@
     const tone = toneOf(s);
     const { byPedal, missing } = differences(chain, banks[other], other);
     document.getElementById('journey-slot').textContent = activeBank + ' · ' + slotLabel(s);
-    document.getElementById('journey-play').textContent = (tone || lessonTone())?.play || 'Your guitar, before any pedals.';
+    const demoPattern = TL.PATTERNS[source.kind];
+    const playsNote = demoPattern?.tempo
+      ? ' The demo plays “' + demoPattern.label + '” at ' + Math.round(source.tempo) + ' BPM, a generic pattern in the spirit of the style, not the actual part. Change it with Playing and Speed.'
+      : '';
+    document.getElementById('journey-play').textContent = ((tone || lessonTone())?.play || 'Your guitar, before any pedals.') + playsNote;
     const items = [];
     // Each step has a Play button: it plays the signal at that point in the chain.
     const wave = (stage, label, big, listen) => `<li class="journey-wave${big ? ' journey-out' : ''}"><div class="journey-wave-top"><span class="journey-wave-label">${label}</span>` +

@@ -61,7 +61,11 @@
         </label>
         <label class="field pattern-control">
           <span class="field-label">Playing</span>
-          <select id="pattern"><option value="guitar">Free picking</option><option value="eighths">Steady eighths · 126 BPM</option></select>
+          <select id="pattern"><option value="guitar">Free picking</option></select>
+        </label>
+        <label class="field speed-control">
+          <span class="field-label">Speed <output id="speed-out">126 BPM</output></span>
+          <input type="range" id="speed" min="40" max="220" step="1" value="126" />
         </label>
         <span id="audio-status" role="status">Synthesized guitar</span>
       </div>

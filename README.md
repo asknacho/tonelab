@@ -38,6 +38,12 @@ Sounds live in the `TONES` list in `js/app.js`: each has the playing pattern and
 
 The **Playing** selector switches the synthesized guitar between free picking and steady, short eighth notes.
 
+## What the guitar plays
+
+The demo guitar is generated in the browser (`js/dsp.js`), and **Playing** chooses what it plays: free picking, **single notes** (a long sustained note, a singing lead, a melody in A major), **strums** (down strums, a folk strum, driving eighths, a bright 16th strum, big ringing chords), **picking** (arpeggios, fingerstyle, boom-chick) and **rhythm** (reggae chops, funk 16ths, palm-muted chugs, power chords, a Texas shuffle). **Speed** sets the tempo of any pattern from 40 to 220 BPM.
+
+Each built-in sound plays a pattern in the style of its feel, at a typical tempo. These are generic patterns in the spirit of the song or style, not transcriptions of the actual parts. A pattern is a chord progression plus a rhythm (one token per step: `D`/`U` strums, `d`/`u` palm-muted, `b` bass note, `c` upper-string chick, `0`–`5` single strings, `.` rest), or a list of single notes (pitch, beats, ring time). To add one, add an entry to `PATTERNS` in `js/dsp.js`; it shows up in the list automatically.
+
 ## Pedal models
 
 Each effect supports its full set of controls (`js/dsp.js`), and each classic pedal is a *model* that shows only some of them, under that pedal's own names (`js/pedals.js`). Pick a model in the settings sheet; the card outline changes to match. **Show all controls** reveals the rest for any model. Switch controls (Mode, Clipping, Voicing and so on) appear as tappable options.

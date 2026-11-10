@@ -27,11 +27,11 @@
 
   /* ---------------------------------------------------------------- voices */
 
-  function pluck(freq, amp, decay) {
+  function pluck(freq, amp, decay, variant = 0) {
     // Karplus–Strong: a short noise burst circulates through a damped string.
     const length = Math.max(2, Math.round(SR / freq - 0.5));
     const string = new Float32Array(length);
-    const random = rng(Math.round(freq * 100 + amp * 10000));
+    const random = rng(Math.round(freq * 100 + amp * 10000) + variant * 7919);
     for (let i = 0; i < length; i++) string[i] = random() * 2 - 1;
     let t = 0, pos = 0;
     const damping = Math.pow(0.001, 1 / (decay * 12 * freq));
@@ -116,6 +116,52 @@
   const SCALE = [110, 123.5, 146.8, 164.8, 196, 220, 246.9, 293.7, 329.6];
   const ARPEGGIO = [146.8, 220, 293.7, 220, 146.8, 220, 329.6, 220]; // a generic D-based pattern
 
+  /* ------------------------------------------------------ playing patterns
+   * A pattern is a chord progression plus a rhythm. Chords list their
+   * strings from lowest to highest (open voicings, in Hz). A bar is four
+   * beats cut into `grid` steps; each step is one token:
+   *   D / U   full down / up strum        d / u   palm-muted down / up
+   *   x       ghost chop (barely any note)  b       bass note (lowest string)
+   *   c       "chick": the upper strings  h       the top two strings
+   *   L       a long, ringing strum       0–5     pick that string (arpeggios)
+   *   .       rest
+   * Single-note patterns use `melody` instead: [pitch Hz (0 = rest), beats, ring]. */
+  const CHORDS = {
+    Em: [82.4, 123.5, 164.8, 196, 246.9, 329.6], Am: [110, 164.8, 220, 261.6, 329.6], C: [130.8, 164.8, 196, 261.6, 329.6],
+    G: [98, 123.5, 146.8, 196, 246.9, 392], D: [146.8, 220, 293.7, 370], A: [110, 164.8, 220, 277.2, 329.6],
+    E: [82.4, 123.5, 164.8, 207.7, 246.9, 329.6], Bm: [123.5, 185, 246.9, 293.7, 370],
+    E5: [82.4, 123.5, 164.8], A5: [110, 164.8, 220], D5: [146.8, 220, 293.7], G5: [98, 146.8, 196],
+  };
+  const ch = names => names.split(' ').map(n => CHORDS[n]);
+  const PATTERNS = {
+    guitar: { label: 'Free picking', group: 'Free', tempo: 0 },
+    eighths: { label: 'Arpeggio, steady eighths', group: 'Picking', tempo: 126 },
+    sustain: { label: 'Long sustained notes', group: 'Single notes', tempo: 60, ring: 1.6,
+      melody: [[164.8, 6, 1.6], [196, 6, 1.6], [220, 6, 1.6], [196, 6, 1.6]] },
+    lead: { label: 'Singing lead, single notes', group: 'Single notes', tempo: 96, ring: 0.45,
+      melody: [[220, 1, 0.4], [261.6, 1, 0.4], [293.7, 2, 0.5], [329.6, 1, 0.4], [392, 1, 0.45], [329.6, 3, 0.6], [0, 1], [293.7, 1, 0.4], [261.6, 1, 0.4], [220, 4, 0.7], [0, 2]] },
+    melody: { label: 'Melody in A major, single notes', group: 'Single notes', tempo: 112, ring: 0.35,
+      melody: [[220, 1, 0.35], [246.9, 1, 0.35], [277.2, 1, 0.35], [329.6, 2, 0.4], [277.2, 1, 0.35], [246.9, 1, 0.35], [220, 2, 0.4], [246.9, 1, 0.35], [277.2, 1, 0.35], [370, 2, 0.45], [329.6, 1, 0.35], [277.2, 1, 0.35], [329.6, 4, 0.6], [0, 2]] },
+    'strum-down': { label: 'Down strums, quarter notes', group: 'Strums', tempo: 100, grid: 8, ring: 0.25, steps: 'D . D . D . D .', chords: ch('D A Bm G') },
+    'strum-folk': { label: 'Folk strum (D · DU · UDU)', group: 'Strums', tempo: 100, grid: 8, ring: 0.22, steps: 'D . D U . U D U', chords: ch('G C G D') },
+    'strum-rock': { label: 'Driving eighth strums', group: 'Strums', tempo: 120, grid: 8, ring: 0.2, steps: 'D d D d D d D d', chords: ch('Em C G D') },
+    'strum-jangle': { label: 'Bright 16th strum', group: 'Strums', tempo: 120, grid: 16, ring: 0.2, steps: 'D . D U . U D U D . D U . U D U', chords: ch('G D Em C') },
+    'strum-wash': { label: 'Big ringing chords', group: 'Strums', tempo: 80, grid: 4, ring: 0.85, steps: 'L . . .', chords: ch('Em C G D') },
+    'arp-slow': { label: 'Slow arpeggio, ringing', group: 'Picking', tempo: 96, grid: 8, ring: 0.45, steps: '0 2 3 4 3 2 4 3', chords: ch('Am C G Em') },
+    fingerstyle: { label: 'Fingerpicked, alternating bass', group: 'Picking', tempo: 84, grid: 8, ring: 0.3, steps: '0 3 1 4 0 3 2 4', chords: ch('G Em C D') },
+    boomchick: { label: 'Boom-chick (country)', group: 'Picking', tempo: 130, grid: 8, ring: 0.25, steps: 'b . c . 1 . c .', chords: ch('G C G D') },
+    reggae: { label: 'Offbeat chops (reggae)', group: 'Rhythm', tempo: 80, grid: 8, ring: 0.06, steps: '. D . D . D . D', chords: ch('Am G Am G') },
+    funk: { label: 'Funk 16ths (chank)', group: 'Rhythm', tempo: 100, grid: 16, ring: 0.08, steps: 'D x d x . x D u . x d x d x u x', chords: ch('Em Em Am Am') },
+    chug: { label: 'Palm-muted power chugs', group: 'Rhythm', tempo: 120, grid: 8, ring: 0.3, steps: 'd d d . d d D .', chords: ch('E5 E5 G5 E5') },
+    power: { label: 'Open power chords', group: 'Rhythm', tempo: 100, grid: 8, ring: 0.25, steps: 'D . . . D . D .', chords: ch('A5 E5 D5 E5') },
+    shuffle: { label: 'Texas shuffle', group: 'Rhythm', tempo: 120, grid: 12, ring: 0.2, steps: 'b . h b . h b . h b . h', chords: ch('E E A E') },
+  };
+  // A voice that stays silent for `delay` samples first (for strum timing).
+  function late(voice, delay) {
+    let d = delay;
+    return { done: false, tick() { if (d > 0) { d--; return 0; } const y = voice.tick(); this.done = voice.done; return y; } };
+  }
+
   class Source {
     constructor(kind) {
       this.kind = kind;
@@ -140,8 +186,40 @@
       this.step = 0;
     }
 
+    // One step of a pattern: play its token, then wait for the next step.
+    scheduleStep(pattern) {
+      const r = this.rand, beat = SR * 60 / this.tempo;
+      if (pattern.melody) {
+        const [f, beats, ring] = pattern.melody[this.step++ % pattern.melody.length];
+        if (f) this.voices.push(pluck(f, 0.7 * dbToLin(-3 * r()), ring ?? pattern.ring ?? 0.4, this.n & 0xffff));
+        this.nextEvent = this.n + Math.max(1, Math.round(beat * beats));
+        return;
+      }
+      const grid = pattern.grid, bar = Math.floor(this.step / grid);
+      const token = pattern.steps.split(' ')[this.step % grid];
+      const chord = pattern.chords[bar % pattern.chords.length];
+      this.step++;
+      this.nextEvent = this.n + Math.max(1, Math.round(beat * 4 / grid));
+      if (token === '.') return;
+      let strings = chord, ring = pattern.ring ?? 0.22, vel = 0.75 + 0.25 * r();
+      if (token === 'U') { strings = chord.slice(-4).slice().reverse(); vel *= 0.75; }
+      else if (token === 'd') ring = 0.015;
+      else if (token === 'u') { strings = chord.slice(-4).slice().reverse(); ring = 0.015; vel *= 0.7; }
+      else if (token === 'x') { ring = 0.006; vel *= 0.55; }
+      else if (token === 'b') { strings = [chord[0]]; ring *= 1.2; }
+      else if (token === 'c') { strings = chord.slice(2); ring *= 0.5; vel *= 0.8; }
+      else if (token === 'h') { strings = chord.slice(-2); ring *= 0.6; }
+      else if (token === 'L') ring = pattern.ring ?? 0.8;
+      else if (token >= '0' && token <= '5') strings = [chord[Math.min(+token, chord.length - 1)]];
+      const spread = 0.014 * SR, n = strings.length;
+      strings.forEach((f, k) => this.voices.push(late(pluck(f, 0.77 * vel / Math.sqrt(n), ring, (this.n & 0xffff) + k),
+        Math.round(k * spread + r() * 0.004 * SR))));
+    }
+
     schedule() {
       const r = this.rand;
+      const pattern = PATTERNS[this.kind];
+      if (pattern && (pattern.grid || pattern.melody)) { this.scheduleStep(pattern); return; }
       if (this.kind === 'eighths') {
         // Steady eighth notes on a repeating arpeggio, evenly picked.
         const notes = ARPEGGIO[this.step++ % ARPEGGIO.length];
@@ -941,6 +1019,6 @@
     }
   }
 
-  Object.assign(TL, { SR, dbToLin, linToDb, Source, NoiseGate, Compressor, Overdrive, Fuzz, Octave, Harmonizer, Delay, EffectChain, compCurve,
+  Object.assign(TL, { PATTERNS, SR, dbToLin, linToDb, Source, NoiseGate, Compressor, Overdrive, Fuzz, Octave, Harmonizer, Delay, EffectChain, compCurve,
     Boost, Distortion, Tremolo, Swell, Reverb, Chorus, Phaser, Wah, Equalizer, eqResponse, diatonicShift, GRAPHIC });
 })((globalThis.TL = globalThis.TL || {}));
