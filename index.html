@@ -46,74 +46,25 @@
     </section>
 
     <section class="chain-editor" aria-labelledby="chain-title">
-      <h2 id="chain-title">Effect chain</h2>
-      <p>Drag and drop effects here to change their order.</p>
-      <ol id="effect-order" aria-label="Effect order"></ol>
+      <header class="chain-heading"><h2 id="chain-title">Your pedalboard</h2><button id="add-effect" class="board-button">+ Add effect</button></header>
+      <p class="chain-hint">Tap to bypass · drag to reorder · edit for settings</p>
+      <div class="signal-path">
+        <span class="endpoint endpoint-input">Input <i aria-hidden="true"></i></span>
+        <div class="drop-area" aria-label="Effect drop area"><ol id="effect-order" aria-label="Effects, processed in numbered order"></ol><p id="empty-chain" hidden>Clean guitar. Add an effect to start building.</p></div>
+        <span class="endpoint endpoint-output"><i aria-hidden="true"></i>Output</span>
+      </div>
       <p id="order-status" class="order-status" role="status" aria-live="polite"></p>
     </section>
-    <section class="effects">
-      <article class="panel fx" id="fx-gate" data-fx="gate">
-        <header class="fx-head">
-          <div>
-            <h2>Noise gate</h2>
-            <p class="fx-sub">Silences everything quieter than the threshold.</p>
-          </div>
-          <label class="switch"><input type="checkbox" id="gate-on" checked /><span></span></label>
-        </header>
-        <div class="fx-body">
-          <div class="params" id="gate-params"></div>
-          <figure class="curve">
-            <canvas id="gate-curve"></canvas>
-            <figcaption>
-              <span class="badge" id="gate-state">Closed</span>
-              <span class="readout" id="gate-readout">−∞ dB</span>
-            </figcaption>
-          </figure>
-        </div>
-        <p class="explain">
-          When the input rises above the <b>threshold</b> the gate opens in <b>attack</b> time.
-          Once it drops below, the gate stays open for <b>hold</b>, then fades out over <b>release</b>.
-          <b>Range</b> sets how far down it turns the signal when closed. Raise the noise floor and watch
-          the hiss between notes disappear, but notice how a high threshold also chops off the tails of quiet notes.
-        </p>
-      </article>
-
-      <article class="panel fx" id="fx-comp" data-fx="comp">
-        <header class="fx-head">
-          <div>
-            <h2>Compressor</h2>
-            <p class="fx-sub">Turns loud parts down so the level is more even.</p>
-          </div>
-          <label class="switch"><input type="checkbox" id="comp-on" checked /><span></span></label>
-        </header>
-        <div class="fx-body">
-          <div class="params" id="comp-params"></div>
-          <figure class="curve">
-            <canvas id="comp-curve"></canvas>
-            <figcaption>
-              <span class="badge" id="comp-state">Idle</span>
-              <span class="readout" id="comp-readout">0.0 dB</span>
-            </figcaption>
-          </figure>
-        </div>
-        <p class="explain">
-          Above the <b>threshold</b>, every <b>ratio</b> dB of input becomes 1 dB of output, so at 4:1 a peak
-          12 dB over the threshold comes out only 3 dB over it. <b>Attack</b> and <b>release</b> set how
-          fast it reacts: a slow attack lets the start of each hit through. <b>Knee</b> eases the change in
-          around the threshold, and <b>makeup</b> raises everything back up afterwards.
-        </p>
-      </article>
-      <article class="panel fx" id="fx-drive" data-fx="drive">
-        <header class="fx-head"><div><h2>Overdrive</h2><p class="fx-sub">Adds grit and sustain by rounding off peaks.</p></div><label class="switch"><input type="checkbox" id="drive-on" checked aria-label="Enable overdrive" /><span></span></label></header>
-        <div class="params" id="drive-params"></div>
-        <p class="explain">Turn up <b>drive</b> to add harmonics. Put compression first for more even distortion, or put it after overdrive to tame the result.</p>
-      </article>
-      <article class="panel fx" id="fx-delay" data-fx="delay">
-        <header class="fx-head"><div><h2>Delay</h2><p class="fx-sub">Repeats the signal to create space and rhythm.</p></div><label class="switch"><input type="checkbox" id="delay-on" checked aria-label="Enable delay" /><span></span></label></header>
-        <div class="params" id="delay-params"></div>
-        <p class="explain"><b>Time</b> sets the gap between echoes; <b>feedback</b> makes them last longer. Place delay after overdrive for clean echoes of a gritty guitar, or before it to distort the repeats together.</p>
-      </article>
-    </section>
+    <dialog id="effect-library" class="effect-dialog" aria-labelledby="library-title">
+      <header class="sheet-head"><div><h2 id="library-title">Add an effect</h2><p>Every pedal has its own settings. Add any effect again.</p></div><button class="sheet-close" aria-label="Close effect library">Close</button></header>
+      <div id="effect-choices"></div>
+    </dialog>
+    <dialog id="effect-settings" class="effect-dialog" aria-labelledby="settings-title">
+      <header class="sheet-head"><div><span id="settings-state" class="field-label"></span><h2 id="settings-title"></h2></div><button class="sheet-close">Done</button></header>
+      <div class="settings-body"><div class="params" id="pedal-params"></div><figure class="curve" id="pedal-curve-wrap"><canvas id="pedal-curve"></canvas><figcaption><span class="badge" id="pedal-state"></span><span class="readout" id="pedal-readout"></span></figcaption></figure></div>
+      <p id="effect-explanation" class="explain"></p>
+      <div class="sheet-actions"><button id="pedal-earlier">← Earlier</button><button id="pedal-later">Later →</button><button id="duplicate-pedal">Duplicate</button><button id="remove-pedal">Remove</button></div>
+    </dialog>
   </main>
 
   <footer class="foot">Signals are generated in your browser. Nothing is recorded or uploaded.</footer>

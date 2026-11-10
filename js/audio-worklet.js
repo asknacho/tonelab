@@ -1,15 +1,12 @@
 import './dsp.js';
 
-const { SR, Source, NoiseGate, Compressor, Overdrive, Delay } = globalThis.TL;
+const { SR, Source, EffectChain } = globalThis.TL;
 class TonelabAudio extends AudioWorkletProcessor {
   constructor() {
     super();
     this.source = new Source('guitar');
-    this.effects = { gate: new NoiseGate(), comp: new Compressor(), drive: new Overdrive(), delay: new Delay() };
-    Object.values(this.effects).forEach(effect => effect.reset?.());
+    this.chain = new EffectChain(128);
     this.dry = new Float32Array(128);
-    this.buffers = Array.from({ length: 4 }, () => new Float32Array(128));
-    this.meter = new Float32Array(128);
     this.position = 128;
     this.fraction = 0;
     this.current = this.next = this.gain = 0;
@@ -23,14 +20,7 @@ class TonelabAudio extends AudioWorkletProcessor {
   tick() {
     if (this.position >= 128) {
       this.source.generate(this.dry, 0, 128);
-      let signal = this.dry;
-      this.settings.state.order.forEach((id, index) => {
-        if (!this.settings.state[id + 'On']) return;
-        const out = this.buffers[index];
-        this.effects[id].process(signal, out, this.meter, this.settings.state[id], 128, false);
-        signal = out;
-      });
-      this.wet = signal;
+      this.wet = this.chain.process(this.dry, this.settings.state.chain, false);
       this.port.postMessage({ samples: this.dry.slice() });
       this.position = 0;
     }

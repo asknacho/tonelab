@@ -5,7 +5,7 @@
 (function (TL) {
   'use strict';
 
-  const { SR, dbToLin, linToDb, Source, NoiseGate, Compressor, Overdrive, Delay, compCurve } = TL;
+  const { SR, dbToLin, linToDb, Source, EffectChain, compCurve } = TL;
 
   const VIEW_SECONDS = 3;   // visible window
   const PRE_SECONDS = 1;    // processed but hidden, so effect state is settled at the left edge
@@ -65,22 +65,36 @@
       hint: 'Gain added after compression.' },
   ];
 
-  const state = {
-    playing: true,
-    speed: 1,
-    scale: 'db',
-    gateOn: true,
-    compOn: true,
-    gate: {},
-    comp: {},
-    driveOn: true, delayOn: true, drive: {}, delay: {},
-    order: ['gate', 'comp', 'drive', 'delay'],
-    dirty: true,
+  const DRIVE_PARAMS = [
+    { key: 'drive', label: 'Drive', min: 0, max: 30, step: 0.5, value: 8, format: fmtDb, hint: 'Gain pushed into soft clipping.' },
+    { key: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, value: 0.4, format: v => Math.round(v * 100) + '%', hint: 'Blend the distorted sound with the incoming signal.' },
+  ];
+  const DELAY_PARAMS = [
+    { key: 'time', label: 'Time', min: 60, max: 700, step: 1, value: 300, format: fmtMs, hint: 'Time between repeats.' },
+    { key: 'feedback', label: 'Feedback', min: 0, max: 0.75, step: 0.01, value: 0.35, format: v => Math.round(v * 100) + '%', hint: 'How much of each echo feeds the next.' },
+    { key: 'mix', label: 'Mix', min: 0, max: 0.8, step: 0.01, value: 0.3, format: v => Math.round(v * 100) + '%', hint: 'Balance between the signal and its echoes.' },
+  ];
+  const types = {
+    gate: { name: 'Noise gate', short: 'Gate', specs: GATE_PARAMS, explanation: 'Silences the quiet parts. Attack opens the gate; hold and release preserve the tails. Try a gate after delay to cut off the echoes.' },
+    comp: { name: 'Compressor', short: 'Comp', specs: COMP_PARAMS, explanation: 'Controls peaks above the threshold. Two compressors can share the work: use the first for gentle leveling and the second to catch the remaining peaks.' },
+    drive: { name: 'Overdrive', short: 'Drive', specs: DRIVE_PARAMS, explanation: 'Adds harmonics by rounding off peaks. Try compression before drive for a more even distortion, or after it to tame the result.' },
+    delay: { name: 'Delay', short: 'Delay', specs: DELAY_PARAMS, explanation: 'Time sets the spacing of echoes; feedback controls their decay. Stack two delays at different times for a more complex rhythm.' },
   };
+  let nextId = 0;
+  const counts = { gate: 0, comp: 0, drive: 0, delay: 0 };
+  function createPedal(type, params) {
+    return { id: 'pedal-' + (++nextId), type, number: ++counts[type], enabled: true,
+      params: params ? { ...params } : Object.fromEntries(types[type].specs.map(p => [p.key, p.value])) };
+  }
+  const state = { playing: true, speed: 1, scale: 'db', chain: ['gate', 'comp', 'drive', 'delay'].map(type => createPedal(type)), dirty: true };
+  let selectedId = null;
+  const pedalName = pedal => types[pedal.type].name + ' ' + pedal.number;
+  function observed(type) { return state.chain.find(p => p.id === selectedId && p.type === type) || state.chain.find(p => p.type === type); }
 
   function buildParams(container, specs, target) {
     for (const p of specs) {
-      target[p.key] = p.value;
+      const value = target[p.key] ?? p.value;
+      target[p.key] = value;
       const row = document.createElement('label');
       row.className = 'param';
       row.innerHTML =
@@ -96,13 +110,13 @@
         input.max = 1000;
         input.step = 1;
         const span = Math.log(p.max / p.min);
-        input.value = Math.round((Math.log(p.value / p.min) / span) * 1000);
+        input.value = Math.round((Math.log(value / p.min) / span) * 1000);
         input.addEventListener('input', () => {
           target[p.key] = p.min * Math.exp((input.value / 1000) * span);
           update();
         });
       } else {
-        Object.assign(input, { min: p.min, max: p.max, step: p.step, value: p.value });
+        Object.assign(input, { min: p.min, max: p.max, step: p.step, value });
         input.addEventListener('input', () => {
           target[p.key] = Number(input.value);
           update();
@@ -112,23 +126,10 @@
         out.textContent = p.format(target[p.key]);
         state.dirty = true;
       };
-      out.textContent = p.format(p.value);
+      out.textContent = p.format(value);
       container.appendChild(row);
     }
   }
-
-  buildParams(document.getElementById('gate-params'), GATE_PARAMS, state.gate);
-  buildParams(document.getElementById('comp-params'), COMP_PARAMS, state.comp);
-
-  buildParams(document.getElementById('drive-params'), [
-    { key: 'drive', label: 'Drive', min: 0, max: 30, step: 0.5, value: 8, format: fmtDb, hint: 'Gain pushed into the soft clipping stage.' },
-    { key: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, value: 0.4, format: v => Math.round(v * 100) + '%', hint: 'Blend the distorted sound with the original.' },
-  ], state.drive);
-  buildParams(document.getElementById('delay-params'), [
-    { key: 'time', label: 'Time', min: 60, max: 700, step: 1, value: 300, format: fmtMs, hint: 'Time between repeats.' },
-    { key: 'feedback', label: 'Feedback', min: 0, max: 0.75, step: 0.01, value: 0.35, format: v => Math.round(v * 100) + '%', hint: 'How much of each echo feeds the next.' },
-    { key: 'mix', label: 'Mix', min: 0, max: 0.8, step: 0.01, value: 0.3, format: v => Math.round(v * 100) + '%', hint: 'Balance between the incoming signal and its echoes.' },
-  ], state.delay);
 
   /* ------------------------------------------------------------- toolbar */
 
@@ -153,51 +154,111 @@
     noiseOut.textContent = fmtDb(source.noiseDb);
   });
 
-  function bindSwitch(id, key, fx) {
-    const input = document.getElementById(id);
-    const sync = () => {
-      state[key] = input.checked;
-      document.getElementById('fx-' + fx).classList.toggle('off', !input.checked);
-      document.querySelector('[data-effect="' + fx + '"]')?.classList.toggle('off', !input.checked);
-      document.querySelector('.lg-' + fx)?.classList.toggle('hidden', !input.checked);
-      state.dirty = true;
-    };
-    input.addEventListener('change', sync);
-    sync();
-  }
-  bindSwitch('gate-on', 'gateOn', 'gate');
-  bindSwitch('comp-on', 'compOn', 'comp');
-  bindSwitch('drive-on', 'driveOn', 'drive');
-  bindSwitch('delay-on', 'delayOn', 'delay');
-
-  const names = { gate: 'Noise gate', comp: 'Compressor', drive: 'Overdrive', delay: 'Delay' };
   const orderList = document.getElementById('effect-order');
-  const dropArea = document.querySelector('.chain-editor');
+  const dropArea = document.querySelector('.drop-area');
+  const settings = document.getElementById('effect-settings');
+  const library = document.getElementById('effect-library');
+  const selected = () => state.chain.find(p => p.id === selectedId);
+  function announce(text) { document.getElementById('order-status').textContent = text; }
+  function changed() { state.dirty = true; renderOrder(); }
   function moveEffect(id, to) {
-    const from = state.order.indexOf(id);
-    to = Math.max(0, Math.min(state.order.length - 1, to));
-    if (from === to) return;
-    state.order.splice(from, 1);
-    state.order.splice(to, 0, id);
-    renderOrder();
-    state.dirty = true;
-    document.getElementById('order-status').textContent = state.order.map(id => names[id]).join(' → ');
+    const from = state.chain.findIndex(p => p.id === id);
+    to = Math.max(0, Math.min(state.chain.length - 1, to));
+    if (from < 0 || from === to) return;
+    const [pedal] = state.chain.splice(from, 1);
+    state.chain.splice(to, 0, pedal);
+    changed();
+    if (settings.open) syncMoveButtons();
+    announce(pedalName(pedal) + ' moved to position ' + (to + 1));
   }
+  function syncMoveButtons() {
+    const index = state.chain.findIndex(p => p.id === selectedId);
+    document.getElementById('pedal-earlier').disabled = index <= 0;
+    document.getElementById('pedal-later').disabled = index === state.chain.length - 1;
+  }
+  function openSettings(pedal) {
+    selectedId = pedal.id;
+    state.dirty = true;
+    document.getElementById('settings-title').textContent = pedalName(pedal);
+    document.getElementById('settings-state').textContent = pedal.enabled ? 'Enabled' : 'Bypassed';
+    settings.dataset.type = pedal.type;
+    const container = document.getElementById('pedal-params');
+    container.replaceChildren();
+    buildParams(container, types[pedal.type].specs, pedal.params);
+    document.getElementById('pedal-curve-wrap').hidden = !['gate', 'comp'].includes(pedal.type);
+    document.getElementById('effect-explanation').textContent = types[pedal.type].explanation;
+    trails.gate.length = trails.comp.length = 0;
+    syncMoveButtons();
+    if (!settings.open) settings.showModal();
+  }
+  function addPedal(type, params) {
+    const pedal = createPedal(type, params);
+    state.chain.push(pedal);
+    changed();
+    announce(pedalName(pedal) + ' added at position ' + state.chain.length);
+    return pedal;
+  }
+  document.getElementById('add-effect').onclick = () => library.showModal();
+  for (const [type, info] of Object.entries(types)) {
+    const button = document.createElement('button');
+    button.dataset.type = type;
+    button.innerHTML = '<strong>' + info.name + '</strong><span>' + info.explanation.split('.')[0] + '.</span><span aria-hidden="true">+</span>';
+    button.onclick = () => {
+      const pedal = addPedal(type);
+      library.close();
+      orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-toggle').focus();
+    };
+    document.getElementById('effect-choices').appendChild(button);
+  }
+  for (const dialog of [settings, library]) {
+    dialog.querySelector('.sheet-close').onclick = () => dialog.close();
+    dialog.addEventListener('click', e => { if (e.target === dialog) {
+      const r = dialog.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dialog.close();
+    } });
+  }
+  document.getElementById('duplicate-pedal').onclick = () => {
+    const pedal = selected();
+    if (!pedal) return;
+    const copy = addPedal(pedal.type, pedal.params);
+    moveEffect(copy.id, state.chain.indexOf(pedal) + 1);
+    openSettings(copy);
+  };
+  document.getElementById('remove-pedal').onclick = () => {
+    const pedal = selected();
+    if (!pedal) return;
+    state.chain = state.chain.filter(p => p.id !== pedal.id);
+    selectedId = null;
+    settings.close();
+    changed();
+    document.getElementById('add-effect').focus();
+    announce(pedalName(pedal) + ' removed');
+  };
+  document.getElementById('pedal-earlier').onclick = () => moveEffect(selectedId, state.chain.findIndex(p => p.id === selectedId) - 1);
+  document.getElementById('pedal-later').onclick = () => moveEffect(selectedId, state.chain.findIndex(p => p.id === selectedId) + 1);
+
   function renderOrder() {
-    state.order.forEach((id, index) => {
+    for (const item of [...orderList.children]) if (!state.chain.some(p => p.id === item.dataset.effect)) item.remove();
+    state.chain.forEach((pedal, index) => {
+      const id = pedal.id;
       let item = orderList.querySelector('[data-effect="' + id + '"]');
       if (!item) {
         item = document.createElement('li');
         item.dataset.effect = id;
-        item.classList.toggle('off', !state[id + 'On']);
-        item.innerHTML = `<button class="drag-handle" aria-label="Drag ${names[id]} or use left and right arrow keys">⠿</button><span>${names[id]}</span><button class="move-before" aria-label="Move ${names[id]} earlier">←</button><button class="move-after" aria-label="Move ${names[id]} later">→</button>`;
-        item.querySelector('.move-before').onclick = () => moveEffect(id, state.order.indexOf(id) - 1);
-        item.querySelector('.move-after').onclick = () => moveEffect(id, state.order.indexOf(id) + 1);
+        item.dataset.type = pedal.type;
+        item.innerHTML = '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-led" aria-hidden="true"></span><span class="pedal-name"></span><span class="pedal-status"></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder">⠿</button>';
+        item.querySelector('.pedal-edit').onclick = () => openSettings(pedal);
+        item.querySelector('.pedal-toggle').onclick = () => {
+          pedal.enabled = !pedal.enabled;
+          changed();
+          announce(pedalName(pedal) + (pedal.enabled ? ' enabled' : ' bypassed'));
+        };
         const handle = item.querySelector('.drag-handle');
         handle.onkeydown = e => {
-          if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+          if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
           e.preventDefault();
-          moveEffect(id, state.order.indexOf(id) + (e.key === 'ArrowLeft' ? -1 : 1));
+          const earlier = ['ArrowLeft', 'ArrowUp'].includes(e.key);
+          moveEffect(id, state.chain.indexOf(pedal) + (earlier ? -1 : 1));
           handle.focus();
         };
         handle.onpointerdown = e => {
@@ -205,51 +266,53 @@
           handle.setPointerCapture(e.pointerId);
           item.classList.add('dragging');
         };
+        const clearDrag = () => {
+          item.classList.remove('dragging');
+          dropArea.classList.remove('drag-over');
+          orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+        };
         handle.onpointermove = e => {
           if (!handle.hasPointerCapture(e.pointerId)) return;
           const hit = document.elementFromPoint(e.clientX, e.clientY);
           const target = hit?.closest('[data-effect]');
           dropArea.classList.toggle('drag-over', dropArea.contains(hit));
           orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
-          if (target && target !== item) target.classList.add('drop-target');
+          if (target && target !== item && orderList.contains(target)) target.classList.add('drop-target');
+          // Allow long boards to scroll while holding a pedal near a screen edge.
+          if (e.clientY > innerHeight - 65) window.scrollBy(0, 12);
+          else if (e.clientY < 65) window.scrollBy(0, -12);
         };
         handle.onpointerup = e => {
           if (!handle.hasPointerCapture(e.pointerId)) return;
           const hit = document.elementFromPoint(e.clientX, e.clientY);
           const target = hit?.closest('[data-effect]');
-          if (target && target !== item) moveEffect(id, state.order.indexOf(target.dataset.effect));
-          else if (!target && dropArea.contains(hit)) moveEffect(id, state.order.length - 1);
-          dropArea.classList.remove('drag-over');
-          item.classList.remove('dragging');
-          orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+          clearDrag();
+          if (target && target !== item && orderList.contains(target)) moveEffect(id, state.chain.findIndex(p => p.id === target.dataset.effect));
+          else if (!target && dropArea.contains(hit)) moveEffect(id, state.chain.length - 1);
         };
-        handle.onpointercancel = () => {
-          dropArea.classList.remove('drag-over');
-          item.classList.remove('dragging');
-          orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
-        };
+        handle.onpointercancel = clearDrag;
       }
-      item.querySelector('.move-before').disabled = index === 0;
-      item.querySelector('.move-after').disabled = index === state.order.length - 1;
-      orderList.appendChild(item);
-      document.querySelector('.effects').appendChild(document.getElementById('fx-' + id));
-
+      item.classList.toggle('off', !pedal.enabled);
+      item.querySelector('.pedal-position').textContent = index + 1;
+      item.querySelector('.pedal-name').textContent = types[pedal.type].short + ' ' + pedal.number;
+      const toggle = item.querySelector('.pedal-toggle');
+      toggle.setAttribute('aria-label', pedalName(pedal));
+      toggle.setAttribute('aria-pressed', String(pedal.enabled));
+      item.querySelector('.pedal-status').textContent = pedal.enabled ? 'On' : 'Off';
+      // Keep DOM nodes in place during playback and editing to preserve focus.
+      if (orderList.children[index] !== item) orderList.insertBefore(item, orderList.children[index] || null);
     });
+    document.getElementById('empty-chain').hidden = state.chain.length > 0;
   }
   renderOrder();
 
   /* ------------------------------------------------------------ buffers */
 
   const input = new Float32Array(N);
-  const gateOut = new Float32Array(N);
   const gateGain = new Float32Array(N);
   const compOut = new Float32Array(N);
   const compGR = new Float32Array(N);
-  const gate = new NoiseGate();
-  const comp = new Compressor();
-  const processors = { gate, comp, drive: new Overdrive(), delay: new Delay() };
-  const effectOut = { gate: gateOut, comp: new Float32Array(N), drive: new Float32Array(N), delay: new Float32Array(N) };
-  const effectIn = {};
+  const visualChain = new EffectChain(N);
 
   let total = 0; // samples generated since start
 
@@ -265,16 +328,20 @@
   }
 
   function processChain() {
-    let signal = input;
-    for (const id of state.order) {
-      effectIn[id] = signal;
-      const out = effectOut[id];
-      const meter = id === 'gate' ? gateGain : id === 'comp' ? compGR : null;
-      if (state[id + 'On']) processors[id].process(signal, out, meter, state[id], N);
-      else { out.set(signal); if (meter) meter.fill(id === 'gate' ? 1 : 0); }
-      signal = out;
+    compOut.set(visualChain.process(input, state.chain));
+    document.getElementById('lanes').hidden = !state.chain.some(p => ['gate', 'comp'].includes(p.type));
+    // The scope meters follow the inspected pedal of each type, or the first.
+    for (const type of ['gate', 'comp']) {
+      const pedal = observed(type);
+      state[type + 'On'] = !!pedal?.enabled;
+      state[type] = pedal?.params || {};
+      const entry = pedal && visualChain.instances.get(pedal.id);
+      const meter = type === 'gate' ? gateGain : compGR;
+      if (entry) meter.set(entry.meter); else meter.fill(type === 'gate' ? 1 : 0);
+      const legend = document.querySelector('.lg-' + type);
+      legend.classList.toggle('hidden', !pedal?.enabled);
+      legend.lastChild.textContent = pedal ? pedalName(pedal) + ' threshold' : '';
     }
-    compOut.set(signal);
     if (audioNode) sendAudioState();
   }
 
@@ -424,8 +491,8 @@
 
     // Thresholds
     const thresholds = [];
-    if (state.gateOn) thresholds.push([state.gate.threshold, C.gate, 'GATE', 'left']);
-    if (state.compOn) thresholds.push([state.comp.threshold, C.comp, 'COMP', 'right']);
+    if (state.gateOn) thresholds.push([state.gate.threshold, C.gate, pedalName(observed('gate')), 'left']);
+    if (state.compOn) thresholds.push([state.comp.threshold, C.comp, pedalName(observed('comp')), 'right']);
     ctx.lineWidth = 1.5;
     ctx.setLineDash([6, 5]);
     for (const [db, col] of thresholds) {
@@ -448,6 +515,7 @@
   }
 
   function drawLanes() {
+    if (lanesEl.hidden) return;
     const { ctx, w, h, dpr } = fit(lanesEl);
     ctx.clearRect(0, 0, w, h);
     const rowH = h / 2;
@@ -489,10 +557,10 @@
 
     const pad = 6;
     lane(0, state.gateOn, gateGain, (g) => rowH - pad - g * (rowH - pad * 2 - 12), C.gate, C.gateSoft, false,
-      'GATE GAIN  (open ↑ / closed ↓)');
+      (observed('gate') ? pedalName(observed('gate')) : 'Gate') + ' · gain');
     const GR_RANGE = 24;
     lane(rowH, state.compOn, compGR, (gr) => rowH + pad + Math.min(1, -gr / GR_RANGE) * (rowH - pad * 2), C.comp,
-      C.compSoft, true, 'COMP GAIN REDUCTION  (0 to −24 dB ↓)');
+      C.compSoft, true, (observed('comp') ? pedalName(observed('comp')) : 'Compressor') + ' · reduction (dB)');
   }
 
   /* Transfer curves: input level on x, output level on y, both −60..0 dB. */
@@ -578,43 +646,23 @@
     label(ctx, '↑ out', padL + 4, padT + 11, C.ink3);
   }
 
-  const gateCurveEl = document.getElementById('gate-curve');
-  const compCurveEl = document.getElementById('comp-curve');
-  const gateStateEl = document.getElementById('gate-state');
-  const gateReadEl = document.getElementById('gate-readout');
-  const compStateEl = document.getElementById('comp-state');
-  const compReadEl = document.getElementById('comp-readout');
-
-  function setBadge(el, text, kind) {
-    if (el.textContent !== text) el.textContent = text;
-    el.classList.toggle('active', kind === 'active');
-    el.classList.toggle('mid', kind === 'mid');
-  }
-
+  const curveEl = document.getElementById('pedal-curve');
+  const badgeEl = document.getElementById('pedal-state');
+  const readEl = document.getElementById('pedal-readout');
   function drawCurves() {
-    // Gate
-    const g = state.gate;
-    const gIn = peakDb(effectIn.gate || input);
-    const gGainDb = linToDb(gateGain[N - 1]);
-    drawCurve(gateCurveEl, (x) => (x >= g.threshold ? x : x + g.range), g.threshold, state.gateOn, C.gate,
-      [gIn, gIn + gGainDb], trails.gate);
-    if (!state.gateOn) setBadge(gateStateEl, 'Bypassed', '');
-    else {
-      const s = gate.state();
-      setBadge(gateStateEl, s, s === 'open' ? 'active' : s === 'closed' ? '' : 'mid');
-    }
-    gateReadEl.textContent = 'gain ' + (state.gateOn ? fmtDb(Math.max(-80, gGainDb)) : '0 dB');
-
-    // Compressor
-    const c = state.comp;
-    const cIn = peakDb(effectIn.comp || input);
-    const gr = compGR[N - 1];
-    const makeup = state.compOn ? c.makeup : 0;
-    drawCurve(compCurveEl, (x) => compCurve(x, c) + c.makeup, c.threshold, state.compOn, C.comp,
-      [cIn, cIn + gr + makeup], trails.comp);
-    if (!state.compOn) setBadge(compStateEl, 'Bypassed', '');
-    else setBadge(compStateEl, gr < -0.5 ? 'Compressing' : 'Idle', gr < -0.5 ? 'active' : '');
-    compReadEl.textContent = 'GR ' + fmt(gr, 1) + ' dB';
+    const pedal = selected();
+    if (!settings.open || !pedal || !['gate', 'comp'].includes(pedal.type)) return;
+    const entry = visualChain.instances.get(pedal.id);
+    if (!entry) return;
+    const p = pedal.params;
+    const level = peakDb(entry.input);
+    const isGate = pedal.type === 'gate';
+    const gr = isGate ? linToDb(entry.meter[N - 1]) : entry.meter[N - 1];
+    const makeup = !isGate && pedal.enabled ? p.makeup : 0;
+    drawCurve(curveEl, x => isGate ? (x >= p.threshold ? x : x + p.range) : compCurve(x, p) + p.makeup,
+      p.threshold, pedal.enabled, isGate ? C.gate : C.comp, [level, level + gr + makeup], trails[pedal.type]);
+    badgeEl.textContent = !pedal.enabled ? 'Bypassed' : isGate ? entry.processor.state() : gr < -0.5 ? 'Compressing' : 'Idle';
+    readEl.textContent = (isGate ? 'gain ' : 'GR ') + fmtDb(gr);
   }
 
   // Audio runs off the main thread. Its source samples also drive the scope.
@@ -623,7 +671,7 @@
   const listen = document.getElementById('listen');
   const audioStatus = document.getElementById('audio-status');
   function sendAudioState() {
-    audioNode?.port.postMessage({ type: 'settings', state, kind: source.kind,
+    audioNode?.port.postMessage({ type: 'settings', state: { playing: state.playing, speed: state.speed, chain: state.chain }, kind: source.kind,
       noiseDb: source.noiseDb, monitor, volume: Number(document.getElementById('volume').value) });
   }
   segmented('monitor', v => { monitor = v; sendAudioState(); });

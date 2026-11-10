@@ -13,13 +13,15 @@ Tonelab generates a test signal (guitar plucks, with an adjustable noise floor),
 
 Tap **Listen** to hear the synthesized source, then compare **Dry input** with **With effects**. Guitar uses a plucked-string model, rather than a recorded sample. Audio starts only after a user gesture and has a volume control. The internal 8 kHz signal is resampled for playback.
 
-Drag the effect handles to change the processing order on desktop or mobile. Arrow buttons and keyboard left/right arrows provide another way to reorder the chain.
+Use **Add effect** to build any combination, including repeated effects. Every pedal has its own settings, processor state, and on/off control. Tap a pedal to bypass it; **Edit** opens its settings sheet, where you can duplicate it, remove it, or move it earlier/later.
 
-The gate and compressor show their transfer curves (input level → output level) with a dot tracking the live signal. A lane under the waveform shows what the effect is doing over time: gate gain and compressor gain reduction.
+Drag the handles to change processing order on desktop or mobile, or use the arrow keys while a handle is focused. Compact pedals wrap onto additional rows as the board grows; position numbers show the processing order. Input and Output stay outside the dashed board. Removing every pedal gives a clean dry signal.
+
+The gate and compressor settings show transfer curves (input level → output level) with a dot tracking the signal. Scope meters and threshold lines follow the most recently inspected gate/compressor, or the first instance of each type. Their labels identify the pedal being measured.
 
 ## Run it
 
-It's a static site with no build step. Open `index.html` in a browser, or serve the folder:
+It's a static site with no build step. Serve the folder locally (audio requires localhost or HTTPS):
 
 ```sh
 python3 -m http.server 8000
@@ -34,3 +36,11 @@ python3 -m http.server 8000
 - `js/audio-worklet.js`: continuous audio rendering off the main thread
 
 The waveform uses a fixed decibel scale and normal playback speed.
+
+## DSP checks
+
+```sh
+node --test tests/dsp.test.cjs
+```
+
+Checks cover independent duplicate compressors, bypass and empty chains, processor cleanup, streamed audio continuity, and effect ordering.

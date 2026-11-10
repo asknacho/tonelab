@@ -307,5 +307,31 @@
     }
   }
 
-  Object.assign(TL, { SR, dbToLin, linToDb, Source, NoiseGate, Compressor, Overdrive, Delay, compCurve });
+  // One processor and buffer per pedal, even when types repeat.
+  class EffectChain {
+    constructor(size) { this.size = size; this.instances = new Map(); }
+    process(input, pedals, reset = true) {
+      const constructors = { gate: NoiseGate, comp: Compressor, drive: Overdrive, delay: Delay };
+      const alive = new Set(pedals.map(pedal => pedal.id));
+      for (const id of this.instances.keys()) if (!alive.has(id)) this.instances.delete(id);
+      let signal = input;
+      for (const pedal of pedals) {
+        let entry = this.instances.get(pedal.id);
+        if (!entry || entry.type !== pedal.type) {
+          const processor = new constructors[pedal.type]();
+          processor.reset?.();
+          entry = { type: pedal.type, processor, out: new Float32Array(this.size), meter: new Float32Array(this.size) };
+          this.instances.set(pedal.id, entry);
+        }
+        entry.input = signal;
+        if (pedal.enabled) {
+          entry.processor.process(signal, entry.out, entry.meter, pedal.params, this.size, reset);
+          signal = entry.out;
+        } else entry.meter.fill(pedal.type === 'gate' ? 1 : 0);
+      }
+      return signal;
+    }
+  }
+
+  Object.assign(TL, { SR, dbToLin, linToDb, Source, NoiseGate, Compressor, Overdrive, Delay, EffectChain, compCurve });
 })((globalThis.TL = globalThis.TL || {}));
