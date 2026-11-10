@@ -94,7 +94,14 @@ h1 {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 1px 2px rgba(60, 50, 30, 0.04);
 }
 
-.scope-panel { padding: 16px 18px 12px; }
+.scope-panel {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  padding: 16px 18px 12px;
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
+}
 
 .toolbar {
   display: flex;
