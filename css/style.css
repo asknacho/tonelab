@@ -233,3 +233,68 @@ canvas { display: block; width: 100%; }
 .undo-toast button:hover { background: #ffffff1a; }
 @keyframes toast-in { from { opacity: 0; translate: -50% 10px; } }
 @media (prefers-reduced-motion: reduce) { .undo-toast { animation: none; } }
+
+/* Playing pattern selector */
+.pattern-control select { background: var(--card); color: var(--ink); border: 1px solid var(--rule); border-radius: 5px; padding: 7px 9px; min-height: 36px; font-size: 13px; }
+
+/* "I want to sound like" */
+.tone-hero { max-width: 1180px; margin: 0 auto; padding: 0 24px 4px; }
+.hero-label { display: block; font: 600 30px/1.15 var(--serif); letter-spacing: -.01em; margin-bottom: 10px; }
+.select-wrap { position: relative; color: var(--ink); }
+.select-wrap select { appearance: none; -webkit-appearance: none; width: 100%; min-height: 48px; padding: 8px 40px 8px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--card); color: var(--ink); font: 500 14px/1.25 var(--sans); }
+.select-wrap svg { position: absolute; right: 12px; top: 50%; margin-top: -9px; pointer-events: none; }
+.hero-select select { min-height: 60px; border: 1.5px solid var(--ink); border-radius: 12px; font: 600 19px/1.2 var(--serif); padding-left: 16px; }
+.tone-summary { margin: 10px 0 0; color: var(--ink-2); font-size: 14px; max-width: 70ch; }
+
+/* A and B slots */
+.slots { max-width: 1180px; margin: 18px auto 0; padding: 0 24px; }
+.slot-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.slot { display: flex; gap: 8px; align-items: stretch; }
+.slot .select-wrap { flex: 1; min-width: 0; }
+.slot-key { flex: none; width: 48px; border: 1px solid var(--rule); border-radius: 8px; background: var(--card); color: var(--ink); font: 600 18px var(--serif); }
+.slot-key.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.slot:has(.slot-key.on) select { border-color: var(--ink); }
+.match { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+.match input { accent-color: var(--gate); }
+
+/* Step by step */
+.journey { max-width: 1180px; margin: 22px auto 28px; padding: 0 24px; }
+.journey > * { max-width: 760px; }
+.journey-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.journey-head h2 { margin: 0; font: 600 24px/1.2 var(--serif); }
+#journey-slot { font: 500 12px var(--mono); color: var(--ink-2); }
+.journey-play { margin: 6px 0 14px; color: var(--ink-2); font-size: 14px; }
+.journey-steps { list-style: none; margin: 0; padding: 0; }
+.journey-wave { display: flex; flex-direction: column; gap: 4px; }
+.journey-wave-label { font-size: 13px; color: var(--ink-2); }
+.journey-wave canvas { height: 60px; background: var(--card); border: 1px solid var(--rule); border-radius: 8px; }
+.journey-out .journey-wave-label { font-weight: 600; color: var(--ink); font-size: 15px; }
+.journey-out canvas { height: 110px; border: 1.5px solid var(--ink); }
+.journey-step { display: flex; gap: 12px; margin-left: 14px; padding: 12px 0 12px 16px; border-left: 2px solid var(--ghost); }
+.journey-step.differs { border-left-color: var(--accent); }
+.journey-art { flex: none; width: 34px; height: 62px; overflow: visible; --c: var(--accent); }
+.journey-step.off .journey-art { --c: var(--ghost); }
+.journey-name { border: 0; background: none; padding: 0; min-height: 28px; font: 600 15px var(--sans); color: var(--accent); text-align: left; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 35%, transparent); text-underline-offset: 3px; }
+.journey-step.off .journey-name { color: var(--ink-3); }
+.journey-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.journey-chips span { padding: 3px 7px; border-radius: 5px; background: var(--grid); font: 11px/1.3 var(--mono); }
+.journey-note { margin: 6px 0 0; font-size: 14px; color: var(--ink-2); line-height: 1.45; }
+.journey-diff { display: inline-block; margin: 6px 0 0; padding: 3px 8px; border-radius: 5px; border: 1px dashed var(--accent); font: 12px/1.4 var(--mono); color: var(--ink); }
+.journey-empty { margin-top: 10px; color: var(--ink-2); font-size: 14px; }
+.whatif-box { margin-top: 18px; padding: 14px 16px; background: var(--card); border: 1px solid var(--rule); border-radius: 10px; }
+.whatif-box h3 { margin: 0; font: 600 15px var(--sans); }
+#whatif-text { margin: 6px 0 12px; font-size: 14px; color: var(--ink-2); line-height: 1.45; }
+.whatif-hear { display: flex; gap: 8px; }
+.whatif-hear button { min-height: 44px; padding: 0 18px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--ink); font: 600 14px var(--sans); }
+.whatif-hear button.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.journey-tip { margin: 12px 0 0; font-size: 13px; color: var(--ink-2); }
+.journey-tip::before { content: 'Tip · '; font-weight: 600; color: var(--ink); }
+.board-slot { flex-basis: 100%; font: 500 12px var(--mono); color: var(--ink-2); }
+
+@media (max-width: 560px) {
+  .tone-hero, .slots, .journey { padding-inline: 16px; }
+  .hero-label { font-size: 26px; }
+  .hero-select select { font-size: 17px; }
+  .slot-row { grid-template-columns: minmax(0, 1fr); }
+  .journey-out canvas { height: 90px; }
+}

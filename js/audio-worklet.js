@@ -25,6 +25,7 @@ class TonelabAudio extends AudioWorkletProcessor {
       if (data.type !== 'settings') return;
       if (data.kind !== this.source.kind) this.source.setKind(data.kind);
       this.source.noiseDb = data.noiseDb;
+      if (typeof data.tempo === 'number') this.source.tempo = data.tempo;
       this.settings = data;
     };
   }

@@ -13,6 +13,7 @@
   const PRE = PRE_SECONDS * SR;
   const N = VIEW + PRE;
   const LEVEL_WINDOW = Math.round(0.03 * SR); // window for the "current level" dot
+  const JOURNEY_VIEW = Math.round(1.5 * SR);  // the step-by-step waveforms show the last 1.5 s
 
   const css = getComputedStyle(document.documentElement);
   const color = (name) => css.getPropertyValue(name).trim();
@@ -150,10 +151,13 @@
   }
   const state = { playing: true, speed: 1, scale: 'db', chain: ['gate', 'comp', 'drive', 'delay'].map(type => createPedal(type)), dirty: true };
   const clone = value => JSON.parse(JSON.stringify(value));
+  const PATTERNS = ['guitar', 'eighths'];
   const storageKey = 'tonelab-board-v1';
   let activeBank = 'A';
   let banks = { A: clone(state.chain), B: clone(state.chain) };
   let restoredNoise = -48;
+  let restoredSource = { kind: 'guitar', tempo: 126 };
+  let restoredSlots = null;
   let inspectId = '';
   const inspectByBank = { A: '', B: '' };
   let rebuildOrder = false;
@@ -184,6 +188,9 @@
     state.chain = clone(banks[activeBank]);
     restoredNoise = typeof data.noise === 'number' && Number.isFinite(data.noise) ? Math.max(-80, Math.min(-20, data.noise)) : -48;
     matchVolume = data.matchVolume !== false;
+    const kind = data.source?.kind, tempo = data.source?.tempo;
+    restoredSource = { kind: PATTERNS.includes(kind) ? kind : 'guitar', tempo: typeof tempo === 'number' && tempo >= 40 && tempo <= 240 ? tempo : 126 };
+    restoredSlots = data.slots && typeof data.slots === 'object' ? data.slots : null;
     for (const pedal of [...banks.A, ...banks.B]) {
       nextId = Math.max(nextId, Number(pedal.id.slice(6)));
       counts[pedal.type] = Math.max(counts[pedal.type], pedal.number);
@@ -204,7 +211,7 @@
   }
   function snapshot() {
     banks[activeBank] = clone(state.chain);
-    return { version: 1, active: activeBank, banks, noise: source.noiseDb, matchVolume };
+    return { version: 1, active: activeBank, banks, noise: source.noiseDb, matchVolume, source: { kind: source.kind, tempo: source.tempo }, slots };
   }
   function saveBoard() {
     clearTimeout(saveTimer);
@@ -268,6 +275,21 @@
 
   const source = new Source('guitar');
   source.noiseDb = restoredNoise;
+  source.setKind(restoredSource.kind);
+  source.tempo = restoredSource.tempo;
+
+  // What the synthesized guitar plays: free picking or steady eighth notes.
+  const patternSelect = document.getElementById('pattern');
+  function syncPattern() {
+    patternSelect.querySelector('[value="eighths"]').textContent = 'Steady eighths · ' + Math.round(source.tempo) + ' BPM';
+    patternSelect.value = source.kind;
+  }
+  patternSelect.onchange = () => {
+    source.setKind(patternSelect.value);
+    state.dirty = true;
+    saveBoard();
+  };
+  syncPattern();
 
   function segmented(id, onChange) {
     const el = document.getElementById(id);
@@ -297,14 +319,17 @@
   const library = document.getElementById('effect-library');
   const selected = () => state.chain.find(p => p.id === selectedId);
   function announce(text) { document.getElementById('order-status').textContent = text; }
-  function changed() { state.dirty = true; renderOrder(); saveBoard(); }
+  let onBoardChange = () => {};
+  function changed() { state.dirty = true; renderOrder(); onBoardChange(); saveBoard(); }
+  // A change you made by hand: the slot's sound is now "(edited)".
+  function edited() { markEdited(); changed(); }
   function moveEffect(id, to) {
     const from = state.chain.findIndex(p => p.id === id);
     to = Math.max(0, Math.min(state.chain.length - 1, to));
     if (from < 0 || from === to) return;
     const [pedal] = state.chain.splice(from, 1);
     state.chain.splice(to, 0, pedal);
-    changed();
+    edited();
     if (settings.open) syncMoveButtons();
     announce(pedalName(pedal) + ' moved to position ' + (to + 1));
   }
@@ -325,6 +350,7 @@
     buildParams(container, types[pedal.type].specs, pedal.params, () => {
       const art = orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-art');
       if (art) art.innerHTML = pedalArt(pedal);
+      markEdited();
     });
     document.getElementById('pedal-curve-wrap').hidden = !['gate', 'comp'].includes(pedal.type);
     document.getElementById('effect-explanation').textContent = types[pedal.type].explanation;
@@ -335,7 +361,7 @@
   function addPedal(type, params) {
     const pedal = createPedal(type, params);
     state.chain.push(pedal);
-    changed();
+    edited();
     announce(pedalName(pedal) + ' added at position ' + state.chain.length);
     return pedal;
   }
@@ -345,43 +371,47 @@
     const [pedal] = state.chain.splice(index, 1);
     selectedId = null;
     settings.close();
-    changed();
+    edited();
     document.getElementById('add-effect').focus({ preventScroll: true });
     announce(pedalName(pedal) + ' removed');
-    offerUndo(pedal, index);
+    const bank = activeBank;
+    offerUndo(pedalName(pedal) + ' removed', () => {
+      // Put it back on the board it came from, even if A/B was switched since.
+      if (activeBank !== bank) document.querySelector('#compare-bank [data-bank="' + bank + '"]').click();
+      state.chain.splice(Math.min(index, state.chain.length), 0, pedal);
+      edited();
+      announce(pedalName(pedal) + ' restored at position ' + (state.chain.indexOf(pedal) + 1));
+      orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-toggle')?.focus({ preventScroll: true });
+    });
   }
 
-  /* Undo bar: removing has no confirmation, so the last removal can be put
-   * back (same place, same settings) for a few seconds. */
+  /* Undo bar: removing a pedal or loading a recipe has no confirmation, so
+   * the last such change can be reversed for a few seconds. */
   const undoToast = document.getElementById('undo-toast');
-  let lastRemoved = null, undoTimer;
+  let undoAction = null, undoTimer;
   function hideUndo() {
     clearTimeout(undoTimer);
     undoToast.hidden = true;
-    lastRemoved = null;
+    undoAction = null;
   }
-  function offerUndo(pedal, index) {
-    lastRemoved = { pedal, index, bank: activeBank };
-    document.getElementById('undo-text').textContent = pedalName(pedal) + ' removed';
+  function offerUndo(text, restore) {
+    undoAction = restore;
+    document.getElementById('undo-text').textContent = text;
     undoToast.hidden = false;
     clearTimeout(undoTimer);
     undoTimer = setTimeout(hideUndo, 8000);
   }
-  function undoRemove() {
-    if (!lastRemoved || lastRemoved.bank !== activeBank) return hideUndo();
-    const { pedal, index } = lastRemoved;
+  function undo() {
+    const action = undoAction;
     hideUndo();
-    state.chain.splice(Math.min(index, state.chain.length), 0, pedal);
-    changed();
-    announce(pedalName(pedal) + ' restored at position ' + (state.chain.indexOf(pedal) + 1));
-    orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-toggle')?.focus({ preventScroll: true });
+    action?.();
   }
-  document.getElementById('undo-button').onclick = undoRemove;
+  document.getElementById('undo-button').onclick = undo;
   document.addEventListener('keydown', e => {
-    if (!lastRemoved || e.key.toLowerCase() !== 'z' || !(e.ctrlKey || e.metaKey) || e.shiftKey) return;
+    if (!undoAction || e.key.toLowerCase() !== 'z' || !(e.ctrlKey || e.metaKey) || e.shiftKey) return;
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
     e.preventDefault();
-    undoRemove();
+    undo();
   });
   document.getElementById('add-effect').onclick = () => library.showModal();
   for (const [type, info] of Object.entries(types)) {
@@ -461,10 +491,9 @@
     });
     document.getElementById('copy-bank').textContent = activeBank === 'A' ? 'Copy A to B' : 'Copy B to A';
   }
-  document.getElementById('compare-bank').onclick = e => {
-    const bank = e.target.closest('[data-bank]')?.dataset.bank;
+  document.getElementById('compare-bank').onclick = e => switchBank(e.target.closest('[data-bank]')?.dataset.bank);
+  function switchBank(bank) {
     if (!bank || bank === activeBank) return;
-    hideUndo();
     banks[activeBank] = clone(state.chain);
     activeBank = bank;
     state.chain = clone(banks[activeBank]);
@@ -474,14 +503,17 @@
     selectScopeHistory();
     changed();
     syncBanks();
-    announce('Configuration ' + activeBank + ' selected');
-  };
+    refreshSlots();
+    announce(activeBank + ' selected');
+  }
   document.getElementById('copy-bank').onclick = () => {
     const other = activeBank === 'A' ? 'B' : 'A';
-    banks[other] = clone(state.chain);
+    banks[other] = buildChain(specOf(state.chain));
+    slots[other] = { ...slots[activeBank] };
     state.dirty = true;
     saveBoard();
-    announce('Configuration ' + activeBank + ' copied to ' + other);
+    refreshSlots();
+    announce(activeBank + ' copied to ' + other);
   };
   document.getElementById('match-volume').checked = matchVolume;
   document.getElementById('match-volume').onchange = e => {
@@ -505,6 +537,418 @@
   };
   document.querySelector('#share-dialog .sheet-close').onclick = () => document.getElementById('share-dialog').close();
   syncBanks();
+
+  /* -------------------------------------------------------------- tones */
+
+  // Built-in sounds. Each pedal is [type, settings that differ from the
+  // pedal's defaults, what it does in this sound]. Each "what if" changes
+  // one thing; it loads into B so you can hear it against A.
+  const TONES = [
+    {
+      id: 'edge-streets', group: 'Songs', title: 'The Edge · Where the Streets Have No Name', short: 'The Edge',
+      summary: 'One echo, timed so every repeat lands between the notes you pick. Steady eighth notes turn into a shimmering wall of sound.',
+      source: { kind: 'eighths', tempo: 126, noise: -60 },
+      play: 'Pick steady eighth notes at 126 BPM, all at the same strength. The demo plays a simple pattern, not the song’s actual part.',
+      chain: [
+        ['comp', { threshold: -26, ratio: 3, attack: 10, release: 150, knee: 6, makeup: 4 }, 'Evens out your picking, so every note, and every echo, comes out at the same volume.'],
+        ['drive', { drive: 6, mix: 0.3 }, 'Just a little grit, like an amp turned up until it starts to break up.'],
+        ['delay', { time: 357, feedback: 0.3, mix: 0.45 }, 'The secret. 357 ms is ¾ of a beat at 126 BPM, so each echo lands exactly halfway between two notes you play. You pick eighth notes and hear sixteenths.'],
+      ],
+      tip: 'For any song, the dotted-eighth delay time is 45,000 ÷ BPM. At 120 BPM that’s 375 ms.',
+      whatIfs: [
+        { id: 'straight', label: 'Echo on the beat', note: 'The echo is set to a plain eighth note (238 ms), so each repeat lands right on top of your next note. Instead of filling the gaps, the echoes blur the notes together.',
+          chain: [['comp', { threshold: -26, ratio: 3, attack: 10, release: 150, knee: 6, makeup: 4 }], ['drive', { drive: 6, mix: 0.3 }], ['delay', { time: 238, feedback: 0.3, mix: 0.45 }]] },
+        { id: 'no-comp', label: 'No compressor', note: 'Without the compressor, loud and soft picks make loud and soft echoes, so the pattern sounds uneven.',
+          chain: [['drive', { drive: 6, mix: 0.3 }], ['delay', { time: 357, feedback: 0.3, mix: 0.45 }]] },
+        { id: 'no-delay', label: 'No delay', note: 'Without the delay it’s just a plain arpeggio. The delay is the whole trick.',
+          chain: [['comp', { threshold: -26, ratio: 3, attack: 10, release: 150, knee: 6, makeup: 4 }], ['drive', { drive: 6, mix: 0.3 }]] },
+      ],
+    },
+    {
+      id: 'hendrix-octave', group: 'Songs', title: 'Jimi Hendrix · octave fuzz', short: 'Hendrix',
+      summary: 'The ringing octave fuzz of his “Purple Haze” solo: a thick buzz with a bell-like note an octave above.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play single notes high up the neck. Octave effects get confused by chords.',
+      chain: [
+        ['octave', { dry: 0.7, sub: 0, up: 0.7 }, 'Adds a note one octave higher by folding the wave over on itself. It goes first, so it gets your clean signal to work with, and the fuzz after it makes the octave ring like a bell.'],
+        ['fuzz', { fuzz: 32, tone: 0.6, level: -8 }, 'Clips everything into a thick, square-edged buzz that sustains for ages.'],
+      ],
+      tip: 'Turn up “Octave down” on the octave pedal for a huge, growling version of the same sound.',
+      whatIfs: [
+        { id: 'fuzz-first', label: 'Fuzz before the octave', note: 'The fuzz turns your notes into square waves first. Folding a square wave over adds very little, so the octave gets much weaker. Order matters.',
+          chain: [['fuzz', { fuzz: 32, tone: 0.6, level: -8 }], ['octave', { dry: 0.7, sub: 0, up: 0.7 }]] },
+        { id: 'no-octave', label: 'No octave', note: 'Just the fuzz: thick, but without the ringing note on top.',
+          chain: [['fuzz', { fuzz: 32, tone: 0.6, level: -8 }]] },
+      ],
+    },
+    {
+      id: 'gilmour-lead', group: 'Songs', title: 'David Gilmour · singing lead', short: 'Gilmour',
+      summary: 'Smooth, long sustain with a soft echo behind it, in the spirit of his “Comfortably Numb” solo.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play slow single notes and let each one ring as long as it can.',
+      chain: [
+        ['comp', { threshold: -24, ratio: 3, attack: 20, release: 300, knee: 6, makeup: 4 }, 'Holds each note up as it fades, so long notes keep singing.'],
+        ['fuzz', { fuzz: 26, tone: 0.45, level: -8 }, 'Plenty of gain with the tone turned a little dark: smooth sustain instead of a harsh buzz.'],
+        ['delay', { time: 440, feedback: 0.35, mix: 0.3 }, 'A soft echo, low in the mix, that fills the space behind long notes.'],
+      ],
+      tip: 'Too harsh? Turn the fuzz’s tone down. Too muddy? Lower the delay mix.',
+      whatIfs: [
+        { id: 'bright', label: 'Brighter fuzz', note: 'With the tone turned all the way up, the same fuzz gets fizzy and harsh. The smoothness comes from the darker tone setting.',
+          chain: [['comp', { threshold: -24, ratio: 3, attack: 20, release: 300, knee: 6, makeup: 4 }], ['fuzz', { fuzz: 26, tone: 1, level: -8 }], ['delay', { time: 440, feedback: 0.35, mix: 0.3 }]] },
+        { id: 'no-delay', label: 'No delay', note: 'Without the echo the sound gets dry and close, and the gaps between notes feel empty.',
+          chain: [['comp', { threshold: -24, ratio: 3, attack: 20, release: 300, knee: 6, makeup: 4 }], ['fuzz', { fuzz: 26, tone: 0.45, level: -8 }]] },
+      ],
+    },
+    {
+      id: 'endless-echo', group: 'Techniques', title: 'Endless, clean echo', short: 'Clean echo',
+      summary: 'Long echoes that keep ringing, with no hiss building up between notes. It also answers a classic question: noise gate or compressor first?',
+      source: { kind: 'guitar', noise: -40 },
+      play: 'Play a few notes and let them ring. The demo guitar has a noisy pickup, so you can hear the hiss this sound has to deal with.',
+      chain: [
+        ['gate', { threshold: -32, attack: 1, hold: 60, release: 250, range: -80 }, 'Goes first. It mutes the hiss between notes before anything else can make it louder. Its threshold sits just above the hiss.'],
+        ['comp', { threshold: -30, ratio: 6, attack: 15, release: 400, knee: 6, makeup: 10 }, 'Keeps each note loud for longer as it fades, so every echo starts strong. It also turns everything up, hiss included.'],
+        ['delay', { time: 520, feedback: 0.62, mix: 0.4 }, 'Long echoes with lots of feedback, so they keep repeating. Whatever reaches this pedal gets repeated, hiss included.'],
+      ],
+      tip: 'Watch the gaps between notes: with the gate first they go flat and silent.',
+      whatIfs: [
+        { id: 'comp-first', label: 'Compressor before the gate', note: 'The compressor turns everything up, hiss included. Now the hiss is louder than the gate’s threshold, so the gate never closes and the delay repeats the hiss over and over.',
+          chain: [['comp', { threshold: -30, ratio: 6, attack: 15, release: 400, knee: 6, makeup: 10 }], ['gate', { threshold: -32, attack: 1, hold: 60, release: 250, range: -80 }], ['delay', { time: 520, feedback: 0.62, mix: 0.4 }]] },
+        { id: 'no-gate', label: 'No noise gate', note: 'Without the gate, the compressor lifts the hiss and the delay keeps repeating it. Listen to the gaps between notes.',
+          chain: [['comp', { threshold: -30, ratio: 6, attack: 15, release: 400, knee: 6, makeup: 10 }], ['delay', { time: 520, feedback: 0.62, mix: 0.4 }]] },
+      ],
+    },
+  ];
+  const toneById = id => TONES.find(tone => tone.id === id);
+
+  // What a pedal does, in a guitarist's words, when a sound has no note for it.
+  const ROLES = {
+    gate: 'Mutes the hiss and hum when you stop playing.',
+    comp: 'Evens out loud and soft picking, and helps notes ring longer.',
+    drive: 'Adds grit, like an amp turned up until it breaks up.',
+    fuzz: 'Clips the signal hard into a thick, buzzy sustain.',
+    octave: 'Adds a note an octave below or above what you play.',
+    harm: 'Adds harmony notes above or below what you play.',
+    delay: 'Repeats what you play, like an echo.',
+  };
+
+  // Your own sounds, kept on this device. A board you built is never lost:
+  // before a sound replaces it, it's kept as "My last board".
+  const myTonesKey = 'tonelab-my-tones-v1';
+  let myTones = [];
+  try {
+    myTones = (JSON.parse(localStorage.getItem(myTonesKey)) || []).filter(t => t && typeof t.id === 'string' && typeof t.name === 'string' && Array.isArray(t.spec));
+  } catch { myTones = []; }
+  function saveMyTones() { try { localStorage.setItem(myTonesKey, JSON.stringify(myTones)); } catch {} }
+  const specOf = chain => chain.map(p => [p.type, { ...p.params }, null, p.enabled]);
+  function rememberMyBoard(chain) {
+    if (!chain.length) return;
+    const entry = { id: 'my-last-board', name: 'My last board', spec: specOf(chain) };
+    myTones = [entry, ...myTones.filter(t => t.id !== entry.id)];
+    saveMyTones();
+  }
+
+  function buildChain(spec) {
+    const seen = {};
+    return validateChain(spec.filter(([type]) => types[type]).map(([type, params, , enabled]) => {
+      const number = (seen[type] = (seen[type] || 0) + 1);
+      counts[type] = Math.max(counts[type], number);
+      return { id: 'pedal-' + (++nextId), type, number, enabled: enabled !== false, params: { ...params } };
+    }));
+  }
+
+  // What each slot holds: a built-in sound, one of its what-ifs, one of your
+  // sounds, or a board you built yourself ("custom"). Edits mark it edited.
+  const validSlot = s => s && ((s.kind === 'tone' && toneById(s.tone)) || (s.kind === 'whatif' && toneById(s.tone)?.whatIfs.some(w => w.id === s.whatIf)) ||
+    (s.kind === 'mine' && myTones.some(t => t.id === s.mine)) || s.kind === 'custom');
+  let slots = { A: { kind: 'custom' }, B: { kind: 'custom' } };
+  for (const bank of ['A', 'B']) if (validSlot(restoredSlots?.[bank])) slots[bank] = { kind: restoredSlots[bank].kind, tone: restoredSlots[bank].tone, whatIf: restoredSlots[bank].whatIf, mine: restoredSlots[bank].mine, edited: !!restoredSlots[bank].edited };
+  const otherBank = bank => (bank === 'A' ? 'B' : 'A');
+  const toneOf = s => (s.kind === 'tone' || s.kind === 'whatif' ? toneById(s.tone) : null);
+  const whatIfOf = s => (s.kind === 'whatif' ? toneById(s.tone).whatIfs.find(w => w.id === s.whatIf) : null);
+  function slotLabel(s) {
+    let text = 'My board';
+    if (s.kind === 'tone') text = toneById(s.tone).title;
+    else if (s.kind === 'whatif') text = 'What if: ' + whatIfOf(s).label;
+    else if (s.kind === 'mine') text = myTones.find(t => t.id === s.mine)?.name || 'My sound';
+    return text + (s.edited && s.kind !== 'custom' ? ' (edited)' : '');
+  }
+  // The sound being explained: the one in A, or else the one in B.
+  const lessonTone = () => toneOf(slots.A) || toneOf(slots.B);
+  function markEdited() {
+    if (slots[activeBank].kind !== 'custom') slots[activeBank].edited = true;
+    refreshSlots();
+  }
+
+  // Replace both boards, their slot info and the guitar settings (used by undo).
+  function boardState() {
+    banks[activeBank] = clone(state.chain);
+    return { A: clone(banks.A), B: clone(banks.B), slots: clone(slots), active: activeBank, noiseDb: source.noiseDb, kind: source.kind, tempo: source.tempo };
+  }
+  function applyBoard(saved) {
+    banks = { A: clone(saved.A), B: clone(saved.B) };
+    slots = clone(saved.slots);
+    activeBank = saved.active;
+    state.chain = clone(banks[activeBank]);
+    rebuildOrder = true;
+    selectedId = null;
+    inspectId = inspectByBank.A = inspectByBank.B = '';
+    selectScopeHistory();
+    applySource({ noise: saved.noiseDb, kind: saved.kind, tempo: saved.tempo });
+    changed();
+    syncBanks();
+    refreshSlots();
+  }
+  function applySource({ noise: noiseDb, kind, tempo }) {
+    if (typeof noiseDb === 'number') {
+      source.noiseDb = noiseDb;
+      noise.value = noiseDb;
+      noiseOut.textContent = fmtDb(noiseDb);
+    }
+    if (tempo) source.tempo = tempo;
+    if (kind && source.kind !== kind) source.setKind(kind);
+    syncPattern();
+  }
+
+  // Put a sound into a slot. `value` comes from a picker: tone:<id>,
+  // whatif:<tone>:<id>, mine:<id> or same (copy the other slot).
+  function fillSlot(bank, value) {
+    banks[activeBank] = clone(state.chain);
+    const [kind, a, b] = value.split(':');
+    let chain, info, sound;
+    if (kind === 'tone') { const tone = toneById(a); chain = buildChain(tone.chain); info = { kind, tone: a }; sound = tone.source; }
+    else if (kind === 'whatif') { const tone = toneById(a); chain = buildChain(tone.whatIfs.find(w => w.id === b).chain); info = { kind, tone: a, whatIf: b }; sound = tone.source; }
+    else if (kind === 'mine') { chain = buildChain(myTones.find(t => t.id === a).spec); info = { kind, mine: a }; }
+    else if (kind === 'same') { const from = otherBank(bank); chain = buildChain(specOf(banks[from])); info = { ...slots[from] }; }
+    else return;
+    const old = slots[bank];
+    if ((old.kind === 'custom' || old.edited) && kind !== 'mine') rememberMyBoard(banks[bank]);
+    banks[bank] = chain;
+    slots[bank] = info;
+    inspectByBank[bank] = '';
+    if (bank === activeBank) {
+      state.chain = clone(chain);
+      rebuildOrder = true;
+      selectedId = null;
+      inspectId = '';
+    }
+    if (sound) applySource(sound);
+  }
+  function pickSound(bank, value, label) {
+    const before = boardState();
+    fillSlot(bank, value);
+    changed();
+    refreshSlots();
+    announce(label + ' loaded into ' + bank);
+    offerUndo(label + ' loaded into ' + bank, () => applyBoard(before));
+  }
+
+  /* Pickers: "I want to sound like" and one per slot. */
+  const heroSelect = document.getElementById('tone-pick');
+  const slotSelects = { A: document.getElementById('slot-A'), B: document.getElementById('slot-B') };
+  function group(label, entries) {
+    const g = document.createElement('optgroup');
+    g.label = label;
+    for (const [text, value] of entries) g.appendChild(new Option(text, value));
+    return g;
+  }
+  function refreshSlots() {
+    heroSelect.replaceChildren(new Option('Choose a sound…', ''));
+    for (const name of ['Songs', 'Techniques']) heroSelect.appendChild(group(name, TONES.filter(t => t.group === name).map(t => [t.title, 'tone:' + t.id])));
+    if (myTones.length) heroSelect.appendChild(group('My sounds', myTones.map(t => [t.name, 'mine:' + t.id])));
+    const shown = toneOf(slots.A);
+    heroSelect.value = shown ? 'tone:' + shown.id : slots.A.kind === 'mine' ? 'mine:' + slots.A.mine : '';
+    const lesson = lessonTone();
+    document.getElementById('tone-summary').textContent = lesson ? lesson.summary : 'Pick a famous sound to see how it’s built, pedal by pedal. Or build your own on the board below.';
+
+    for (const bank of ['A', 'B']) {
+      const select = slotSelects[bank];
+      const other = otherBank(bank);
+      select.replaceChildren(new Option(slotLabel(slots[bank]), 'current'));
+      const base = toneOf(slots[other]) || toneOf(slots[bank]);
+      if (base) select.appendChild(group('What if… (' + base.short + ')', base.whatIfs.map(w => [w.label, 'whatif:' + base.id + ':' + w.id]).concat([['The original ' + base.short + ' sound', 'tone:' + base.id]])));
+      select.appendChild(group('Copy', [['Same as ' + other, 'same']]));
+      for (const name of ['Songs', 'Techniques']) select.appendChild(group(name, TONES.filter(t => t.group === name).map(t => [t.title, 'tone:' + t.id])));
+      if (myTones.length) select.appendChild(group('My sounds', myTones.map(t => [t.name, 'mine:' + t.id])));
+      select.value = 'current';
+      select.setAttribute('aria-label', 'Sound in ' + bank);
+    }
+    document.getElementById('board-slot').textContent = 'Editing ' + activeBank + ': ' + slotLabel(slots[activeBank]);
+    renderJourney();
+  }
+  heroSelect.onchange = () => {
+    const value = heroSelect.value;
+    if (!value) return;
+    const before = boardState();
+    fillSlot('A', value);
+    const tone = value.startsWith('tone:') && toneById(value.slice(5));
+    if (tone?.whatIfs.length) fillSlot('B', 'whatif:' + tone.id + ':' + tone.whatIfs[0].id);
+    if (activeBank !== 'A') switchBank('A');
+    changed();
+    refreshSlots();
+    const label = tone ? tone.title : heroSelect.selectedOptions[0].textContent;
+    announce(label + ' loaded');
+    offerUndo(label + ' loaded', () => applyBoard(before));
+  };
+  for (const bank of ['A', 'B']) slotSelects[bank].onchange = () => {
+    const select = slotSelects[bank];
+    if (select.value === 'current') return;
+    pickSound(bank, select.value, select.selectedOptions[0].textContent);
+  };
+  document.getElementById('save-tone').onclick = () => {
+    const suggestion = slots[activeBank].kind === 'custom' ? 'My sound ' + (myTones.filter(t => t.id !== 'my-last-board').length + 1) : slotLabel(slots[activeBank]).replace(' (edited)', '') + ' (mine)';
+    const name = window.prompt('Name this sound', suggestion);
+    if (!name || !name.trim()) return;
+    const entry = { id: 'mine-' + Date.now().toString(36), name: name.trim().slice(0, 60), spec: specOf(state.chain) };
+    myTones = [entry, ...myTones];
+    saveMyTones();
+    slots[activeBank] = { kind: 'mine', mine: entry.id };
+    saveBoard();
+    refreshSlots();
+    announce('Saved as “' + entry.name + '” in My sounds');
+  };
+
+  /* Step by step: your guitar, then each pedal with what it does and the
+   * signal after it (drawn live from the same chain you hear). */
+  const journeyList = document.getElementById('journey-steps');
+  const pedalKey = (chain, pedal) => pedal.type + '#' + chain.filter(p => p.type === pedal.type).indexOf(pedal);
+  // What a pedal is doing here: the sound's own note when the pedal is set
+  // as in the original sound, the what-if's note when that's the change.
+  function noteFor(pedal, chain) {
+    if (!pedal.enabled) return 'Switched off: your signal passes straight through.';
+    const s = slots[activeBank];
+    const tone = toneOf(s);
+    if (!tone) return ROLES[pedal.type];
+    const key = pedalKey(chain, pedal);
+    const seen = {};
+    const toneKeys = tone.chain.map(([type]) => type + '#' + ((seen[type] = (seen[type] ?? -1) + 1)));
+    const i = toneKeys.indexOf(key);
+    if (i < 0) return ROLES[pedal.type];
+    const [type, params, note] = tone.chain[i];
+    // Same settings and same place (relative to the pedals both share)?
+    const chainKeys = chain.map(p => pedalKey(chain, p));
+    const shared = k => k.filter(x => chainKeys.includes(x) && toneKeys.includes(x));
+    const samePlace = shared(chainKeys).indexOf(key) === shared(toneKeys).indexOf(key);
+    const sameSettings = types[type].specs.every(spec => Math.abs((params[spec.key] ?? spec.value) - pedal.params[spec.key]) < 1e-6);
+    if (samePlace && sameSettings) return note;
+    // The pedal this what-if is about explains the change; others get their basic role.
+    const whatIf = whatIfOf(s);
+    const firstChanged = chain.find(p => p.enabled && p !== pedal && chainKeys.indexOf(pedalKey(chain, p)) < chainKeys.indexOf(key) && noteDiffers(p, chain, tone, toneKeys, chainKeys));
+    if (whatIf && !s.edited && !firstChanged) return whatIf.note;
+    return ROLES[pedal.type] + (sameSettings ? '' : ' (Set differently from the original sound.)');
+  }
+  function noteDiffers(pedal, chain, tone, toneKeys, chainKeys) {
+    const key = pedalKey(chain, pedal);
+    const i = toneKeys.indexOf(key);
+    if (i < 0) return true;
+    const shared = k => k.filter(x => chainKeys.includes(x) && toneKeys.includes(x));
+    const params = tone.chain[i][1];
+    return shared(chainKeys).indexOf(key) !== shared(toneKeys).indexOf(key) ||
+      !types[pedal.type].specs.every(spec => Math.abs((params[spec.key] ?? spec.value) - pedal.params[spec.key]) < 1e-6);
+  }
+  // How a pedal differs in the other slot: missing, other settings, other order.
+  function differences(chain, otherChain, other) {
+    const otherByKey = new Map(otherChain.map(p => [pedalKey(otherChain, p), p]));
+    const thisKeys = chain.map(p => pedalKey(chain, p));
+    const shared = thisKeys.filter(k => otherByKey.has(k));
+    const otherShared = otherChain.map(p => pedalKey(otherChain, p)).filter(k => shared.includes(k));
+    const result = new Map();
+    chain.forEach((pedal, i) => {
+      const key = thisKeys[i];
+      const twin = otherByKey.get(key);
+      if (!twin) { result.set(pedal.id, 'Not in ' + other); return; }
+      const parts = [];
+      if (twin.enabled !== pedal.enabled) parts.push(twin.enabled ? 'on' : 'switched off');
+      for (const spec of types[pedal.type].specs) {
+        if (Math.abs(twin.params[spec.key] - pedal.params[spec.key]) > 1e-6) parts.push(spec.label.toLowerCase() + ' ' + spec.format(twin.params[spec.key]));
+      }
+      if (shared.indexOf(key) !== otherShared.indexOf(key)) parts.push('in a different order');
+      if (parts.length) result.set(pedal.id, 'In ' + other + ': ' + parts.join(', '));
+    });
+    const missing = otherChain.filter(p => !thisKeys.includes(pedalKey(otherChain, p)));
+    return { byPedal: result, missing };
+  }
+  function renderJourney() {
+    const chain = state.chain;
+    const other = otherBank(activeBank);
+    const s = slots[activeBank];
+    const tone = toneOf(s);
+    const { byPedal, missing } = differences(chain, banks[other], other);
+    document.getElementById('journey-slot').textContent = activeBank + ' · ' + slotLabel(s);
+    document.getElementById('journey-play').textContent = (tone || lessonTone())?.play || 'Your guitar, before any pedals.';
+    const items = [];
+    const wave = (stage, label, big) => `<li class="journey-wave${big ? ' journey-out' : ''}"><span class="journey-wave-label">${label}</span><canvas data-stage="${stage}" aria-label="${label} waveform" role="img"></canvas></li>`;
+    items.push(wave('input', 'Your guitar', chain.length === 0));
+    chain.forEach((pedal, i) => {
+      const info = types[pedal.type];
+      const chips = info.specs.slice(0, 3).map(spec => `<span>${spec.label} ${spec.format(pedal.params[spec.key])}</span>`).join('');
+      const diff = byPedal.get(pedal.id);
+      items.push(`<li class="journey-step${pedal.enabled ? '' : ' off'}${diff ? ' differs' : ''}" data-type="${pedal.type}">` +
+        artSvg(pedal, 'journey-art') +
+        `<div><button class="journey-name" data-edit="${pedal.id}">${i + 1} · ${info.name}</button><div class="journey-chips">${chips}</div>` +
+        `<p class="journey-note"></p>${diff ? `<p class="journey-diff">${diff}</p>` : ''}</div></li>`);
+      items.push(wave(pedal.id, i === chain.length - 1 ? 'What you hear' : 'After the ' + info.name.toLowerCase(), i === chain.length - 1));
+    });
+    journeyList.innerHTML = items.join('');
+    // Notes are plain text: set them as text, not markup.
+    journeyList.querySelectorAll('.journey-step').forEach((li, i) => { li.querySelector('.journey-note').textContent = noteFor(chain[i], chain); });
+    journeyList.querySelectorAll('[data-edit]').forEach(button => {
+      button.onclick = () => openSettings(state.chain.find(p => p.id === button.dataset.edit));
+    });
+    if (!chain.length) journeyList.insertAdjacentHTML('beforeend', '<li class="journey-empty">No pedals yet: you hear your guitar just as it is. Pick a sound above or add pedals below.</li>');
+
+    // What B changes: the what-if's explanation, or a plain list of differences.
+    const box = document.getElementById('whatif-box');
+    const whatIfBank = ['B', 'A'].find(b => slots[b].kind === 'whatif' && toneOf(slots[otherBank(b)])?.id === slots[b].tone);
+    const title = document.getElementById('whatif-title');
+    const text = document.getElementById('whatif-text');
+    if (whatIfBank) {
+      title.textContent = 'What ' + whatIfBank + ' changes: ' + whatIfOf(slots[whatIfBank]).label.toLowerCase();
+      text.textContent = whatIfOf(slots[whatIfBank]).note;
+    } else if (byPedal.size || missing.length) {
+      title.textContent = 'How ' + other + ' is different';
+      text.textContent = [...[...byPedal.entries()].map(([id, d]) => pedalName(chain.find(p => p.id === id)) + ': ' + d.replace(/^In [AB]: /, '')),
+        ...missing.map(p => 'Only ' + other + ' has ' + types[p.type].name.toLowerCase())].join(' · ');
+    } else {
+      title.textContent = 'A and B are the same';
+      text.textContent = 'Pick a “What if…” for B to hear what one change does.';
+    }
+    document.getElementById('journey-tip').textContent = (tone || lessonTone())?.tip || '';
+    document.getElementById('journey-tip').hidden = !(tone || lessonTone())?.tip;
+    box.querySelectorAll('[data-hear]').forEach(button => button.classList.toggle('on', button.dataset.hear === activeBank));
+  }
+  document.querySelectorAll('#whatif-box [data-hear]').forEach(button => button.onclick = () => {
+    switchBank(button.dataset.hear);
+    if (!listening) listen.click();
+  });
+  function drawJourney() {
+    const box = journeyList.getBoundingClientRect();
+    if (box.bottom < 0 || box.top > innerHeight) return; // off screen
+    const chain = visualChains[activeBank];
+    for (const canvas of journeyList.querySelectorAll('canvas')) {
+      const id = canvas.dataset.stage;
+      let before = null, after = input;
+      if (id !== 'input') {
+        const entry = chain.instances.get(id);
+        const pedal = state.chain.find(p => p.id === id);
+        if (!entry || !pedal || !entry.input) continue;
+        before = entry.input;
+        after = pedal.enabled ? entry.out : entry.input;
+      }
+      const { ctx, w, h } = fit(canvas);
+      ctx.clearRect(0, 0, w, h);
+      const cols = Math.max(1, Math.min(220, Math.floor(w)));
+      const step = w / cols;
+      // Square-root scale: notes read as separate notes, while quiet echo
+      // tails and hiss still show.
+      const y = v => h / 2 - Math.sign(v) * Math.sqrt(Math.abs(v)) * (h / 2) * 0.9;
+      // The last 1.5 s, zoomed in so single notes and echoes are visible.
+      const from = N - JOURNEY_VIEW, length = JOURNEY_VIEW - ENV_HALF;
+      if (before) fillWave(ctx, columns(before, cols, from, length), cols, step, y, C.ghost);
+      fillWave(ctx, columns(after, cols, from, length), cols, step, y, C.ink);
+    }
+  }
+  onBoardChange = renderJourney;
+  refreshSlots();
 
   function reserveBoardHeight() {
     const card = orderList.firstElementChild;
@@ -533,7 +977,7 @@
         item.querySelector('.pedal-edit').onclick = () => openSettings(pedal);
         item.querySelector('.pedal-toggle').onclick = () => {
           pedal.enabled = !pedal.enabled;
-          changed();
+          edited();
           announce(pedalName(pedal) + (pedal.enabled ? ' enabled' : ' bypassed'));
         };
         const handle = item.querySelector('.drag-handle');
@@ -828,13 +1272,13 @@
   // the real min/max; the decibel view shows the peak level, mirrored, over a
   // short window so it reads as a level envelope instead of individual cycles.
   const ENV_HALF = Math.round(0.008 * SR);
-  function columns(buf, cols) {
+  function columns(buf, cols, from = PRE, length = VIEW) {
     const top = new Float32Array(cols);
     const bot = new Float32Array(cols);
     const env = state.scale === 'db';
     for (let c = 0; c < cols; c++) {
-      let s0 = PRE + Math.floor((c * VIEW) / cols);
-      let s1 = Math.max(s0 + 1, PRE + Math.floor(((c + 1) * VIEW) / cols));
+      let s0 = from + Math.floor((c * length) / cols);
+      let s1 = Math.max(s0 + 1, from + Math.floor(((c + 1) * length) / cols));
       if (env) {
         s0 = Math.max(0, s0 - ENV_HALF);
         s1 = Math.min(N, s1 + ENV_HALF);
@@ -1108,7 +1552,7 @@
   const audioStatus = document.getElementById('audio-status');
   function sendAudioState() {
     banks[activeBank] = clone(state.chain);
-    audioNode?.port.postMessage({ type: 'settings', state: { playing: state.playing, speed: state.speed, chain: state.chain }, kind: source.kind,
+    audioNode?.port.postMessage({ type: 'settings', state: { playing: state.playing, speed: state.speed, chain: state.chain }, kind: source.kind, tempo: source.tempo,
       noiseDb: source.noiseDb, banks, activeBank, inspectId, inspectByBank, matchVolume, monitor, volume: Number(document.getElementById('volume').value) });
   }
   segmented('monitor', v => { monitor = v; sendAudioState(); });
@@ -1188,6 +1632,7 @@
       state.dirty = false;
     }
     drawScope();
+    drawJourney();
     drawLanes();
     drawCurves();
     requestAnimationFrame(frame);
