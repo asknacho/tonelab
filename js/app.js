@@ -36,195 +36,26 @@
   const fmtMs = (v) => (v < 10 ? fmt(v, 1) : fmt(v, 0)) + ' ms';
   const fmtDb = (v) => (v <= -79.5 ? '−∞' : fmt(v, 0)) + ' dB';
 
-  /* ------------------------------------------------------------- params */
-
-  const GATE_PARAMS = [
-    { key: 'threshold', label: 'Threshold', min: -70, max: 0, step: 1, value: -36, format: fmtDb,
-      hint: 'Level the input has to reach to open the gate.' },
-    { key: 'attack', label: 'Attack', min: 0.1, max: 50, value: 1, log: true, format: fmtMs,
-      hint: 'How quickly it opens.' },
-    { key: 'hold', label: 'Hold', min: 0, max: 500, step: 1, value: 40, format: fmtMs,
-      hint: 'How long it stays open after the level drops.' },
-    { key: 'release', label: 'Release', min: 5, max: 1500, value: 120, log: true, format: fmtMs,
-      hint: 'How slowly it closes.' },
-    { key: 'range', label: 'Range', min: -80, max: 0, step: 1, value: -80, format: fmtDb,
-      hint: 'How much quieter the signal gets when closed.' },
-  ];
-
-  const COMP_PARAMS = [
-    { key: 'threshold', label: 'Threshold', min: -60, max: 0, step: 1, value: -22, format: fmtDb,
-      hint: 'Level above which it starts turning down.' },
-    { key: 'ratio', label: 'Ratio', min: 1, max: 20, value: 4, log: true, format: (v) => fmt(v, 1) + ':1',
-      hint: 'How hard it turns down above the threshold.' },
-    { key: 'attack', label: 'Attack', min: 0.1, max: 200, value: 8, log: true, format: fmtMs,
-      hint: 'How quickly it clamps down on a peak.' },
-    { key: 'release', label: 'Release', min: 10, max: 1500, value: 180, log: true, format: fmtMs,
-      hint: 'How quickly it lets go afterwards.' },
-    { key: 'knee', label: 'Knee', min: 0, max: 24, step: 1, value: 6, format: (v) => fmt(v, 0) + ' dB',
-      hint: 'Width of the soft transition around the threshold.' },
-    { key: 'makeup', label: 'Makeup', min: 0, max: 24, step: 0.5, value: 0, format: (v) => '+' + fmt(v, 1) + ' dB',
-      hint: 'Gain added after compression.' },
-  ];
-
-  const DRIVE_PARAMS = [
-    { key: 'drive', label: 'Drive', min: 0, max: 30, step: 0.5, value: 8, format: fmtDb, hint: 'Gain pushed into soft clipping.' },
-    { key: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, value: 0.4, format: v => Math.round(v * 100) + '%', hint: 'Blend the distorted sound with the incoming signal.' },
-  ];
-  const DELAY_PARAMS = [
-    { key: 'time', label: 'Time', min: 60, max: 700, step: 1, value: 300, format: fmtMs, hint: 'Time between repeats.' },
-    { key: 'feedback', label: 'Feedback', min: 0, max: 0.75, step: 0.01, value: 0.35, format: v => Math.round(v * 100) + '%', hint: 'How much of each echo feeds the next.' },
-    { key: 'mix', label: 'Mix', min: 0, max: 0.8, step: 0.01, value: 0.3, format: v => Math.round(v * 100) + '%', hint: 'Balance between the signal and its echoes.' },
-    { key: 'character', label: 'Character', min: 0, max: 1, step: 0.01, value: 0, format: v => v < 0.03 ? 'Clean (digital)' : v > 0.97 ? 'Dark (analog)' : Math.round(v * 100) + '% darker',
-      hint: 'Clean, exact repeats (digital) to darker, grittier repeats that fade like an analog delay.' },
-  ];
-  const pct = v => Math.round(v * 100) + '%';
-  const FUZZ_PARAMS = [
-    { key: 'fuzz', label: 'Fuzz', min: 0, max: 45, step: 0.5, value: 30, format: fmtDb, hint: 'Gain into the clipper. Turn it up and the wave becomes a square.' },
-    { key: 'tone', label: 'Tone', min: 0, max: 1, step: 0.01, value: 0.5, format: pct, hint: 'Dark to bright: a filter that tames the fizz.' },
-    { key: 'level', label: 'Level', min: -30, max: 0, step: 0.5, value: -8, format: fmtDb, hint: 'Output volume.' },
-  ];
-  const OCTAVE_PARAMS = [
-    { key: 'dry', label: 'Dry', min: 0, max: 1, step: 0.01, value: 0.7, format: pct, hint: 'Your original note.' },
-    { key: 'sub', label: 'Octave down', min: 0, max: 1, step: 0.01, value: 0.6, format: pct, hint: 'A switch flips once per cycle, making a square wave at half the frequency.' },
-    { key: 'up', label: 'Octave up', min: 0, max: 1, step: 0.01, value: 0.3, format: pct, hint: 'Folding the bottom half of the wave up doubles its frequency.' },
-  ];
-  const INTERVALS = ['unison', 'minor 2nd', 'major 2nd', 'minor 3rd', 'major 3rd', '4th', 'tritone', '5th', 'minor 6th', 'major 6th', 'minor 7th', 'major 7th', 'octave'];
-  const fmtInterval = v => v === 0 ? 'Unison' : (v > 0 ? '+' : '−') + Math.abs(v) + ' · ' + INTERVALS[Math.abs(v)] + (v > 0 ? ' up' : ' down');
-  const HARM_PARAMS = [
-    { key: 'voice1', label: 'Voice 1', min: -12, max: 12, step: 1, value: 4, format: fmtInterval, hint: 'Interval of the first harmony, in semitones.' },
-    { key: 'voice2', label: 'Voice 2', min: -12, max: 12, step: 1, value: 7, format: v => v === 0 ? 'Off' : fmtInterval(v), hint: 'Add a second voice to make a chord. Set it to 0 to turn it off.' },
-    { key: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, value: 0.5, format: pct, hint: 'Balance between your note and the harmony.' },
-    { key: 'window', label: 'Window', min: 20, max: 120, step: 1, value: 50, format: fmtMs, hint: 'How much audio each voice replays. Short windows warble on low notes; long ones smear fast playing.' },
-  ];
-  const fmtSigned = v => (v > 0 ? '+' : '') + fmt(v, 1) + ' dB';
-  const fmtHz = v => (v >= 1000 ? fmt(v / 1000, 1) + ' kHz' : v >= 10 ? fmt(v, 0) + ' Hz' : fmt(v, 1) + ' Hz');
-  const BOOST_PARAMS = [
-    { key: 'boost', label: 'Boost', min: 0, max: 20, step: 0.5, value: 10, format: v => '+' + fmt(v, 1) + ' dB', hint: 'Clean extra volume. Before a drive it means more distortion; after it, just louder.' },
-  ];
-  const DIST_PARAMS = [
-    { key: 'gain', label: 'Distortion', min: 0, max: 45, step: 0.5, value: 30, format: fmtDb, hint: 'How hard the signal hits the clipper. More gain, flatter tops.' },
-    { key: 'tone', label: 'Tone', min: 0, max: 1, step: 0.01, value: 0.5, format: v => Math.round(v * 100) + '%', hint: 'Dark to bright.' },
-    { key: 'level', label: 'Level', min: -30, max: 0, step: 0.5, value: -10, format: fmtDb, hint: 'Output volume.' },
-  ];
-  const EQ_PARAMS = [
-    { key: 'bass', label: 'Bass', min: -12, max: 12, step: 0.5, value: 0, format: fmtSigned, hint: 'Lows: body and thump.' },
-    { key: 'mid', label: 'Mids', min: -12, max: 12, step: 0.5, value: 0, format: fmtSigned, hint: 'The middle: what makes a guitar cut through a band.' },
-    { key: 'midFreq', label: 'Mid point', min: 250, max: 3000, value: 800, log: true, format: fmtHz, hint: 'Which part of the middle the Mids knob changes.' },
-    { key: 'treble', label: 'Treble', min: -12, max: 12, step: 0.5, value: 0, format: fmtSigned, hint: 'Highs: sparkle and bite.' },
-    { key: 'level', label: 'Level', min: -12, max: 12, step: 0.5, value: 0, format: fmtSigned, hint: 'Overall volume.' },
-  ];
-  const WAH_MODES = ['Held still', 'Follows your picking', 'Rocks by itself'];
-  const WAH_PARAMS = [
-    { key: 'mode', label: 'Mode', min: 0, max: 2, step: 1, value: 1, format: v => WAH_MODES[Math.round(v)],
-      hint: 'Held still: a parked (“cocked”) wah. Follows your picking: harder picks open it (an envelope filter, or auto-wah). Rocks by itself: an automatic sweep.' },
-    { key: 'position', label: 'Pedal position', min: 0, max: 1, step: 0.01, value: 0.5, format: v => (v < 0.34 ? 'Heel (dark)' : v > 0.66 ? 'Toe (bright)' : 'Middle') + ' · ' + Math.round(v * 100) + '%', hint: 'Where the pedal is held (Held still mode).' },
-    { key: 'sensitivity', label: 'Sensitivity', min: 0, max: 30, step: 1, value: 14, format: v => '+' + fmt(v, 0) + ' dB', hint: 'How far your picking opens it (Follows your picking mode).' },
-    { key: 'speed', label: 'Speed', min: 0.2, max: 6, value: 1.5, log: true, format: fmtHz, hint: 'How fast it rocks (Rocks by itself mode).' },
-    { key: 'resonance', label: 'Resonance', min: 2, max: 10, step: 0.1, value: 5, format: v => fmt(v, 1), hint: 'How sharp and vocal the peak is.' },
-  ];
-  const CHORUS_PARAMS = [
-    { key: 'rate', label: 'Speed', min: 0.1, max: 5, value: 0.8, log: true, format: fmtHz, hint: 'How fast the copy wobbles.' },
-    { key: 'depth', label: 'Depth', min: 0, max: 1, step: 0.01, value: 0.5, format: v => Math.round(v * 100) + '%', hint: 'How far its pitch wobbles.' },
-    { key: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, value: 0.6, format: v => Math.round(v * 100) + '%', hint: 'How much of the wobbling copy you hear.' },
-  ];
-  const PHASER_PARAMS = [
-    { key: 'rate', label: 'Speed', min: 0.1, max: 6, value: 0.5, log: true, format: fmtHz, hint: 'How fast it sweeps.' },
-    { key: 'depth', label: 'Depth', min: 0, max: 1, step: 0.01, value: 0.7, format: v => Math.round(v * 100) + '%', hint: 'How wide the sweep goes.' },
-    { key: 'feedback', label: 'Intensity', min: 0, max: 0.9, step: 0.01, value: 0.4, format: v => Math.round(v * 100) + '%', hint: 'A sharper, more dramatic swoosh.' },
-  ];
-  const TREM_PARAMS = [
-    { key: 'rate', label: 'Speed', min: 1, max: 12, step: 0.1, value: 5, format: fmtHz, hint: 'Pulses per second.' },
-    { key: 'depth', label: 'Depth', min: 0, max: 1, step: 0.01, value: 0.6, format: v => Math.round(v * 100) + '%', hint: 'How far the volume dips.' },
-    { key: 'shape', label: 'Shape', min: 0, max: 1, step: 0.01, value: 0.2, format: v => (v < 0.34 ? 'Smooth' : v > 0.66 ? 'Choppy' : 'In between') + ' · ' + Math.round(v * 100) + '%', hint: 'Smooth waves to hard, choppy on-off pulses.' },
-  ];
-  const SWELL_PARAMS = [
-    { key: 'rise', label: 'Fade-in time', min: 50, max: 2000, value: 350, log: true, format: fmtMs, hint: 'How long each note takes to fade in.' },
-    { key: 'sensitivity', label: 'Sensitivity', min: -60, max: -10, step: 1, value: -40, format: fmtDb, hint: 'How hard you need to pick to start a new swell.' },
-  ];
-  const REVERB_PARAMS = [
-    { key: 'decay', label: 'Decay', min: 0, max: 1, step: 0.01, value: 0.6, format: v => Math.round(v * 100) + '%', hint: 'How long the room rings.' },
-    { key: 'tone', label: 'Tone', min: 0, max: 1, step: 0.01, value: 0.5, format: v => Math.round(v * 100) + '%', hint: 'Dark to bright reflections.' },
-    { key: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, value: 0.35, format: v => Math.round(v * 100) + '%', hint: 'How much reverb you hear.' },
-  ];
-  // `model` names the classic pedal whose outline each card borrows. The
-  // order here is the order in the "Add an effect" list.
-  const types = {
-    gate: { name: 'Noise gate', short: 'Gate', model: 'ISP Decimator', specs: GATE_PARAMS, explanation: 'Silences the quiet parts. Attack opens the gate; hold and release preserve the tails. Try a gate after delay to cut off the echoes.' },
-    comp: { name: 'Compressor', short: 'Comp', model: 'MXR Dyna Comp', specs: COMP_PARAMS, explanation: 'Controls peaks above the threshold. Two compressors can share the work: use the first for gentle leveling and the second to catch the remaining peaks.' },
-    boost: { name: 'Boost', short: 'Boost', model: 'Xotic EP Booster', specs: BOOST_PARAMS, explanation: 'Clean extra volume. In front of an overdrive it pushes it harder for more crunch; at the end of the board it just makes everything louder.' },
-    drive: { name: 'Overdrive', short: 'Drive', model: 'Ibanez Tube Screamer', specs: DRIVE_PARAMS, explanation: 'Adds harmonics by rounding off peaks. Try compression before drive for a more even distortion, or after it to tame the result.' },
-    dist: { name: 'Distortion', short: 'Dist', model: 'ProCo RAT', specs: DIST_PARAMS, explanation: 'Clips the wave hard, so its tops go flat: heavier and more even than overdrive. Overdrive rounds the peaks, distortion flattens them, fuzz squares the whole wave off.' },
-    fuzz: { name: 'Fuzz', short: 'Fuzz', model: 'Dallas Arbiter Fuzz Face', specs: FUZZ_PARAMS, explanation: 'Clips so hard the wave turns almost square, and the two halves clip unevenly for a sputtery edge. Compare it with overdrive, which only rounds the peaks.' },
-    eq: { name: 'EQ', short: 'EQ', model: 'Boss GE-7', specs: EQ_PARAMS, explanation: 'Turns bass, mids and treble up or down. Switch the view to Tone to see exactly what it changes.' },
-    wah: { name: 'Wah', short: 'Wah', model: 'Dunlop Cry Baby', specs: WAH_PARAMS, explanation: 'A peak in the sound that moves from dark (heel) to bright (toe), like a voice saying “wah”. It can be held still, follow your picking (an auto-wah), or rock by itself.' },
-    octave: { name: 'Octave', short: 'Octave', model: 'Electro-Harmonix POG', specs: OCTAVE_PARAMS, explanation: 'Adds notes an octave below and above. It tracks single notes best; chords confuse it, much like an analog octave pedal. Watch the octave down turn the wave into wide square steps.' },
-    harm: { name: 'Harmonizer', short: 'Harmony', model: 'DigiTech Whammy', specs: HARM_PARAMS, explanation: 'Adds pitch-shifted copies of your playing to build harmonies. Each voice replays the last few milliseconds faster (higher) or slower (lower). Put it before drive for a thicker sound, or after for clearer voices.' },
-    chorus: { name: 'Chorus', short: 'Chorus', model: 'Electro-Harmonix Small Clone', specs: CHORUS_PARAMS, explanation: 'Blends in a copy of your playing whose pitch wobbles slightly, like two guitars playing together. Subtle settings shimmer; extreme ones warble.' },
-    phaser: { name: 'Phaser', short: 'Phaser', model: 'MXR Phase 90', specs: PHASER_PARAMS, explanation: 'Cuts moving notches into the sound for a swirling “whoosh”. In the Tone view you can see the dips slide back and forth.' },
-    trem: { name: 'Tremolo', short: 'Trem', model: 'Boss TR-2', specs: TREM_PARAMS, explanation: 'Turns the volume up and down in a steady pulse. Watch the waveform throb.' },
-    swell: { name: 'Volume swell', short: 'Swell', model: 'Ernie Ball volume pedal', specs: SWELL_PARAMS, explanation: 'Fades every new note in, as if you rolled a volume pedal up after each pick. It hides the pick attack for soft, violin-like notes.' },
-    delay: { name: 'Delay', short: 'Delay', model: 'Boss DD-3', specs: DELAY_PARAMS, explanation: 'Time sets the spacing of echoes; feedback controls their decay. Character goes from clean digital repeats to darker analog-style ones.' },
-    reverb: { name: 'Reverb', short: 'Reverb', model: 'Electro-Harmonix Holy Grail', specs: REVERB_PARAMS, explanation: 'The sound of a room: thousands of tiny reflections that ring on after each note. Decay sets how big the room sounds.' },
-  };
+  /* ------------------------------------------------------------- pedals */
+  // Every effect's controls, its classic pedal models and their outlines
+  // live in pedals.js.
+  const P = TL.Pedals;
+  const { types, modelOf, kindName, shortName, controlsFor, pedalArt, artSvg, ART_W } = P;
   let nextId = 0;
   const counts = Object.fromEntries(Object.keys(types).map(type => [type, 0]));
+  function createPedal(type, params, model) {
+    model = types[type].models.some(m => m.id === model) ? model : types[type].models[0].id;
+    return { id: 'pedal-' + (++nextId), type, model, advanced: false, number: ++counts[type], enabled: true,
+      params: params ? { ...params } : P.modelDefaults(type, model) };
+  }
+  // A control's current value, as the pedal shows it.
+  function controlValue(pedal, c) {
+    const v = pedal.params[c.key];
+    if (c.options) return c.options.reduce((a, b) => (Math.abs(b[0] - v) < Math.abs(a[0] - v) ? b : a))[1];
+    if (c.invert && c.spec.min === 0 && c.spec.max === 1) return P.pct(1 - v);
+    return c.spec.format(v);
+  }
 
-  /* Pedal outlines, drawn in a 76 × 140 box. Knobs and faders point at the
-   * pedal's real settings. `inset` and `jack` place the cable connections. */
-  const ART_W = 76, ART_H = 140;
-  function level(pedal, key) {
-    const spec = types[pedal.type].specs.find(s => s.key === key);
-    const v = pedal.params[key];
-    const t = spec.log ? Math.log(v / spec.min) / Math.log(spec.max / spec.min) : (v - spec.min) / (spec.max - spec.min);
-    return Math.max(0, Math.min(1, t));
-  }
-  function knob(cx, cy, r, t) {
-    const a = (-135 + 270 * t) * Math.PI / 180;
-    const x = (cx + Math.sin(a) * (r - 1.6)).toFixed(1), y = (cy - Math.cos(a) * (r - 1.6)).toFixed(1);
-    return `<circle class="art-knob" cx="${cx}" cy="${cy}" r="${r}"/><line class="art-pointer" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}"/>`;
-  }
-  const stomp = (cx, cy, r = 6.5) => `<circle class="art-line" cx="${cx}" cy="${cy}" r="${r + 3.5}"/><circle class="art-switch" cx="${cx}" cy="${cy}" r="${r}"/>`;
-  const ridges = (ys, x1, x2) => ys.map(y => `<line class="art-line" x1="${x1}" y1="${y}" x2="${x2}" y2="${y}"/>`).join('');
-  const led = (cx, cy) => `<circle class="art-led-glow" cx="${cx}" cy="${cy}" r="4.5"/><circle class="art-led" cx="${cx}" cy="${cy}" r="2.3"/>`;
-  const ART = {
-    gate: { inset: 9, jack: 66, led: [58, 36], draw: p => `<rect class="art-body" x="9" y="1" width="58" height="138" rx="5"/>${knob(38, 36, 9, level(p, 'threshold'))}${stomp(38, 98)}` },
-    comp: { inset: 9, jack: 66, led: [38, 26], draw: p => `<rect class="art-body" x="9" y="1" width="58" height="138" rx="3"/>` +
-      [[14, 6], [62, 6], [14, 134], [62, 134]].map(([x, y]) => `<circle class="art-line" cx="${x}" cy="${y}" r="1.4"/>`).join('') +
-      knob(25, 36, 7, level(p, 'makeup')) + knob(51, 36, 7, level(p, 'ratio')) + stomp(38, 98) },
-    drive: { inset: 3, jack: 66, led: [38, 19], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="8"/>${knob(19, 36, 7, level(p, 'drive'))}${knob(38, 31, 4.5, 0.5)}${knob(57, 36, 7, level(p, 'mix'))}<rect class="art-switch" x="10" y="82" width="56" height="52" rx="3"/>` },
-    fuzz: { inset: 1.5, jack: 66, led: [38, 47], draw: p => `<circle class="art-body" cx="38" cy="70" r="36.5"/>${knob(26, 46, 6, level(p, 'fuzz'))}${knob(50, 46, 6, level(p, 'level'))}${stomp(38, 95, 5)}` },
-    octave: { inset: 3, jack: 66, led: [64, 36], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="4"/>` +
-      ['dry', 'sub', 'up'].map((key, i) => {
-        const x = 22 + i * 16, y = 44 - level(p, key) * 16;
-        return `<line class="art-line" x1="${x}" y1="25" x2="${x}" y2="46"/><rect class="art-knob" x="${x - 4.5}" y="${y - 2.5}" width="9" height="5" rx="1"/>`;
-      }).join('') + stomp(38, 98) },
-    harm: { inset: 1, jack: 66, led: [45, 33], draw: p => `<rect class="art-body" x="1" y="1" width="74" height="138" rx="10"/>${knob(22, 33, 8, level(p, 'voice1'))}<rect class="art-line" x="38" y="27" width="28" height="12" rx="2"/><rect class="art-switch" x="7" y="50" width="62" height="84" rx="7"/>${ridges([88, 94, 100, 106, 112], 15, 61)}` },
-    delay: { inset: 3, jack: 66, led: [38, 19], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="4"/>${knob(14, 36, 5.5, level(p, 'mix'))}${knob(30, 36, 5.5, level(p, 'feedback'))}${knob(46, 36, 5.5, level(p, 'time'))}${knob(62, 36, 5.5, level(p, 'character'))}<path class="art-switch" d="M10 80 H66 L70 86 V134 Q70 137 67 137 H9 Q6 137 6 134 V86 Z"/>${ridges([93, 98, 103, 108], 16, 60)}` },
-    boost: { inset: 14, jack: 66, led: [54, 33], draw: p => `<rect class="art-body" x="14" y="24" width="48" height="115" rx="4"/>${knob(32, 36, 7, level(p, 'boost'))}${stomp(38, 108, 5)}` },
-    dist: { inset: 3, jack: 66, led: [62, 86], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="3"/><line class="art-line" x1="3" y1="46" x2="73" y2="46"/>${knob(19, 32, 7, level(p, 'gain'))}${knob(38, 32, 7, level(p, 'tone'))}${knob(57, 32, 7, level(p, 'level'))}${stomp(38, 100)}` },
-    eq: { inset: 3, jack: 66, led: [38, 14], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="4"/>` +
-      [100, 200, 400, 800, 1600, 3200, 6400].map((f, i) => {
-        const x = (12 + i * 8.67).toFixed(1), y = (35 - Math.max(-12, Math.min(12, TL.eqResponse(p.params, f))) / 12 * 9).toFixed(1);
-        return `<line class="art-line" x1="${x}" y1="24" x2="${x}" y2="46"/><rect class="art-knob" x="${x - 3}" y="${y - 2}" width="6" height="4" rx="1"/>`;
-      }).join('') + `<path class="art-switch" d="M10 80 H66 L70 86 V134 Q70 137 67 137 H9 Q6 137 6 134 V86 Z"/>${ridges([93, 98, 103, 108], 16, 60)}` },
-    wah: { inset: 3, jack: 66, led: [38, 14], draw: () => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="12"/><rect class="art-switch" x="9" y="24" width="58" height="108" rx="8"/>${ridges([86, 92, 98, 104, 110, 116], 17, 59)}` },
-    chorus: { inset: 6, jack: 66, led: [60, 86], draw: p => `<rect class="art-body" x="6" y="1" width="64" height="138" rx="5"/>${knob(28, 36, 8, level(p, 'rate'))}<rect class="art-line" x="50" y="29" width="7" height="14" rx="2"/>${stomp(38, 100)}` },
-    phaser: { inset: 9, jack: 66, led: [57, 46], draw: p => `<rect class="art-body" x="9" y="1" width="58" height="138" rx="3"/>` +
-      [[14, 6], [62, 6], [14, 134], [62, 134]].map(([x, y]) => `<circle class="art-line" cx="${x}" cy="${y}" r="1.4"/>`).join('') + `${knob(38, 36, 10, level(p, 'rate'))}${stomp(38, 100)}` },
-    trem: { inset: 3, jack: 66, led: [38, 19], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="4"/>${knob(19, 36, 6, level(p, 'rate'))}${knob(38, 36, 6, level(p, 'depth'))}${knob(57, 36, 6, level(p, 'shape'))}<path class="art-switch" d="M10 80 H66 L70 86 V134 Q70 137 67 137 H9 Q6 137 6 134 V86 Z"/>${ridges([93, 98, 103, 108], 16, 60)}` },
-    swell: { inset: 9, jack: 66, led: [38, 30], draw: () => `<path class="art-body" d="M17 1 H59 Q62 1 62.5 4 L73 134 Q73 139 68 139 H8 Q3 139 3 134 L13.5 4 Q14 1 17 1 Z"/>${ridges([38, 44, 88, 96, 104, 112, 120], 16, 60)}` },
-    reverb: { inset: 3, jack: 66, led: [62, 86], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="6"/>${knob(38, 37, 11, level(p, 'mix'))}<rect class="art-line" x="61" y="29" width="6" height="14" rx="2"/>${stomp(38, 100)}` },
-  };
-  function pedalArt(pedal) {
-    const { inset, jack, draw } = ART[pedal.type];
-    const jacks = `<rect class="art-jack" x="${inset - 3}" y="${jack - 3}" width="3" height="6"/><rect class="art-jack" x="${ART_W - inset}" y="${jack - 3}" width="3" height="6"/>`;
-    return jacks + draw(pedal) + led(...ART[pedal.type].led);
-  }
-  const artSvg = (pedal, cls) => `<svg class="${cls}" viewBox="0 0 ${ART_W} ${ART_H}" aria-hidden="true" focusable="false">${pedalArt(pedal)}</svg>`;
-  function createPedal(type, params) {
-    return { id: 'pedal-' + (++nextId), type, number: ++counts[type], enabled: true,
-      params: params ? { ...params } : Object.fromEntries(types[type].specs.map(p => [p.key, p.value])) };
-  }
   let savedView = 'level';
   try { savedView = localStorage.getItem('tonelab-view') === 'tone' ? 'tone' : 'level'; } catch {}
   const state = { view: savedView, playing: true, speed: 1, scale: 'db', chain: ['gate', 'comp', 'drive', 'delay'].map(type => createPedal(type)), dirty: true };
@@ -255,7 +86,8 @@
         const value = pedal.params?.[spec.key];
         params[spec.key] = typeof value === 'number' && Number.isFinite(value) ? Math.max(spec.min, Math.min(spec.max, value)) : spec.value;
       }
-      return { id: pedal.id, type: pedal.type, number: Number.isSafeInteger(pedal.number) && pedal.number > 0 ? pedal.number : 1, enabled: pedal.enabled !== false, params };
+      const model = types[pedal.type].models.some(m => m.id === pedal.model) ? pedal.model : P.legacyModel(pedal.type, params);
+      return { id: pedal.id, type: pedal.type, model, advanced: pedal.advanced === true, number: Number.isSafeInteger(pedal.number) && pedal.number > 0 ? pedal.number : 1, enabled: pedal.enabled !== false, params };
     });
   }
   function restoreBoard(data) {
@@ -304,47 +136,84 @@
     }, 250);
   }
   let selectedId = null;
-  const pedalName = pedal => types[pedal.type].name + ' ' + pedal.number;
+  const pedalName = pedal => kindName(pedal) + ' ' + pedal.number;
   function observed(type) { return state.chain.find(p => p.id === inspectId && p.type === type) || state.chain.find(p => p.id === selectedId && p.type === type) || state.chain.find(p => p.type === type); }
 
-  function buildParams(container, specs, target, onChange) {
-    for (const p of specs) {
-      const value = target[p.key] ?? p.value;
-      target[p.key] = value;
+  // The controls for one pedal: its model's (or all of them with "Show all
+  // controls"), as sliders, or as switches for controls with named positions.
+  function buildControls(container, pedal, onChange) {
+    const target = pedal.params;
+    const update = () => { state.dirty = true; onChange?.(); saveBoard(); };
+    let moreHeading = false;
+    for (const c of controlsFor(pedal, pedal.advanced)) {
+      const spec = c.spec;
+      if (!c.onPedal && !moreHeading) {
+        moreHeading = true;
+        const h = document.createElement('p');
+        h.className = 'params-more';
+        h.textContent = 'More controls (not on this pedal)';
+        container.appendChild(h);
+      }
+      if (typeof target[c.key] !== 'number') target[c.key] = spec.value;
+      if (c.options) {
+        const row = document.createElement('div');
+        row.className = 'param param-switch';
+        row.innerHTML = '<span class="param-top"><span class="param-name"></span></span><div class="segmented switch-options" role="group"></div><span class="param-hint"></span>';
+        row.querySelector('.param-name').textContent = c.label;
+        row.querySelector('.param-hint').textContent = spec.hint || '';
+        const group = row.querySelector('.switch-options');
+        group.setAttribute('aria-label', c.label);
+        const sync = () => {
+          const current = c.options.reduce((a, b) => (Math.abs(b[0] - target[c.key]) < Math.abs(a[0] - target[c.key]) ? b : a))[0];
+          group.querySelectorAll('button').forEach(b => {
+            const on = Number(b.dataset.value) === current;
+            b.classList.toggle('on', on);
+            b.setAttribute('aria-pressed', String(on));
+          });
+        };
+        for (const [value, label] of c.options) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.dataset.value = value;
+          b.textContent = label;
+          b.onclick = () => { target[c.key] = value; sync(); update(); };
+          group.appendChild(b);
+        }
+        sync();
+        container.appendChild(row);
+        continue;
+      }
       const row = document.createElement('label');
       row.className = 'param';
-      row.innerHTML =
-        `<span class="param-top"><span class="param-name">${p.label}</span><output class="param-val"></output></span>` +
-        `<input type="range" />` +
-        `<span class="param-hint">${p.hint}</span>`;
+      row.innerHTML = '<span class="param-top"><span class="param-name"></span><output class="param-val"></output></span><input type="range" /><span class="param-hint"></span>';
+      row.querySelector('.param-name').textContent = c.label;
+      row.querySelector('.param-hint').textContent = spec.hint || '';
       const input = row.querySelector('input');
       const out = row.querySelector('output');
-      input.setAttribute('aria-label', p.label);
-      if (p.log) {
+      input.setAttribute('aria-label', c.label);
+      if (spec.log) {
         // Logarithmic slider: equal travel for each doubling of time or ratio.
-        input.min = 0;
-        input.max = 1000;
-        input.step = 1;
-        const span = Math.log(p.max / p.min);
-        input.value = Math.round((Math.log(value / p.min) / span) * 1000);
+        const span = Math.log(spec.max / spec.min);
+        Object.assign(input, { min: 0, max: 1000, step: 1 });
+        const t = Math.log(target[c.key] / spec.min) / span;
+        input.value = Math.round((c.invert ? 1 - t : t) * 1000);
         input.addEventListener('input', () => {
-          target[p.key] = p.min * Math.exp((input.value / 1000) * span);
+          const t = input.value / 1000;
+          target[c.key] = spec.min * Math.exp((c.invert ? 1 - t : t) * span);
+          out.textContent = controlValue(pedal, c);
           update();
         });
       } else {
-        Object.assign(input, { min: p.min, max: p.max, step: p.step, value });
+        // Inverted controls run the other way (a RAT's Filter, a Dyna Comp's Sensitivity).
+        const flip = v => (c.invert ? spec.min + spec.max - v : v);
+        Object.assign(input, { min: spec.min, max: spec.max, step: spec.step, value: flip(target[c.key]) });
         input.addEventListener('input', () => {
-          target[p.key] = Number(input.value);
+          target[c.key] = flip(Number(input.value));
+          out.textContent = controlValue(pedal, c);
           update();
         });
       }
-      const update = () => {
-        out.textContent = p.format(target[p.key]);
-        state.dirty = true;
-        onChange?.();
-        saveBoard();
-      };
-      out.textContent = p.format(value);
+      out.textContent = controlValue(pedal, c);
       container.appendChild(row);
     }
   }
@@ -422,22 +291,41 @@
     document.getElementById('settings-title').textContent = pedalName(pedal);
     document.getElementById('settings-state').textContent = pedal.enabled ? 'Enabled' : 'Bypassed';
     settings.dataset.type = pedal.type;
-    document.getElementById('settings-model').textContent = 'Outline after the ' + types[pedal.type].model;
+    // Which classic pedal this is: its outline, its controls and their names.
+    const modelSelect = document.getElementById('pedal-model');
+    modelSelect.replaceChildren(...types[pedal.type].models.map(m => new Option(m.name + (m.kind ? ' · ' + m.kind : ''), m.id)));
+    modelSelect.value = modelOf(pedal).id;
+    modelSelect.onchange = () => {
+      pedal.model = modelSelect.value;
+      Object.assign(pedal.params, modelOf(pedal).defaults || {});
+      edited();
+      openSettings(pedal);
+      announce(pedalName(pedal) + ' is now a ' + modelOf(pedal).name);
+    };
+    const showAll = document.getElementById('show-all');
+    const hidden = types[pedal.type].specs.length - modelOf(pedal).controls.length;
+    showAll.checked = !!pedal.advanced;
+    document.getElementById('show-all-label').textContent = 'Show all controls (' + hidden + ' more)';
+    showAll.parentElement.hidden = hidden <= 0;
     const container = document.getElementById('pedal-params');
-    container.replaceChildren();
-    buildParams(container, types[pedal.type].specs, pedal.params, () => {
-      const art = orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-art');
-      if (art) art.innerHTML = pedalArt(pedal);
-      markEdited();
-    });
+    const renderControls = () => {
+      container.replaceChildren();
+      buildControls(container, pedal, () => {
+        const art = orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-art');
+        if (art) art.innerHTML = pedalArt(pedal);
+        markEdited();
+      });
+    };
+    showAll.onchange = () => { pedal.advanced = showAll.checked; saveBoard(); renderControls(); };
+    renderControls();
     document.getElementById('pedal-curve-wrap').hidden = !['gate', 'comp'].includes(pedal.type);
     document.getElementById('effect-explanation').textContent = types[pedal.type].explanation;
     trails.gate.length = trails.comp.length = 0;
     syncMoveButtons();
     if (!settings.open) settings.showModal();
   }
-  function addPedal(type, params) {
-    const pedal = createPedal(type, params);
+  function addPedal(type, params, model) {
+    const pedal = createPedal(type, params, model);
     state.chain.push(pedal);
     edited();
     announce(pedalName(pedal) + ' added at position ' + state.chain.length);
@@ -495,8 +383,8 @@
   for (const [type, info] of Object.entries(types)) {
     const button = document.createElement('button');
     button.dataset.type = type;
-    const preview = { type, params: Object.fromEntries(info.specs.map(spec => [spec.key, spec.value])) };
-    button.innerHTML = artSvg(preview, 'choice-art') + '<strong>' + info.name + '</strong><span class="choice-text">' + info.explanation.split('.')[0] + '.</span><span class="choice-model">Outline after the ' + info.model + '</span><span class="choice-add" aria-hidden="true">+</span>';
+    const preview = { type, model: info.models[0].id, params: P.modelDefaults(type, info.models[0].id) };
+    button.innerHTML = artSvg(preview, 'choice-art') + '<strong>' + info.name + '</strong><span class="choice-text">' + info.explanation.split('.')[0] + '.</span><span class="choice-model">' + info.models.map(m => m.name).join(' · ') + '</span><span class="choice-add" aria-hidden="true">+</span>';
     button.onclick = () => {
       const pedal = addPedal(type);
       library.close();
@@ -514,7 +402,8 @@
   document.getElementById('duplicate-pedal').onclick = () => {
     const pedal = selected();
     if (!pedal) return;
-    const copy = addPedal(pedal.type, pedal.params);
+    const copy = addPedal(pedal.type, pedal.params, pedal.model);
+    copy.advanced = pedal.advanced;
     moveEffect(copy.id, state.chain.indexOf(pedal) + 1);
     openSettings(copy);
   };
@@ -666,15 +555,15 @@
       play: 'Play slow single notes and let each one ring as long as it can.',
       chain: [
         ['comp', { threshold: -24, ratio: 3, attack: 20, release: 300, knee: 6, makeup: 4 }, 'Holds each note up as it fades, so long notes keep singing.'],
-        ['fuzz', { fuzz: 26, tone: 0.45, level: -8 }, 'Plenty of gain with the tone turned a little dark: smooth sustain instead of a harsh buzz.'],
+        ['fuzz:bigmuff', { fuzz: 26, tone: 0.45, level: -8 }, 'Plenty of gain with the tone turned a little dark: smooth sustain instead of a harsh buzz.'],
         ['delay', { time: 440, feedback: 0.35, mix: 0.3 }, 'A soft echo, low in the mix, that fills the space behind long notes.'],
       ],
       tip: 'Too harsh? Turn the fuzz’s tone down. Too muddy? Lower the delay mix.',
       whatIfs: [
         { id: 'bright', label: 'Brighter fuzz', note: 'With the tone turned all the way up, the same fuzz gets fizzy and harsh. The smoothness comes from the darker tone setting.',
-          chain: [['comp', { threshold: -24, ratio: 3, attack: 20, release: 300, knee: 6, makeup: 4 }], ['fuzz', { fuzz: 26, tone: 1, level: -8 }], ['delay', { time: 440, feedback: 0.35, mix: 0.3 }]] },
+          chain: [['comp', { threshold: -24, ratio: 3, attack: 20, release: 300, knee: 6, makeup: 4 }], ['fuzz:bigmuff', { fuzz: 26, tone: 1, level: -8 }], ['delay', { time: 440, feedback: 0.35, mix: 0.3 }]] },
         { id: 'no-delay', label: 'No delay', note: 'Without the echo the sound gets dry and close, and the gaps between notes feel empty.',
-          chain: [['comp', { threshold: -24, ratio: 3, attack: 20, release: 300, knee: 6, makeup: 4 }], ['fuzz', { fuzz: 26, tone: 0.45, level: -8 }]] },
+          chain: [['comp', { threshold: -24, ratio: 3, attack: 20, release: 300, knee: 6, makeup: 4 }], ['fuzz:bigmuff', { fuzz: 26, tone: 0.45, level: -8 }]] },
       ],
     },
     {
@@ -684,15 +573,15 @@
       play: 'Play a few notes and let them ring. The demo guitar has a noisy pickup, so you can hear the hiss this sound has to deal with.',
       chain: [
         ['gate', { threshold: -32, attack: 1, hold: 60, release: 250, range: -80 }, 'Goes first. It mutes the hiss between notes before anything else can make it louder. Its threshold sits just above the hiss.'],
-        ['comp', { threshold: -30, ratio: 6, attack: 15, release: 400, knee: 6, makeup: 10 }, 'Keeps each note loud for longer as it fades, so every echo starts strong. It also turns everything up, hiss included.'],
+        ['comp:cali76', { threshold: -30, ratio: 6, attack: 15, release: 400, knee: 6, makeup: 10 }, 'Keeps each note loud for longer as it fades, so every echo starts strong. It also turns everything up, hiss included.'],
         ['delay', { time: 520, feedback: 0.62, mix: 0.4 }, 'Long echoes with lots of feedback, so they keep repeating. Whatever reaches this pedal gets repeated, hiss included.'],
       ],
       tip: 'Watch the gaps between notes: with the gate first they go flat and silent.',
       whatIfs: [
         { id: 'comp-first', label: 'Compressor before the gate', note: 'The compressor turns everything up, hiss included. Now the hiss is louder than the gate’s threshold, so the gate never closes and the delay repeats the hiss over and over.',
-          chain: [['comp', { threshold: -30, ratio: 6, attack: 15, release: 400, knee: 6, makeup: 10 }], ['gate', { threshold: -32, attack: 1, hold: 60, release: 250, range: -80 }], ['delay', { time: 520, feedback: 0.62, mix: 0.4 }]] },
+          chain: [['comp:cali76', { threshold: -30, ratio: 6, attack: 15, release: 400, knee: 6, makeup: 10 }], ['gate', { threshold: -32, attack: 1, hold: 60, release: 250, range: -80 }], ['delay', { time: 520, feedback: 0.62, mix: 0.4 }]] },
         { id: 'no-gate', label: 'No noise gate', note: 'Without the gate, the compressor lifts the hiss and the delay keeps repeating it. Listen to the gaps between notes.',
-          chain: [['comp', { threshold: -30, ratio: 6, attack: 15, release: 400, knee: 6, makeup: 10 }], ['delay', { time: 520, feedback: 0.62, mix: 0.4 }]] },
+          chain: [['comp:cali76', { threshold: -30, ratio: 6, attack: 15, release: 400, knee: 6, makeup: 10 }], ['delay', { time: 520, feedback: 0.62, mix: 0.4 }]] },
       ],
     },
     {
@@ -720,14 +609,14 @@
       chain: [
         ['gate', { threshold: -45, attack: 0.5, hold: 20, release: 60, range: -80 }, 'First in line, it shuts off the hiss and hum between notes, so the rests are silent.'],
         ['dist', { gain: 36, tone: 0.55, level: -12 }, 'Lots of gain, clipped hard. It turns every note into a wall of sound, and it would turn the hiss into a wall of noise too.'],
-        ['eq', { bass: 4, mid: -8, midFreq: 700, treble: 3, level: 0 }, 'Cuts the mids and lifts bass and treble: the “scooped” sound. Switch to the Tone view to see the dip in the middle.'],
+        ['eq:paraeq', { bass: 4, mid: -8, midFreq: 700, treble: 3, level: 0 }, 'Cuts the mids and lifts bass and treble: the “scooped” sound. Switch to the Tone view to see the dip in the middle.'],
       ],
       tip: 'Scooped mids sound huge on their own, but in a band they can make your guitar disappear. Try bringing the mids back up when playing with others.',
       whatIfs: [
         { id: 'no-gate', label: 'No noise gate', note: 'Without the gate, the distortion turns the hiss into loud noise between notes. Look at the gaps in the waveform.',
-          chain: [['dist', { gain: 36, tone: 0.55, level: -12 }], ['eq', { bass: 4, mid: -8, midFreq: 700, treble: 3, level: 0 }]] },
+          chain: [['dist', { gain: 36, tone: 0.55, level: -12 }], ['eq:paraeq', { bass: 4, mid: -8, midFreq: 700, treble: 3, level: 0 }]] },
         { id: 'mids-back', label: 'Mids put back', note: 'With the EQ flat, the mids come back: less “huge” on its own, but more solid and easier to hear in a band. Compare them in the Tone view.',
-          chain: [['gate', { threshold: -45, attack: 0.5, hold: 20, release: 60, range: -80 }], ['dist', { gain: 36, tone: 0.55, level: -12 }], ['eq', { bass: 0, mid: 0, midFreq: 700, treble: 0, level: 0 }]] },
+          chain: [['gate', { threshold: -45, attack: 0.5, hold: 20, release: 60, range: -80 }], ['dist', { gain: 36, tone: 0.55, level: -12 }], ['eq:paraeq', { bass: 0, mid: 0, midFreq: 700, treble: 0, level: 0 }]] },
       ],
     },
     {
@@ -737,14 +626,14 @@
       play: 'Let notes and chords ring, and listen to them pulse.',
       chain: [
         ['trem', { rate: 6, depth: 0.7, shape: 0.3 }, 'Turns the volume up and down six times a second. Watch the waveform throb.'],
-        ['reverb', { decay: 0.75, tone: 0.75, mix: 0.45 }, 'A bright, splashy reverb that rings on after each note, a bit like an amp’s spring reverb. Coming after the tremolo, it softens the pulses slightly.'],
+        ['reverb:fender', { decay: 0.75, tone: 0.75, mix: 0.45 }, 'A bright, splashy reverb that rings on after each note, a bit like an amp’s spring reverb. Coming after the tremolo, it softens the pulses slightly.'],
       ],
       tip: 'Set the tremolo speed to the song’s tempo so the pulses lock in with the band.',
       whatIfs: [
         { id: 'reverb-first', label: 'Reverb before the tremolo', note: 'Now the tremolo chops the reverb as well, so the pulses go deeper and the reverb tail throbs too. With the tremolo first, the reverb smooths the pulses a little.',
-          chain: [['reverb', { decay: 0.75, tone: 0.75, mix: 0.45 }], ['trem', { rate: 6, depth: 0.7, shape: 0.3 }]] },
+          chain: [['reverb:fender', { decay: 0.75, tone: 0.75, mix: 0.45 }], ['trem', { rate: 6, depth: 0.7, shape: 0.3 }]] },
         { id: 'no-trem', label: 'No tremolo', note: 'Just the reverb: the ringing stays, the pulse is gone.',
-          chain: [['reverb', { decay: 0.75, tone: 0.75, mix: 0.45 }]] },
+          chain: [['reverb:fender', { decay: 0.75, tone: 0.75, mix: 0.45 }]] },
       ],
     },
     {
@@ -754,15 +643,15 @@
       play: 'Play slow single notes or chords and let them ring. The swell hides the pick.',
       chain: [
         ['swell', { rise: 400, sensitivity: -40 }, 'Fades every new note in, as if you rolled a volume pedal up by foot after each pick.'],
-        ['delay', { time: 450, feedback: 0.5, mix: 0.4, character: 0.6 }, 'Long echoes that overlap into a pad. The Character knob makes each repeat a little darker than the last.'],
-        ['reverb', { decay: 0.85, tone: 0.4, mix: 0.5 }, 'A big, dark room that smears everything into one long wash.'],
+        ['delay:multi', { time: 450, feedback: 0.5, mix: 0.4, character: 0.6 }, 'Long echoes that overlap into a pad. With its Tone turned down, each repeat is a little darker than the last.'],
+        ['reverb:bigsky', { decay: 0.85, tone: 0.4, mix: 0.5 }, 'A big, dark room that smears everything into one long wash.'],
       ],
       tip: 'Turn Match volume on: swells are quieter than picked notes, and you want to compare the sound, not the level.',
       whatIfs: [
         { id: 'no-swell', label: 'No swell', note: 'Every note now starts with the click of the pick. Look at the start of each note: in A it ramps up, in B it jumps.',
-          chain: [['delay', { time: 450, feedback: 0.5, mix: 0.4, character: 0.6 }], ['reverb', { decay: 0.85, tone: 0.4, mix: 0.5 }]] },
-        { id: 'clean-echoes', label: 'Clean echoes', note: 'The same echoes with Character at zero: every repeat stays bright and exact instead of getting darker. Switch to the Tone view to see the extra treble.',
-          chain: [['swell', { rise: 400, sensitivity: -40 }], ['delay', { time: 450, feedback: 0.5, mix: 0.4, character: 0 }], ['reverb', { decay: 0.85, tone: 0.4, mix: 0.5 }]] },
+          chain: [['delay:multi', { time: 450, feedback: 0.5, mix: 0.4, character: 0.6 }], ['reverb:bigsky', { decay: 0.85, tone: 0.4, mix: 0.5 }]] },
+        { id: 'clean-echoes', label: 'Clean echoes', note: 'The same echoes with the delay’s Tone turned all the way up: every repeat stays bright and exact instead of getting darker. Switch to the Tone view to see the extra treble.',
+          chain: [['swell', { rise: 400, sensitivity: -40 }], ['delay:multi', { time: 450, feedback: 0.5, mix: 0.4, character: 0 }], ['reverb:bigsky', { decay: 0.85, tone: 0.4, mix: 0.5 }]] },
       ],
     },
     {
@@ -772,7 +661,7 @@
       play: 'Play clean chords or arpeggios and let them ring.',
       chain: [
         ['comp', { threshold: -24, ratio: 3, attack: 15, release: 200, knee: 6, makeup: 3 }, 'Keeps the clean notes even and helps them ring.'],
-        ['chorus', { rate: 0.8, depth: 0.5, mix: 0.6 }, 'Adds a slightly detuned, slowly wobbling copy of your playing, like two guitars at once. That’s the shimmer.'],
+        ['chorus:ce2w', { rate: 0.8, depth: 0.5, mix: 0.6 }, 'Adds a slightly detuned, slowly wobbling copy of your playing, like two guitars at once. That’s the shimmer.'],
         ['delay', { time: 380, feedback: 0.25, mix: 0.25 }, 'One or two soft echoes that add depth.'],
         ['reverb', { decay: 0.5, tone: 0.6, mix: 0.25 }, 'A little room around the sound.'],
       ],
@@ -781,7 +670,7 @@
         { id: 'no-chorus', label: 'No chorus', note: 'Same echo and reverb without the chorus: a single, narrower guitar.',
           chain: [['comp', { threshold: -24, ratio: 3, attack: 15, release: 200, knee: 6, makeup: 3 }], ['delay', { time: 380, feedback: 0.25, mix: 0.25 }], ['reverb', { decay: 0.5, tone: 0.6, mix: 0.25 }]] },
         { id: 'fast-chorus', label: 'Fast, deep chorus', note: 'Turned up fast and deep, the chorus becomes a seasick warble. Subtle settings are what make it lush.',
-          chain: [['comp', { threshold: -24, ratio: 3, attack: 15, release: 200, knee: 6, makeup: 3 }], ['chorus', { rate: 4, depth: 1, mix: 0.6 }], ['delay', { time: 380, feedback: 0.25, mix: 0.25 }], ['reverb', { decay: 0.5, tone: 0.6, mix: 0.25 }]] },
+          chain: [['comp', { threshold: -24, ratio: 3, attack: 15, release: 200, knee: 6, makeup: 3 }], ['chorus:ce2w', { rate: 4, depth: 1, mix: 0.6 }], ['delay', { time: 380, feedback: 0.25, mix: 0.25 }], ['reverb', { decay: 0.5, tone: 0.6, mix: 0.25 }]] },
       ],
     },
     {
@@ -791,14 +680,14 @@
       play: 'Pick short notes. Picking harder opens the wah wider.',
       chain: [
         ['comp', { threshold: -28, ratio: 4, attack: 8, release: 120, knee: 6, makeup: 6 }, 'Evens out your picking, so the wah opens about the same amount on every note.'],
-        ['wah', { mode: 1, position: 0.5, sensitivity: 16, speed: 1.5, resonance: 6 }, 'Follows your picking: each pick opens the filter and it closes as the note fades. That sweep is the “quack”. In the Tone view, watch the peak jump right on each pick.'],
+        ['wah:qtron', { mode: 1, position: 0.5, sensitivity: 16, speed: 1.5, resonance: 6 }, 'Follows your picking: each pick opens the filter and it closes as the note fades. That sweep is the “quack”. In the Tone view, watch the peak jump right on each pick.'],
       ],
       tip: 'For a classic rocking wah instead, set Mode to “Rocks by itself” and slow the speed down.',
       whatIfs: [
         { id: 'held', label: 'Wah held still', note: 'The same filter parked in one spot: a nasal, honky sound with no movement. Players call this a “cocked wah”.',
-          chain: [['comp', { threshold: -28, ratio: 4, attack: 8, release: 120, knee: 6, makeup: 6 }], ['wah', { mode: 0, position: 0.55, sensitivity: 16, speed: 1.5, resonance: 6 }]] },
+          chain: [['comp', { threshold: -28, ratio: 4, attack: 8, release: 120, knee: 6, makeup: 6 }], ['wah:crybaby', { mode: 0, position: 0.55, sensitivity: 16, speed: 1.5, resonance: 6 }]] },
         { id: 'no-comp', label: 'No compressor', note: 'Without the compressor, loud picks open the wah wide and soft ones barely move it, so the quack comes and goes.',
-          chain: [['wah', { mode: 1, position: 0.5, sensitivity: 16, speed: 1.5, resonance: 6 }]] },
+          chain: [['wah:qtron', { mode: 1, position: 0.5, sensitivity: 16, speed: 1.5, resonance: 6 }]] },
       ],
     },
     {
@@ -849,7 +738,7 @@
     myTones = (JSON.parse(localStorage.getItem(myTonesKey)) || []).filter(t => t && typeof t.id === 'string' && typeof t.name === 'string' && Array.isArray(t.spec));
   } catch { myTones = []; }
   function saveMyTones() { try { localStorage.setItem(myTonesKey, JSON.stringify(myTones)); } catch {} }
-  const specOf = chain => chain.map(p => [p.type, { ...p.params }, null, p.enabled]);
+  const specOf = chain => chain.map(p => [p.type + ':' + p.model, { ...p.params }, null, p.enabled]);
   function rememberMyBoard(chain) {
     if (!chain.length) return;
     const entry = { id: 'my-last-board', name: 'My last board', spec: specOf(chain) };
@@ -857,12 +746,22 @@
     saveMyTones();
   }
 
+  // A sound's pedal entry: "type" or "type:model", settings, note, on/off.
+  const entryType = entry => entry[0].split(':')[0];
+  function entryModel(entry) {
+    const [type, model] = entry[0].split(':');
+    return types[type].models.some(m => m.id === model) ? model : types[type].models[0].id;
+  }
+  // What a sound expects a pedal's controls to be: effect defaults, then the
+  // model's characteristic settings, then the sound's own.
+  const entryParams = entry => ({ ...P.modelDefaults(entryType(entry), entryModel(entry)), ...entry[1] });
   function buildChain(spec) {
     const seen = {};
-    return validateChain(spec.filter(([type]) => types[type]).map(([type, params, , enabled]) => {
+    return validateChain(spec.filter(entry => types[entryType(entry)]).map(entry => {
+      const type = entryType(entry);
       const number = (seen[type] = (seen[type] || 0) + 1);
       counts[type] = Math.max(counts[type], number);
-      return { id: 'pedal-' + (++nextId), type, number, enabled: enabled !== false, params: { ...params } };
+      return { id: 'pedal-' + (++nextId), type, model: entryModel(entry), number, enabled: entry[3] !== false, params: entryParams(entry) };
     }));
   }
 
@@ -1031,15 +930,15 @@
     if (!tone) return ROLES[pedal.type];
     const key = pedalKey(chain, pedal);
     const seen = {};
-    const toneKeys = tone.chain.map(([type]) => type + '#' + ((seen[type] = (seen[type] ?? -1) + 1)));
+    const toneKeys = tone.chain.map(entry => { const type = entryType(entry); return type + '#' + ((seen[type] = (seen[type] ?? -1) + 1)); });
     const i = toneKeys.indexOf(key);
     if (i < 0) return ROLES[pedal.type];
-    const [type, params, note] = tone.chain[i];
+    const type = entryType(tone.chain[i]), params = entryParams(tone.chain[i]), note = tone.chain[i][2];
     // Same settings and same place (relative to the pedals both share)?
     const chainKeys = chain.map(p => pedalKey(chain, p));
     const shared = k => k.filter(x => chainKeys.includes(x) && toneKeys.includes(x));
     const samePlace = shared(chainKeys).indexOf(key) === shared(toneKeys).indexOf(key);
-    const sameSettings = types[type].specs.every(spec => Math.abs((params[spec.key] ?? spec.value) - pedal.params[spec.key]) < 1e-6);
+    const sameSettings = entryModel(tone.chain[i]) === pedal.model && types[type].specs.every(spec => Math.abs(params[spec.key] - pedal.params[spec.key]) < 1e-6);
     if (samePlace && sameSettings) return note;
     // The pedal this what-if is about explains the change; others get their basic role.
     const whatIf = whatIfOf(s);
@@ -1052,9 +951,9 @@
     const i = toneKeys.indexOf(key);
     if (i < 0) return true;
     const shared = k => k.filter(x => chainKeys.includes(x) && toneKeys.includes(x));
-    const params = tone.chain[i][1];
-    return shared(chainKeys).indexOf(key) !== shared(toneKeys).indexOf(key) ||
-      !types[pedal.type].specs.every(spec => Math.abs((params[spec.key] ?? spec.value) - pedal.params[spec.key]) < 1e-6);
+    const params = entryParams(tone.chain[i]);
+    return shared(chainKeys).indexOf(key) !== shared(toneKeys).indexOf(key) || entryModel(tone.chain[i]) !== pedal.model ||
+      !types[pedal.type].specs.every(spec => Math.abs(params[spec.key] - pedal.params[spec.key]) < 1e-6);
   }
   // How a pedal differs in the other slot: missing, other settings, other order.
   function differences(chain, otherChain, other) {
@@ -1069,8 +968,9 @@
       if (!twin) { result.set(pedal.id, 'Not in ' + other); return; }
       const parts = [];
       if (twin.enabled !== pedal.enabled) parts.push(twin.enabled ? 'on' : 'switched off');
-      for (const spec of types[pedal.type].specs) {
-        if (Math.abs(twin.params[spec.key] - pedal.params[spec.key]) > 1e-6) parts.push(spec.label.toLowerCase() + ' ' + spec.format(twin.params[spec.key]));
+      if (twin.model !== pedal.model) parts.push('a ' + modelOf(twin).name);
+      for (const c of controlsFor(twin, true)) {
+        if (Math.abs(twin.params[c.key] - pedal.params[c.key]) > 1e-6) parts.push(c.label.toLowerCase() + ' ' + controlValue(twin, c));
       }
       if (shared.indexOf(key) !== otherShared.indexOf(key)) parts.push('in a different order');
       if (parts.length) result.set(pedal.id, 'In ' + other + ': ' + parts.join(', '));
@@ -1090,8 +990,8 @@
     const wave = (stage, label, big) => `<li class="journey-wave${big ? ' journey-out' : ''}"><span class="journey-wave-label">${label}</span><canvas data-stage="${stage}" aria-label="${label} waveform" role="img"></canvas></li>`;
     items.push(wave('input', 'Your guitar', chain.length === 0));
     chain.forEach((pedal, i) => {
-      const info = types[pedal.type];
-      const chips = info.specs.slice(0, 3).map(spec => `<span>${spec.label} ${spec.format(pedal.params[spec.key])}</span>`).join('');
+      const info = { name: kindName(pedal) };
+      const chips = '<span class="chip-model">' + modelOf(pedal).name + '</span>' + controlsFor(pedal).slice(0, 3).map(c => `<span>${c.label} ${controlValue(pedal, c)}</span>`).join('');
       const diff = byPedal.get(pedal.id);
       items.push(`<li class="journey-step${pedal.enabled ? '' : ' off'}${diff ? ' differs' : ''}" data-type="${pedal.type}">` +
         artSvg(pedal, 'journey-art') +
@@ -1366,7 +1266,8 @@
       item.classList.toggle('off', !pedal.enabled);
       item.querySelector('.pedal-art').innerHTML = pedalArt(pedal);
       item.querySelector('.pedal-position').textContent = index + 1;
-      item.querySelector('.pedal-name').textContent = types[pedal.type].short + ' ' + pedal.number;
+      item.querySelector('.pedal-name').textContent = shortName(pedal) + ' ' + pedal.number;
+      item.dataset.shape = modelOf(pedal).shape;
       const toggle = item.querySelector('.pedal-toggle');
       toggle.setAttribute('aria-label', pedalName(pedal));
       toggle.setAttribute('aria-pressed', String(pedal.enabled));
@@ -1413,7 +1314,7 @@
       // One row: line Input and Output up with the jacks and run one straight
       // cable behind the pedals.
       const first = items[0] ? box(items[0]) : null;
-      const lineY = first ? first.top + ART[items[0].dataset.type].jack * first.width / ART_W : box(dropArea).top + box(dropArea).height / 2;
+      const lineY = first ? first.top + P.JACK_Y * first.width / ART_W : box(dropArea).top + box(dropArea).height / 2;
       for (const endpoint of endpoints) {
         const dot = box(endpoint.querySelector('i'));
         const shift = lineY - (dot.top + dot.height / 2);
@@ -1430,9 +1331,9 @@
     const nodes = [{ out: inDot.right, y: inDot.top + inDot.height / 2, left: inDot.left, right: inDot.right, top: inDot.top, bottom: inDot.bottom }];
     for (const item of orderList.children) {
       const b = box(item);
-      const art = ART[item.dataset.type];
+      const art = P.SHAPES[item.dataset.shape] || P.SHAPES.box;
       const scale = b.width / ART_W;
-      nodes.push({ in: b.left + art.inset * scale, out: b.right - art.inset * scale, y: b.top + art.jack * scale, ...b });
+      nodes.push({ in: b.left + art.inset * scale, out: b.right - art.inset * scale, y: b.top + P.JACK_Y * scale, ...b });
     }
     nodes.push({ in: outDot.left, y: outDot.top + outDot.height / 2, ...outDot });
     const gap = parseFloat(getComputedStyle(orderList).columnGap) || 8;

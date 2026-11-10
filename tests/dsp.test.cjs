@@ -259,3 +259,158 @@ test('delay character makes each repeat darker', () => {
   const echoTreble = character => { const out = run('delay', { time: 300, feedback: 0.6, mix: 1, character }, input); const second = out.slice(Math.round(SR * 0.6), Math.round(SR * 0.66)); return energyAt(Float32Array.from([...second, ...second]), 4000); };
   assert(echoTreble(1) < 0.1 * echoTreble(0));
 });
+
+// ---- Full control sets (pedal models): each new control does what it says
+const { diatonicShift } = context.TL;
+const impulse = (seconds, at = 0) => { const b = new Float32Array(Math.round(SR * seconds)); b[at] = 1; return b; };
+const firstPeak = (b, from = 1) => { let best = from; for (let i = from; i < b.length; i++) if (Math.abs(b[i]) > Math.abs(b[best])) best = i; return best; };
+const mixOf = (...parts) => Float32Array.from(parts[0], (_, i) => parts.reduce((s, p) => s + p[i], 0));
+
+test('gate: multiband mode only gates the highs; reduce mode never cuts more than 20 dB', () => {
+  const quiet = mixOf(tone(100, 1, 0.003), noise(1, 0.003));
+  const base = { threshold: -30, attack: 1, hold: 10, release: 50, range: -80, tone: 1500 };
+  const mute = run('gate', { ...base, mode: 0 }, quiet), multi = run('gate', { ...base, mode: 2 }, quiet), reduce = run('gate', { ...base, mode: 1 }, quiet);
+  assert(energyAt(multi, 100) > 100 * energyAt(mute, 100), 'lows pass in multiband');
+  assert(energyAt(multi, 4000) < 0.01 * energyAt(quiet, 4000), 'highs are gated in multiband');
+  assert(rmsOf(reduce, SR / 2) / rmsOf(quiet, SR / 2) > 0.09, 'reduce mode stays within 20 dB');
+});
+
+test('compressor: blend brings back the dry signal, input trims, tone tilts the treble', () => {
+  const input = tone(440, 1, 0.5), p = { threshold: -30, ratio: 8, attack: 1, release: 50, knee: 0, makeup: 0 };
+  const dry = run('comp', { ...p, blend: 0 }, input);
+  assert(Math.abs(rmsOf(dry, SR / 2) - rmsOf(input, SR / 2)) < 1e-6);
+  const hot = run('comp', { ...p, blend: 0, input: 6 }, input);
+  assert(Math.abs(rmsOf(hot, SR / 2) / rmsOf(input, SR / 2) - 10 ** (6 / 20)) < 1e-3);
+  const n = noise(1);
+  assert(energyAt(run('comp', { ...p, tone: 1 }, n), 6000) > 4 * energyAt(run('comp', { ...p, tone: 0 }, n), 6000));
+});
+
+test('EQ: graphic sliders, narrow bands and presence match the drawn response', () => {
+  const p = { bass: 6, bassFreq: 200, bassQ: 3, mid: 0, midFreq: 800, treble: 0, level: 0, presence: 6, g800: 9, g3200: -9 };
+  for (const f of [200, 800, 3200, 7000]) {
+    const input = tone(f, 1, 0.1), out = run('eq', p, input);
+    const measured = 20 * Math.log10(rmsOf(out, SR / 2) / rmsOf(input, SR / 2));
+    assert(Math.abs(measured - eqResponse(p, f)) < 0.5, f + ' Hz');
+  }
+  assert(eqResponse(p, 800) > 8 && eqResponse(p, 3200) < -6);
+  assert(eqResponse(p, 200) - eqResponse(p, 60) > 3, 'a narrow bass band is a peak, not a shelf');
+});
+
+test('boost: voicing and tone controls shape it, level sets the output', () => {
+  const n = noise(1);
+  const clean = run('boost', { boost: 6, voicing: 0 }, n), fat = run('boost', { boost: 6, voicing: 1 }, n), mid = run('boost', { boost: 6, voicing: 2 }, n);
+  assert(energyAt(fat, 150) > 2 * energyAt(clean, 150) && energyAt(mid, 800) > 2 * energyAt(clean, 800));
+  assert(Math.abs(rmsOf(run('boost', { boost: 6, level: -6 }, tone(440, 1, 0.1))) / rmsOf(tone(440, 1, 0.1)) - 1) < 1e-3);
+});
+
+test('overdrive: asymmetric clipping adds even harmonics; the mid hump cuts lows before clipping', () => {
+  const input = tone(220, 1, 0.3), p = { drive: 18, mix: 1 };
+  const sym = run('drive', { ...p, clipping: 0 }, input), asym = run('drive', { ...p, clipping: 1 }, input);
+  assert(energyAt(asym, 440) > 100 * energyAt(sym, 440));
+  const n = noise(1, 0.2);
+  assert(energyAt(run('drive', { ...p, voicing: 1 }, n), 100) < 0.5 * energyAt(run('drive', { ...p, voicing: 0 }, n), 100));
+});
+
+test('distortion: tight and weight cut the lows; mid EQ works after the clipper', () => {
+  const n = noise(1, 0.2), p = { gain: 30, tone: 0.6, level: -6 };
+  assert(energyAt(run('dist', { ...p, tight: 1 }, n), 90) < 0.5 * energyAt(run('dist', { ...p, tight: 0 }, n), 90));
+  assert(energyAt(run('dist', { ...p, mid: -12, midFreq: 800 }, n), 800) < 0.25 * energyAt(run('dist', p, n), 800));
+});
+
+test('fuzz: the gate starves quiet notes and low stability squeals', () => {
+  const quiet = tone(220, 1, 0.005), p = { fuzz: 30, tone: 0.6, level: -8 };
+  assert(rmsOf(run('fuzz', { ...p, gate: 0.8 }, quiet), SR / 2) < 0.3 * rmsOf(run('fuzz', p, quiet), SR / 2));
+  const loud = tone(220, 1, 0.2);
+  assert(energyAt(run('fuzz', { ...p, stability: 0.2, tone: 1 }, loud), 1400) > 10 * energyAt(run('fuzz', { ...p, tone: 1 }, loud), 1400));
+});
+
+test('wah: low-pass and high-pass filter types, and the envelope can sweep down', () => {
+  const n = noise(1), p = { mode: 0, position: 0.5, sensitivity: 12, speed: 1, resonance: 4 };
+  assert(energyAt(run('wah', { ...p, filter: 1 }, n), 150) > 4 * energyAt(run('wah', { ...p, filter: 2 }, n), 150));
+  assert(energyAt(run('wah', { ...p, filter: 2 }, n), 6000) > 4 * energyAt(run('wah', { ...p, filter: 1 }, n), 6000));
+  const loud = noise(1, 0.5), up = run('wah', { ...p, mode: 1, sensitivity: 20 }, loud), down = run('wah', { ...p, mode: 1, sensitivity: 20, direction: 1 }, loud);
+  assert(energyAt(up, 2000) > 2 * energyAt(down, 2000));
+});
+
+test('octave: a second octave down and a Whammy-style shifted voice', () => {
+  const input = tone(220);
+  const sub2 = run('octave', { dry: 0, sub: 0, up: 0, sub2: 1 }, input);
+  assert(energyAt(sub2, 55) > 10 * energyAt(sub2, 220));
+  const whammy = run('octave', { dry: 0, sub: 0, up: 0, shift: 1, interval: 12, treadle: 1 }, input);
+  assert(energyAt(whammy, 440) > 10 * energyAt(whammy, 220));
+  const half = run('octave', { dry: 0, sub: 0, up: 0, shift: 1, interval: 12, treadle: 0.5 }, input);
+  assert(energyAt(half, 220 * 2 ** 0.5) > 10 * energyAt(half, 220), 'half treadle = half the interval');
+});
+
+test('harmonizer: scale modes pick the interval that fits the key', () => {
+  assert.equal(diatonicShift(62, 2, [0, 2, 4, 5, 7, 9, 11], 2), 4); // D in D major: a 3rd up is F#
+  assert.equal(diatonicShift(64, 2, [0, 2, 4, 5, 7, 9, 11], 2), 3); // E in D major: a 3rd up is G
+  assert.equal(diatonicShift(57, 9, [0, 2, 3, 5, 7, 8, 10], 2), 3); // A in A minor: a 3rd up is C
+  const out = run('harm', { voice1: 4, voice2: 0, mix: 1, window: 50, mode: 1, key: 0, steps1: 2, steps2: 0 }, tone(220)); // A in C major -> C
+  assert(energyAt(out, 261.6) > 10 * energyAt(out, 277.2), 'a minor third (C), not a major third (C#)');
+});
+
+test('chorus: vibrato voice drops the dry signal; a short manual delay flanges', () => {
+  const input = tone(440, 1, 0.3);
+  const vib = run('chorus', { rate: 3, depth: 1, mix: 0.6, voice: 2 }, input);
+  let diff = 0; for (let i = SR / 2; i < SR; i++) diff = Math.max(diff, Math.abs(vib[i] - input[i - 288]));
+  assert(diff > 0.05, 'pitch wobbles');
+  const n = noise(1), flange = run('chorus', { rate: 0.1, depth: 0, mix: 1, manual: 1, feedback: 0.7 }, n);
+  assert(energyAt(flange, 500) > 4 * energyAt(flange, 1000) || energyAt(flange, 1000) > 4 * energyAt(flange, 500), 'comb filter peaks and notches');
+});
+
+test('phaser: 8 stages and Uni-Vibe modes sound different from the 4-stage phaser', () => {
+  const n = noise(1), p = { rate: 0.5, depth: 0.7, feedback: 0.4 };
+  const four = run('phaser', p, n);
+  for (const extra of [{ stages: 8 }, { mode: 1 }, { mode: 2 }]) {
+    const other = run('phaser', { ...p, ...extra }, n);
+    let d = 0; for (let i = 0; i < n.length; i++) d += (other[i] - four[i]) ** 2;
+    assert(Math.sqrt(d / n.length) > 0.02, JSON.stringify(extra));
+  }
+});
+
+test('tremolo: harmonic mode pulses lows and highs in turn; square wave chops', () => {
+  const input = mixOf(tone(100, 1, 0.3), tone(3000, 1, 0.3));
+  const out = run('trem', { rate: 4, depth: 1, shape: 0, mode: 1 }, input);
+  const slice = (f, k) => energyAt(Float32Array.from(out.slice(k * SR / 16, (k + 1) * SR / 16)), f);
+  const lows = [0, 1, 2, 3].map(k => slice(100, k + 8)), highs = [0, 1, 2, 3].map(k => slice(3000, k + 8));
+  const loudestLow = lows.indexOf(Math.max(...lows)), loudestHigh = highs.indexOf(Math.max(...highs));
+  assert.notEqual(loudestLow, loudestHigh);
+  const sq = run('trem', { rate: 4, depth: 1, shape: 0, wave: 1 }, tone(440, 1, 0.5));
+  let silent = 0; for (let i = 0; i < SR; i += 100) if (Math.abs(sq[i]) < 0.01) silent++;
+  assert(silent > 0.3 * (SR / 100));
+});
+
+test('swell: the linear curve rises faster at first than the smooth one', () => {
+  const input = new Float32Array(SR); for (let i = SR / 4; i < SR; i++) input[i] = 0.5 * Math.sin(2 * Math.PI * 220 * i / SR);
+  const at = b => rmsOf(b, SR / 4 + SR / 10, SR / 4 + SR / 8);
+  assert(at(run('swell', { rise: 400, sensitivity: -40, curve: 1 }, input)) > 1.5 * at(run('swell', { rise: 400, sensitivity: -40, curve: 0 }, input)));
+});
+
+test('delay: subdivision, range, reverse and tape', () => {
+  const p = { time: 400, feedback: 0, mix: 1 };
+  assert(Math.abs(firstPeak(run('delay', { ...p, subdivision: 2 }, impulse(1))) - 0.3 * SR) < 2, 'dotted eighth = ¾ of the time');
+  assert(Math.abs(firstPeak(run('delay', { ...p, range: 200 }, impulse(1))) - 0.2 * SR) < 2, 'range caps the time');
+  const ramp = Float32Array.from({ length: SR }, (_, i) => (i < 0.3 * SR ? i / (0.3 * SR) : 0));
+  const rev = run('delay', { ...p, time: 300, type: 3 }, ramp);
+  const early = rmsOf(rev, Math.round(0.33 * SR), Math.round(0.4 * SR)), late = rmsOf(rev, Math.round(0.5 * SR), Math.round(0.57 * SR));
+  assert(early > late, 'the loud end of the ramp comes back first');
+  const tape = run('delay', { ...p, time: 200, type: 2 }, tone(1000, 1, 0.3)), digital = run('delay', { ...p, time: 200 }, tone(1000, 1, 0.3));
+  let d = 0; for (let i = SR / 2; i < SR; i++) d = Math.max(d, Math.abs(tape[i] - digital[i]));
+  assert(d > 0.05, 'tape wobbles');
+});
+
+test('reverb: pre-delay, low cut, and spring and shimmer modes', () => {
+  const p = { decay: 0.7, tone: 0.6, mix: 1 };
+  const onset = b => { for (let i = 1; i < b.length; i++) if (Math.abs(b[i]) > 1e-3) return i; return -1; };
+  const click = impulse(1.5);
+  assert(onset(run('reverb', { ...p, predelay: 100 }, click)) - onset(run('reverb', p, click)) > 0.09 * SR);
+  const n = noise(0.3, 0.3), long = new Float32Array(SR * 2); long.set(n);
+  const tail = b => Float32Array.from(b.slice(Math.round(0.4 * SR), Math.round(1.2 * SR)));
+  assert(energyAt(tail(run('reverb', { ...p, lowCut: 400 }, long)), 100) < 0.3 * energyAt(tail(run('reverb', p, long)), 100));
+  const t = new Float32Array(SR * 2); t.set(tone(330, 0.3, 0.4));
+  const shimmer = tail(run('reverb', { ...p, mode: 4 }, t)), room = tail(run('reverb', p, t));
+  assert(energyAt(shimmer, 660) / energyAt(shimmer, 330) > 2 * energyAt(room, 660) / energyAt(room, 330), 'shimmer adds the octave above');
+  const spring = run('reverb', { ...p, mode: 3 }, long);
+  assert(spring.every(Number.isFinite) && rmsOf(spring) > 0);
+});

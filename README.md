@@ -37,6 +37,12 @@ Sounds live in the `TONES` list in `js/app.js`: each has the playing pattern and
 
 The **Playing** selector switches the synthesized guitar between free picking and steady, short eighth notes.
 
+## Pedal models
+
+Each effect supports its full set of controls (`js/dsp.js`), and each classic pedal is a *model* that shows only some of them, under that pedal's own names (`js/pedals.js`). Pick a model in the settings sheet; the card outline changes to match. **Show all controls** reveals the rest for any model. Switch controls (Mode, Clipping, Voicing and so on) appear as tappable options.
+
+Every control defaults to the effect's original behaviour, so boards and sounds saved before models existed still sound the same. The Looper (a utility, not an effect) isn't included.
+
 ## Run it
 
 It's a static site with no build step. Serve the folder locally (audio requires localhost or HTTPS):
