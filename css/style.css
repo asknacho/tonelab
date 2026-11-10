@@ -530,3 +530,13 @@ body { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
   .strip-dot { width: 40px; }
   .strip-pedal button { min-width: 46px; padding-inline: 2px; }
 }
+
+/* iPhone Safari zooms into any text field or dropdown under 16px when it's
+ * tapped, which made the page wider than the screen. Keep form controls at
+ * 16px on touch screens, and never let the page scroll sideways. */
+html, body { overflow-x: clip; }
+@media (pointer: coarse), (max-width: 560px) {
+  input[type=text], input[type=search], select, textarea,
+  .select-wrap select, .pattern-control select, .dock-panel select, .lab-tools select,
+  .masthead .combo > input, .masthead .combo > input::placeholder { font-size: 16px; }
+}
