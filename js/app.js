@@ -336,6 +336,8 @@
     state.chain.forEach(pedal => inspectSelect.add(new Option(pedalName(pedal), pedal.id)));
     inspectSelect.value = inspectId;
     const pedal = state.chain.find(p => p.id === inspectId);
+    document.querySelector('#monitor [data-value="dry"]').textContent = pedal ? 'Before pedal' : 'Dry input';
+    document.querySelector('#monitor [data-value="wet"]').textContent = pedal ? 'After pedal' : 'With effects';
     document.getElementById('scope-caption').textContent = pedal ? pedalName(pedal) + ' · input → output' : 'Guitar input → full chain output';
     document.querySelector('.sw-in').parentElement.lastChild.textContent = pedal ? 'Pedal input' : 'Guitar input';
     document.querySelector('.sw-out').parentElement.lastChild.textContent = pedal ? 'Pedal output' : 'Chain output';
@@ -524,7 +526,7 @@
       const meter = type === 'gate' ? gateGain : compGR;
       if (entry) meter.set(entry.meter); else meter.fill(type === 'gate' ? 1 : 0);
       const legend = document.querySelector('.lg-' + type);
-      legend.classList.toggle('hidden', !pedal?.enabled);
+      legend.classList.toggle('hidden', !pedal?.enabled || (!!inspectId && inspectId !== pedal?.id));
       legend.lastChild.textContent = pedal ? pedalName(pedal) + ' threshold' : '';
     }
     if (audioNode) sendAudioState();
