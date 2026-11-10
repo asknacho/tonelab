@@ -23,6 +23,7 @@
       <label id="tone-pick-label" for="tone-search" class="hero-label">I want to sound like</label>
       <div class="combo hero-select" id="tone-combo"><input id="tone-search" type="text" role="combobox" aria-expanded="false" aria-controls="tone-list" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="Type a song or technique…" /><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg><ul id="tone-list" class="combo-list" role="listbox" aria-label="Sounds" hidden></ul></div><select id="tone-pick" hidden tabindex="-1" aria-hidden="true"></select>
       <p id="tone-summary" class="tone-summary"></p>
+      <div id="undo-toast" class="undo-toast" role="status" hidden><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg><span id="undo-text"></span><button id="undo-button">Undo</button></div>
     </section>
 
     <section class="slots" aria-label="Compare two boards">
@@ -33,9 +34,46 @@
       <label class="match"><input id="match-volume" type="checkbox" checked /> Match volume, so louder doesn’t fool your ears</label>
     </section>
 
-    <section class="journey" aria-labelledby="journey-title">
-      <header class="journey-head"><h2 id="journey-title">Step by step</h2><div class="segmented view-toggle" role="group" aria-label="Show"><button data-view="level" class="on" aria-pressed="true">Loudness</button><button data-view="tone" aria-pressed="false">Tone</button></div></header>
+    <section class="journey workspace" aria-labelledby="journey-title">
+      <header class="journey-head"><h2 id="journey-title">Your signal</h2><div class="segmented view-toggle" role="group" aria-label="Show"><button data-view="level" class="on" aria-pressed="true">Loudness</button><button data-view="tone" aria-pressed="false">Tone</button></div></header>
       <p class="journey-meta"><span id="journey-slot"></span> · <span id="view-hint"></span></p>
+      <div class="workspace-top">
+        <div class="chain-strip-wrap">
+          <ol id="chain-strip" class="chain-strip" aria-label="Signal chain: tap a pedal to tweak it, a dot to listen there"></ol>
+          <p class="strip-hint">Tap a pedal to tweak it, a dot to listen there</p>
+        </div>
+        <div class="scope-card">
+          <div class="lab-tools">
+            <span class="listening-at"><span class="field-label">Listening at</span> <strong id="scope-caption">What you hear</strong></span>
+            <div class="segmented" id="monitor" aria-label="Hear">
+              <button data-value="dry">Dry input</button><button data-value="wet" class="on">With effects</button>
+            </div>
+            <button id="toggle-meters" aria-expanded="false">Show meters</button>
+          </div>
+          <div class="scope-wrap">
+            <canvas id="scope" class="scope"></canvas>
+            <canvas id="lanes" class="lanes" hidden></canvas>
+          </div>
+          <ul class="legend">
+            <li><i class="sw sw-in"></i>Input (dry)</li>
+            <li><i class="sw sw-out"></i>Output</li>
+            <li class="lg-gate"><i class="sw sw-dash gate"></i>Gate threshold</li>
+            <li class="lg-comp"><i class="sw sw-dash comp"></i>Compressor threshold</li>
+          </ul>
+        </div>
+      </div>
+
+      <section id="effect-settings" class="inspector" aria-labelledby="settings-title" hidden>
+        <header class="sheet-head"><div><span id="settings-state" class="field-label"></span><h2 id="settings-title"></h2></div><div class="inspector-head-actions"><span id="pedal-saved" class="pedal-saved" role="status"></span><button class="sheet-close board-button">Done</button></div></header>
+        <p id="pedal-note" class="pedal-note"></p>
+        <p id="pedal-diff" class="journey-diff" hidden></p>
+        <div class="model-row"><label class="model-pick"><span class="field-label">Pedal</span><span class="select-wrap"><select id="pedal-model"></select><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span></label><label class="show-all"><input type="checkbox" id="show-all" /> <span id="show-all-label">Show all controls</span></label></div>
+        <div class="settings-body"><div class="params" id="pedal-params"></div><figure class="curve" id="pedal-curve-wrap"><canvas id="pedal-curve"></canvas><figcaption><span class="badge" id="pedal-state"></span><span class="readout" id="pedal-readout"></span></figcaption></figure></div>
+        <p id="effect-explanation" class="explain"></p>
+        <div class="sheet-actions"><button id="inspect-pedal">▶ Hear this pedal</button><button id="pedal-earlier">← Earlier</button><button id="pedal-later">Later →</button><button id="duplicate-pedal">Duplicate</button><button id="remove-pedal">Remove</button></div>
+      </section>
+
+      <h3 class="steps-title">Step by step</h3>
       <p id="journey-play" class="journey-play"></p>
       <ol id="journey-steps" class="journey-steps" aria-label="Your signal, pedal by pedal"></ol>
       <div id="whatif-box" class="whatif-box">
@@ -44,49 +82,14 @@
         <div class="whatif-hear"><button data-hear="A">Hear A</button><button data-hear="B">Hear B</button></div>
       </div>
       <p id="journey-tip" class="journey-tip"></p>
-    </section>
-
-    <details class="panel scope-panel demo" id="demo" open>
-      <summary class="demo-summary"><span class="demo-title">Live demo</span><span class="demo-hint">Listen to the guitar and see the sound</span></summary>
-
-      <div class="listen-bar">
-        <button class="listen-button" id="listen" aria-pressed="false">Listen</button>
-        <div class="segmented" id="monitor" aria-label="Listen to">
-          <button data-value="dry">Dry input</button><button data-value="wet" class="on">With effects</button>
-        </div>
-        <label class="volume">Volume <input id="volume" type="range" min="0" max="0.8" step="0.01" value="0.2" /></label>
+      <details class="guitar-settings">
+        <summary>Guitar settings</summary>
         <label class="field noise-control">
           <span class="field-label">Noise floor <output id="noise-out">−48 dB</output></span>
           <input type="range" id="noise" min="-80" max="-20" step="1" value="-48" />
         </label>
-        <label class="field pattern-control">
-          <span class="field-label">Playing</span>
-          <select id="pattern"><option value="guitar">Free picking</option></select>
-        </label>
-        <label class="field speed-control">
-          <span class="field-label">Speed <output id="speed-out">126 BPM</output></span>
-          <input type="range" id="speed" min="40" max="220" step="1" value="126" />
-        </label>
-        <span id="audio-status" role="status">Synthesized guitar</span>
-      </div>
-      <div class="lab-tools">
-        <div class="segmented view-toggle" role="group" aria-label="Show"><button data-view="level" class="on" aria-pressed="true">Loudness</button><button data-view="tone" aria-pressed="false">Tone</button></div>
-        <label>Inspect <select id="inspect-point"><option value="">Full chain</option></select></label>
-        <button id="toggle-meters" aria-expanded="false">Show meters</button>
-        <span id="scope-caption">Guitar input → full chain output</span>
-      </div>
-      <div class="scope-wrap">
-        <canvas id="scope" class="scope"></canvas>
-        <canvas id="lanes" class="lanes" hidden></canvas>
-      </div>
-
-      <ul class="legend">
-        <li><i class="sw sw-in"></i>Input (dry)</li>
-        <li><i class="sw sw-out"></i>Output</li>
-        <li class="lg-gate"><i class="sw sw-dash gate"></i>Gate threshold</li>
-        <li class="lg-comp"><i class="sw sw-dash comp"></i>Compressor threshold</li>
-      </ul>
-    </details>
+      </details>
+    </section>
 
     <section class="chain-editor" aria-labelledby="chain-title">
       <header class="chain-heading"><h2 id="chain-title">Your pedalboard</h2><div class="board-actions"><button id="share-board" class="board-button">Share</button><button id="add-effect" class="board-button">+ Add effect</button></div></header>
@@ -104,18 +107,32 @@
       <header class="sheet-head"><div><h2 id="library-title">Add an effect</h2><p>Every pedal has its own settings. Add any effect again.</p></div><button class="sheet-close" aria-label="Close effect library">Close</button></header>
       <div id="effect-choices"></div>
     </dialog>
-    <dialog id="effect-settings" class="effect-dialog" aria-labelledby="settings-title">
-      <header class="sheet-head"><div><span id="settings-state" class="field-label"></span><h2 id="settings-title"></h2></div><button class="sheet-close">Done</button></header>
-      <div class="model-row"><label class="model-pick"><span class="field-label">Pedal</span><span class="select-wrap"><select id="pedal-model"></select><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span></label><label class="show-all"><input type="checkbox" id="show-all" /> <span id="show-all-label">Show all controls</span></label></div>
-      <div class="settings-body"><div class="params" id="pedal-params"></div><figure class="curve" id="pedal-curve-wrap"><canvas id="pedal-curve"></canvas><figcaption><span class="badge" id="pedal-state"></span><span class="readout" id="pedal-readout"></span></figcaption></figure></div>
-      <p id="effect-explanation" class="explain"></p>
-      <button id="inspect-pedal" class="board-button">Listen and view this pedal</button>
-      <div class="sheet-actions"><button id="pedal-earlier">← Earlier</button><button id="pedal-later">Later →</button><button id="duplicate-pedal">Duplicate</button><button id="remove-pedal">Remove</button></div>
-    </dialog>
     <dialog id="share-dialog" class="effect-dialog" aria-labelledby="share-title"><header class="sheet-head"><h2 id="share-title">Share your board</h2><button class="sheet-close">Done</button></header><label>Copy this link<input id="share-link" type="text" readonly /></label></dialog>
   </main>
 
-  <div id="undo-toast" class="undo-toast" role="status" hidden><span id="undo-text"></span><button id="undo-button">Undo</button></div>
+  <nav class="player-dock" aria-label="Player">
+    <div id="dock-panel" class="dock-panel" hidden>
+      <label class="field pattern-control">
+        <span class="field-label">Playing</span>
+        <select id="pattern"><option value="guitar">Free picking</option></select>
+      </label>
+      <label class="field speed-control">
+        <span class="field-label">Speed <output id="speed-out">126 BPM</output></span>
+        <input type="range" id="speed" min="40" max="220" step="1" value="126" />
+      </label>
+      <label class="field volume-control">
+        <span class="field-label">Volume</span>
+        <input id="volume" type="range" min="0" max="0.8" step="0.01" value="0.2" />
+      </label>
+      <span id="audio-status" role="status">Synthesized guitar</span>
+    </div>
+    <div class="dock-bar">
+      <button class="listen-button" id="listen" aria-pressed="false" aria-label="Play"><svg class="i-play" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"></path></svg><svg class="i-pause" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"></path></svg></button>
+      <button id="dock-playing" class="dock-chip" aria-expanded="false" aria-controls="dock-panel"><span class="dock-chip-label">Playing</span><span id="dock-playing-text" class="dock-chip-text">Free picking</span></button>
+      <div id="dock-bank" class="dock-bank" role="group" aria-label="Compare A and B"><button data-bank="A" aria-pressed="true" class="on">A</button><button data-bank="B" aria-pressed="false">B</button></div>
+      <button id="dock-volume" class="dock-icon" aria-label="Volume and playing settings" aria-expanded="false" aria-controls="dock-panel"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"></path><path d="M16 9a4 4 0 010 6"></path></svg></button>
+    </div>
+  </nav>
 
   <footer class="foot">Signals are generated in your browser. Nothing is recorded or uploaded.</footer>
 

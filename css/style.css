@@ -239,11 +239,10 @@ canvas { display: block; width: 100%; }
 }
 
 /* Undo bar after removing a pedal. */
-.undo-toast { position: fixed; z-index: 60; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); translate: -50% 0; display: flex; align-items: center; gap: 16px; max-width: calc(100% - 32px); padding: 6px 6px 6px 16px; border-radius: 10px; background: var(--ink); color: var(--paper); font-size: 14px; box-shadow: 0 10px 30px #1f1d1840; animation: toast-in .18s ease-out; }
+.undo-toast { position: fixed; z-index: 60; left: 50%; top: calc(12px + env(safe-area-inset-top)); translate: -50% 0; display: flex; align-items: center; gap: 16px; max-width: calc(100% - 32px); padding: 6px 6px 6px 16px; border-radius: 10px; background: var(--ink); color: var(--paper); font-size: 14px; box-shadow: 0 10px 30px #1f1d1840; animation: toast-in .18s ease-out; }
 .undo-toast span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .undo-toast button { flex: none; min-height: 40px; padding: 0 16px; border: 1px solid #ffffff40; border-radius: 7px; background: transparent; color: var(--paper); font-weight: 600; }
 .undo-toast button:hover { background: #ffffff1a; }
-@keyframes toast-in { from { opacity: 0; translate: -50% 10px; } }
 @media (prefers-reduced-motion: reduce) { .undo-toast { animation: none; } }
 
 /* Playing pattern selector */
@@ -351,12 +350,97 @@ canvas { display: block; width: 100%; }
 .journey-out .journey-listen { background: var(--ink); color: var(--paper); }
 
 /* Collapsible live demo */
-.demo-summary { list-style: none; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; min-height: 48px; padding: 12px 24px; cursor: pointer; position: relative; padding-right: 56px; }
-.demo-summary::-webkit-details-marker { display: none; }
-.demo-summary::after { content: ''; position: absolute; right: 26px; top: 50%; width: 9px; height: 9px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: translateY(-70%) rotate(45deg); transition: transform .15s; }
-.demo[open] > .demo-summary::after { transform: translateY(-30%) rotate(225deg); }
-.demo-title { font: 600 18px/1.2 var(--serif); }
-.demo-hint { font-size: 13px; color: var(--ink-2); }
-.demo-summary:focus-visible { outline: 2px solid var(--gate); outline-offset: -2px; }
 
 .speed-control input:disabled { opacity: .4; }
+
+@keyframes toast-down { from { opacity: 0; transform: translateY(-8px); } }
+.undo-toast { animation-name: toast-down; background: var(--card); color: var(--ink); border: 1px solid var(--rule); box-shadow: 0 8px 24px #1f1d1826; gap: 10px; padding-left: 12px; }
+.undo-toast svg { flex: none; color: var(--gate); }
+.undo-toast button { color: var(--ink); border-color: var(--ink); }
+.undo-toast button:hover { background: var(--grid); }
+
+/* One signal-chain workspace: chain strip, one live scope, inline editor */
+body { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+.journey > .workspace-top, .journey > .inspector { max-width: 900px; }
+.workspace-top { margin-top: 12px; background: var(--paper); }
+.chain-strip-wrap { padding: 10px 0 4px; }
+.chain-strip { list-style: none; display: flex; align-items: center; gap: 4px; margin: 0; padding: 4px 2px 8px; overflow-x: auto; scrollbar-width: thin; }
+.chain-strip li { flex: none; display: flex; align-items: center; }
+.strip-end { font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3); padding: 0 2px; }
+.strip-node { position: relative; }
+.strip-node::before { content: ''; position: absolute; left: -4px; right: -4px; top: 50%; height: 2px; background: var(--ghost); z-index: 0; }
+.strip-dot { position: relative; z-index: 1; width: 44px; height: 44px; border: 0; padding: 0; background: none; display: grid; place-items: center; }
+.strip-dot i { width: 14px; height: 14px; border-radius: 50%; background: var(--card); border: 2px solid var(--ink-3); transition: transform .12s; }
+.strip-dot:hover i { border-color: var(--ink); transform: scale(1.2); }
+.strip-dot.on i { width: 22px; height: 22px; background: var(--ink); border: 4px solid var(--card); box-shadow: 0 0 0 2px var(--ink); }
+.strip-pedal button { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 52px; min-height: 44px; padding: 6px 4px 4px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--accent); font: 500 11px/1.1 var(--sans); }
+.strip-pedal button:hover { background: var(--card); border-color: var(--rule); }
+.strip-pedal.selected button { background: var(--card); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.strip-pedal.off button { color: var(--ink-3); }
+.strip-art { width: 22px; height: 40px; overflow: visible; --c: var(--accent); }
+.strip-pedal.off .strip-art { --c: var(--ghost); }
+.strip-hint { margin: 0; font-size: 12px; color: var(--ink-3); }
+.scope-card { margin-top: 8px; background: var(--card); border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; }
+.scope-card .lab-tools { padding: 10px 14px; }
+.scope-card .scope-wrap { border-bottom: 0; }
+.scope-card .legend { margin: 8px 14px 10px; }
+.listening-at { display: flex; flex-direction: column; gap: 2px; margin-right: auto; }
+#scope-caption { color: var(--ink); font: 600 16px/1.2 var(--serif); }
+.scope-card #monitor button { min-height: 36px; padding: 6px 10px; }
+.steps-title { margin: 22px 0 0; font: 600 18px/1.2 var(--serif); }
+.journey-listen { margin-top: 8px; }
+.guitar-settings { margin-top: 18px; font-size: 13px; color: var(--ink-2); }
+.guitar-settings summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.guitar-settings .noise-control { max-width: 260px; }
+
+/* Inline pedal editor */
+.inspector { margin-top: 12px; padding: 16px; background: var(--card); border: 1px solid var(--rule); border-top: 4px solid var(--accent, var(--ink)); border-radius: 12px; }
+.inspector .sheet-head { margin-bottom: 8px; }
+.inspector .sheet-head h2 { font-size: 23px; }
+.inspector-head-actions { display: flex; align-items: center; gap: 10px; }
+.pedal-saved { font: 500 11px var(--mono); color: var(--gate); }
+.pedal-note { margin: 0 0 10px; font-size: 14px; color: var(--ink-2); line-height: 1.45; }
+.inspector .journey-diff { margin: 0 0 14px; }
+.inspector .model-row { margin: 0 0 14px; }
+.inspector .explain { margin: 16px 0 14px; }
+.sheet-actions button { min-height: 44px; padding: 0 14px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--ink); }
+#inspect-pedal { border-color: var(--ink); font-weight: 600; }
+/* While editing, the chain and a smaller scope stay pinned at the top. */
+.editing .workspace-top { position: sticky; top: 0; z-index: 20; padding-bottom: 6px; box-shadow: 0 10px 14px -12px #1f1d1840; }
+.editing .scope-card .scope { height: 120px; }
+.editing .scope-card .legend, .editing .strip-hint, .editing #toggle-meters, .editing .lanes { display: none; }
+.editing .chain-strip-wrap { padding-top: 6px; }
+
+/* Sticky player dock */
+.player-dock { position: fixed; z-index: 50; left: 0; right: 0; bottom: 0; color: var(--paper); background: var(--ink); border-radius: 18px 18px 0 0; box-shadow: 0 -8px 24px #1f1d182e; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); }
+.dock-bar { max-width: 760px; margin: 0 auto; display: flex; align-items: center; gap: 8px; }
+.player-dock .listen-button { flex: none; width: 48px; height: 48px; padding: 0; border-radius: 50%; background: var(--paper); color: var(--ink); display: grid; place-items: center; }
+.listen-button .i-pause, .listen-button.playing .i-play { display: none; }
+.listen-button.playing .i-pause { display: block; }
+.player-dock button:focus-visible, .player-dock input:focus-visible, .player-dock select:focus-visible { outline-color: var(--paper); }
+.dock-chip { flex: 1; min-width: 0; min-height: 48px; padding: 4px 10px; display: flex; flex-direction: column; justify-content: center; text-align: left; background: #2b2924; border: 1px solid #4a463d; border-radius: 10px; color: var(--paper); }
+.dock-chip-label { font: 500 10px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: #cfc9ba; }
+.dock-chip-text { font: 500 13px/1.3 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dock-bank { flex: none; display: flex; border: 1px solid #4a463d; border-radius: 10px; overflow: hidden; }
+.dock-bank button { width: 44px; min-height: 48px; border: 0; background: #2b2924; color: var(--paper); font: 600 15px var(--serif); }
+.dock-bank button.on { background: var(--paper); color: var(--ink); }
+.dock-icon { flex: none; width: 44px; height: 48px; display: grid; place-items: center; border: 1px solid #4a463d; border-radius: 10px; background: #2b2924; color: var(--paper); }
+.dock-icon[aria-expanded="true"], .dock-chip[aria-expanded="true"] { border-color: var(--paper); }
+.dock-panel { max-width: 760px; margin: 0 auto 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px 18px; padding: 4px 2px 14px; border-bottom: 1px solid #4a463d; }
+.dock-panel .field-label { color: #cfc9ba; }
+.dock-panel .field-label output { color: var(--paper); }
+.dock-panel select { width: 100%; background: #2b2924; color: var(--paper); border: 1px solid #4a463d; }
+.dock-panel input[type=range] { --accent: var(--paper); }
+.dock-panel input[type=range]::-webkit-slider-runnable-track { background: #4a463d; }
+.dock-panel input[type=range]::-moz-range-track { background: #4a463d; }
+.dock-panel input[type=range]::-webkit-slider-thumb { background: var(--ink); }
+.dock-panel input[type=range]::-moz-range-thumb { background: var(--ink); }
+.dock-panel .noise-control, .dock-panel .speed-control { max-width: none; }
+.dock-panel #audio-status { grid-column: 1 / -1; color: #cfc9ba; }
+
+@media (max-width: 560px) {
+  .editing .scope-card .scope { height: 96px; }
+  .scope-card .lab-tools { padding: 8px 12px; }
+  .inspector { padding: 14px 12px; }
+  .sheet-actions button { flex: 1 1 auto; }
+}
