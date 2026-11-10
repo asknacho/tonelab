@@ -307,11 +307,165 @@
     }
   }
 
+  // Fuzz: huge gain into asymmetric clipping turns the wave almost square.
+  class Fuzz {
+    reset() { this.dcX = 0; this.dcY = 0; this.lp = 0; }
+    process(inp, out, unused, p, n, reset = true) {
+      if (reset) this.reset();
+      const gain = dbToLin(p.fuzz);
+      const level = dbToLin(p.level);
+      const cutoff = 500 * Math.pow(14, p.tone); // 500 Hz (dark) to 7 kHz (bright)
+      const lpC = 1 - Math.exp(-TAU * cutoff / SR);
+      const dcC = Math.exp(-TAU * 15 / SR);
+      let { dcX, dcY, lp } = this;
+      for (let i = 0; i < n; i++) {
+        const x = inp[i] * gain + 0.12; // bias makes the two halves clip differently
+        const clipped = x > 0 ? Math.min(1, Math.tanh(1.2 * x)) : Math.max(-0.75, Math.tanh(0.8 * x));
+        dcY = clipped - dcX + dcC * dcY; // remove the offset the bias leaves behind
+        dcX = clipped;
+        lp += (dcY - lp) * lpC;
+        out[i] = lp * level;
+      }
+      Object.assign(this, { dcX, dcY, lp });
+    }
+  }
+
+  // Analog-style octave: a flip-flop divider makes a square wave one octave
+  // down, and full-wave rectification folds the wave to sound one octave up.
+  class Octave {
+    reset() {
+      Object.assign(this, { lp1: 0, lp2: 0, env: 0, flip: 1, armed: true, sub: 0, rectX: 0, rectY: 0 });
+    }
+    process(inp, out, unused, p, n, reset = true) {
+      if (reset) this.reset();
+      const lpC = 1 - Math.exp(-TAU * 450 / SR);   // isolate the fundamental for tracking
+      const subC = 1 - Math.exp(-TAU * 1200 / SR); // soften the square's edges
+      const dcC = Math.exp(-TAU * 30 / SR);
+      const envA = timeCoef(1), envR = timeCoef(80);
+      let { lp1, lp2, env, flip, armed, sub, rectX, rectY } = this;
+      for (let i = 0; i < n; i++) {
+        const x = inp[i];
+        lp1 += (x - lp1) * lpC;
+        lp2 += (lp1 - lp2) * lpC;
+        const a = Math.abs(lp2);
+        env = a > env ? envA * env + (1 - envA) * a : envR * env + (1 - envR) * a;
+        // Toggle once per cycle, with hysteresis so noise doesn't retrigger it.
+        const h = 0.25 * env;
+        if (armed && lp2 > h) { flip = -flip; armed = false; }
+        else if (lp2 < -h) armed = true;
+        sub += (flip * env * 1.6 - sub) * subC;
+        const rect = Math.abs(x);
+        rectY = rect - rectX + dcC * rectY;
+        rectX = rect;
+        out[i] = x * p.dry + sub * p.sub + rectY * 1.4 * p.up;
+      }
+      Object.assign(this, { lp1, lp2, env, flip, armed, sub, rectX, rectY });
+    }
+  }
+
+  // Harmonizer: each voice plays the recent signal back from a delay line.
+  // Reading faster or slower than it was written shifts the pitch. When the
+  // read head runs out of room it jumps back by roughly one window, to the
+  // spot whose waveform best matches what it just played, and crossfades
+  // there so the jump isn't heard.
+  const HARM_MIN_DELAY = 4;
+  const HARM_FADE = Math.round(0.008 * SR);
+  const HARM_MATCH = Math.round(0.006 * SR);
+
+  class Harmonizer {
+    reset() {
+      this.buffer = new Float32Array(Math.round(SR * 0.4));
+      this.pos = 0;
+      this.voices = [0, 1].map(() => ({ d: -1, old: 0, fade: 0 }));
+    }
+
+    read(d) {
+      const buf = this.buffer, L = buf.length;
+      const at = this.pos - d;
+      let i0 = Math.floor(at);
+      const frac = at - i0;
+      if (i0 < 0) i0 += L;
+      const i1 = i0 + 1 === L ? 0 : i0 + 1;
+      return buf[i0] + (buf[i1] - buf[i0]) * frac;
+    }
+
+    // Best new delay in [lo, hi]: the one whose recent past (played at this
+    // voice's speed) correlates most with what the current head just played.
+    bestDelay(d, lo, hi, ratio) {
+      const buf = this.buffer, L = buf.length;
+      // What the current head just played, sampled every other output sample.
+      const count = HARM_MATCH >> 1;
+      const offsets = new Int32Array(count);
+      const ref = new Float32Array(count);
+      for (let k = 0; k < count; k++) {
+        offsets[k] = Math.round(2 * k * ratio);
+        let idx = Math.round(this.pos - d) - offsets[k];
+        idx %= L; if (idx < 0) idx += L;
+        ref[k] = buf[idx];
+      }
+      let best = (lo + hi) / 2, bestScore = -Infinity;
+      for (let c = Math.round(lo); c <= hi; c += 2) {
+        let start = (this.pos - c) % L;
+        if (start < 0) start += L;
+        let dot = 0, energy = 1e-9;
+        for (let k = 0; k < count; k++) {
+          let idx = start - offsets[k];
+          if (idx < 0) idx += L;
+          const b = buf[idx];
+          dot += ref[k] * b;
+          energy += b * b;
+        }
+        const score = dot / Math.sqrt(energy);
+        if (score > bestScore) { bestScore = score; best = c; }
+      }
+      return best;
+    }
+
+    process(inp, out, unused, p, n, reset = true) {
+      if (reset) this.reset();
+      const W = Math.max(HARM_FADE * 2, Math.round(p.window * 0.001 * SR));
+      const intervals = p.voice2 !== 0 ? [p.voice1, p.voice2] : [p.voice1];
+      const ratios = intervals.map(st => Math.pow(2, st / 12));
+      const F = HARM_FADE;
+      for (let i = 0; i < n; i++) {
+        this.buffer[this.pos] = inp[i];
+        let wet = 0;
+        for (let v = 0; v < intervals.length; v++) {
+          const ratio = ratios[v];
+          const step = 1 - ratio; // how the delay changes per sample
+          const voice = this.voices[v];
+          if (voice.d < 0) voice.d = HARM_MIN_DELAY + W / 2;
+          voice.d += step;
+          let y = this.read(voice.d);
+          if (voice.fade > 0) {
+            voice.old += step;
+            const t = 1 - voice.fade / F;
+            y = y * t + this.read(voice.old) * (1 - t);
+            voice.fade--;
+          } else if (step < 0 && voice.d < HARM_MIN_DELAY + F * -step + 1) {
+            // Pitching up: the head caught up with the newest audio.
+            voice.old = voice.d;
+            voice.d = this.bestDelay(voice.d, voice.d + W / 2, voice.d + W, ratio);
+            voice.fade = F;
+          } else if (step > 0 && voice.d > HARM_MIN_DELAY + W * 1.5 - F * step - 1) {
+            // Pitching down: the head fell too far behind.
+            voice.old = voice.d;
+            voice.d = this.bestDelay(voice.d, Math.max(HARM_MIN_DELAY + 1, voice.d - W), voice.d - W / 2, ratio);
+            voice.fade = F;
+          }
+          wet += y;
+        }
+        out[i] = inp[i] * (1 - p.mix) + (wet / intervals.length) * p.mix;
+        if (++this.pos === this.buffer.length) this.pos = 0;
+      }
+    }
+  }
+
   // One processor and buffer per pedal, even when types repeat.
   class EffectChain {
     constructor(size) { this.size = size; this.instances = new Map(); }
     process(input, pedals, reset = true) {
-      const constructors = { gate: NoiseGate, comp: Compressor, drive: Overdrive, delay: Delay };
+      const constructors = { gate: NoiseGate, comp: Compressor, drive: Overdrive, fuzz: Fuzz, octave: Octave, harm: Harmonizer, delay: Delay };
       const alive = new Set(pedals.map(pedal => pedal.id));
       for (const id of this.instances.keys()) if (!alive.has(id)) this.instances.delete(id);
       let signal = input;
@@ -333,5 +487,5 @@
     }
   }
 
-  Object.assign(TL, { SR, dbToLin, linToDb, Source, NoiseGate, Compressor, Overdrive, Delay, EffectChain, compCurve });
+  Object.assign(TL, { SR, dbToLin, linToDb, Source, NoiseGate, Compressor, Overdrive, Fuzz, Octave, Harmonizer, Delay, EffectChain, compCurve });
 })((globalThis.TL = globalThis.TL || {}));

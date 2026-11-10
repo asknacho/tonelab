@@ -74,14 +74,76 @@
     { key: 'feedback', label: 'Feedback', min: 0, max: 0.75, step: 0.01, value: 0.35, format: v => Math.round(v * 100) + '%', hint: 'How much of each echo feeds the next.' },
     { key: 'mix', label: 'Mix', min: 0, max: 0.8, step: 0.01, value: 0.3, format: v => Math.round(v * 100) + '%', hint: 'Balance between the signal and its echoes.' },
   ];
+  const pct = v => Math.round(v * 100) + '%';
+  const FUZZ_PARAMS = [
+    { key: 'fuzz', label: 'Fuzz', min: 0, max: 45, step: 0.5, value: 30, format: fmtDb, hint: 'Gain into the clipper. Turn it up and the wave becomes a square.' },
+    { key: 'tone', label: 'Tone', min: 0, max: 1, step: 0.01, value: 0.5, format: pct, hint: 'Dark to bright: a filter that tames the fizz.' },
+    { key: 'level', label: 'Level', min: -30, max: 0, step: 0.5, value: -8, format: fmtDb, hint: 'Output volume.' },
+  ];
+  const OCTAVE_PARAMS = [
+    { key: 'dry', label: 'Dry', min: 0, max: 1, step: 0.01, value: 0.7, format: pct, hint: 'Your original note.' },
+    { key: 'sub', label: 'Octave down', min: 0, max: 1, step: 0.01, value: 0.6, format: pct, hint: 'A switch flips once per cycle, making a square wave at half the frequency.' },
+    { key: 'up', label: 'Octave up', min: 0, max: 1, step: 0.01, value: 0.3, format: pct, hint: 'Folding the bottom half of the wave up doubles its frequency.' },
+  ];
+  const INTERVALS = ['unison', 'minor 2nd', 'major 2nd', 'minor 3rd', 'major 3rd', '4th', 'tritone', '5th', 'minor 6th', 'major 6th', 'minor 7th', 'major 7th', 'octave'];
+  const fmtInterval = v => v === 0 ? 'Unison' : (v > 0 ? '+' : '−') + Math.abs(v) + ' · ' + INTERVALS[Math.abs(v)] + (v > 0 ? ' up' : ' down');
+  const HARM_PARAMS = [
+    { key: 'voice1', label: 'Voice 1', min: -12, max: 12, step: 1, value: 4, format: fmtInterval, hint: 'Interval of the first harmony, in semitones.' },
+    { key: 'voice2', label: 'Voice 2', min: -12, max: 12, step: 1, value: 7, format: v => v === 0 ? 'Off' : fmtInterval(v), hint: 'Add a second voice to make a chord. Set it to 0 to turn it off.' },
+    { key: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, value: 0.5, format: pct, hint: 'Balance between your note and the harmony.' },
+    { key: 'window', label: 'Window', min: 20, max: 120, step: 1, value: 50, format: fmtMs, hint: 'How much audio each voice replays. Short windows warble on low notes; long ones smear fast playing.' },
+  ];
+  // `model` names the classic pedal whose outline each card borrows.
   const types = {
-    gate: { name: 'Noise gate', short: 'Gate', specs: GATE_PARAMS, explanation: 'Silences the quiet parts. Attack opens the gate; hold and release preserve the tails. Try a gate after delay to cut off the echoes.' },
-    comp: { name: 'Compressor', short: 'Comp', specs: COMP_PARAMS, explanation: 'Controls peaks above the threshold. Two compressors can share the work: use the first for gentle leveling and the second to catch the remaining peaks.' },
-    drive: { name: 'Overdrive', short: 'Drive', specs: DRIVE_PARAMS, explanation: 'Adds harmonics by rounding off peaks. Try compression before drive for a more even distortion, or after it to tame the result.' },
-    delay: { name: 'Delay', short: 'Delay', specs: DELAY_PARAMS, explanation: 'Time sets the spacing of echoes; feedback controls their decay. Stack two delays at different times for a more complex rhythm.' },
+    gate: { name: 'Noise gate', short: 'Gate', model: 'ISP Decimator', specs: GATE_PARAMS, explanation: 'Silences the quiet parts. Attack opens the gate; hold and release preserve the tails. Try a gate after delay to cut off the echoes.' },
+    comp: { name: 'Compressor', short: 'Comp', model: 'MXR Dyna Comp', specs: COMP_PARAMS, explanation: 'Controls peaks above the threshold. Two compressors can share the work: use the first for gentle leveling and the second to catch the remaining peaks.' },
+    drive: { name: 'Overdrive', short: 'Drive', model: 'Ibanez Tube Screamer', specs: DRIVE_PARAMS, explanation: 'Adds harmonics by rounding off peaks. Try compression before drive for a more even distortion, or after it to tame the result.' },
+    fuzz: { name: 'Fuzz', short: 'Fuzz', model: 'Dallas Arbiter Fuzz Face', specs: FUZZ_PARAMS, explanation: 'Clips so hard the wave turns almost square, and the two halves clip unevenly for a sputtery edge. Compare it with overdrive, which only rounds the peaks.' },
+    octave: { name: 'Octave', short: 'Octave', model: 'Electro-Harmonix POG', specs: OCTAVE_PARAMS, explanation: 'Adds notes an octave below and above. It tracks single notes best; chords confuse it, much like an analog octave pedal. Watch the octave down turn the wave into wide square steps.' },
+    harm: { name: 'Harmonizer', short: 'Harmony', model: 'DigiTech Whammy', specs: HARM_PARAMS, explanation: 'Adds pitch-shifted copies of your playing to build harmonies. Each voice replays the last few milliseconds faster (higher) or slower (lower). Put it before drive for a thicker sound, or after for clearer voices.' },
+    delay: { name: 'Delay', short: 'Delay', model: 'Boss DD-3', specs: DELAY_PARAMS, explanation: 'Time sets the spacing of echoes; feedback controls their decay. Stack two delays at different times for a more complex rhythm.' },
   };
   let nextId = 0;
-  const counts = { gate: 0, comp: 0, drive: 0, delay: 0 };
+  const counts = Object.fromEntries(Object.keys(types).map(type => [type, 0]));
+
+  /* Pedal outlines, drawn in a 76 × 140 box. Knobs and faders point at the
+   * pedal's real settings. `inset` and `jack` place the cable connections. */
+  const ART_W = 76, ART_H = 140;
+  function level(pedal, key) {
+    const spec = types[pedal.type].specs.find(s => s.key === key);
+    const v = pedal.params[key];
+    const t = spec.log ? Math.log(v / spec.min) / Math.log(spec.max / spec.min) : (v - spec.min) / (spec.max - spec.min);
+    return Math.max(0, Math.min(1, t));
+  }
+  function knob(cx, cy, r, t) {
+    const a = (-135 + 270 * t) * Math.PI / 180;
+    const x = (cx + Math.sin(a) * (r - 1.6)).toFixed(1), y = (cy - Math.cos(a) * (r - 1.6)).toFixed(1);
+    return `<circle class="art-knob" cx="${cx}" cy="${cy}" r="${r}"/><line class="art-pointer" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}"/>`;
+  }
+  const stomp = (cx, cy, r = 6.5) => `<circle class="art-line" cx="${cx}" cy="${cy}" r="${r + 3.5}"/><circle class="art-switch" cx="${cx}" cy="${cy}" r="${r}"/>`;
+  const ridges = (ys, x1, x2) => ys.map(y => `<line class="art-line" x1="${x1}" y1="${y}" x2="${x2}" y2="${y}"/>`).join('');
+  const led = (cx, cy) => `<circle class="art-led-glow" cx="${cx}" cy="${cy}" r="4.5"/><circle class="art-led" cx="${cx}" cy="${cy}" r="2.3"/>`;
+  const ART = {
+    gate: { inset: 9, jack: 66, led: [58, 36], draw: p => `<rect class="art-body" x="9" y="1" width="58" height="138" rx="5"/>${knob(38, 36, 9, level(p, 'threshold'))}${stomp(38, 98)}` },
+    comp: { inset: 9, jack: 66, led: [38, 26], draw: p => `<rect class="art-body" x="9" y="1" width="58" height="138" rx="3"/>` +
+      [[14, 6], [62, 6], [14, 134], [62, 134]].map(([x, y]) => `<circle class="art-line" cx="${x}" cy="${y}" r="1.4"/>`).join('') +
+      knob(25, 36, 7, level(p, 'makeup')) + knob(51, 36, 7, level(p, 'ratio')) + stomp(38, 98) },
+    drive: { inset: 3, jack: 66, led: [38, 19], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="8"/>${knob(19, 36, 7, level(p, 'drive'))}${knob(38, 31, 4.5, 0.5)}${knob(57, 36, 7, level(p, 'mix'))}<rect class="art-switch" x="10" y="82" width="56" height="52" rx="3"/>` },
+    fuzz: { inset: 1.5, jack: 66, led: [38, 47], draw: p => `<circle class="art-body" cx="38" cy="70" r="36.5"/>${knob(26, 46, 6, level(p, 'fuzz'))}${knob(50, 46, 6, level(p, 'level'))}${stomp(38, 95, 5)}` },
+    octave: { inset: 3, jack: 66, led: [64, 36], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="4"/>` +
+      ['dry', 'sub', 'up'].map((key, i) => {
+        const x = 22 + i * 16, y = 44 - level(p, key) * 16;
+        return `<line class="art-line" x1="${x}" y1="25" x2="${x}" y2="46"/><rect class="art-knob" x="${x - 4.5}" y="${y - 2.5}" width="9" height="5" rx="1"/>`;
+      }).join('') + stomp(38, 98) },
+    harm: { inset: 1, jack: 66, led: [45, 33], draw: p => `<rect class="art-body" x="1" y="1" width="74" height="138" rx="10"/>${knob(22, 33, 8, level(p, 'voice1'))}<rect class="art-line" x="38" y="27" width="28" height="12" rx="2"/><rect class="art-switch" x="7" y="50" width="62" height="84" rx="7"/>${ridges([88, 94, 100, 106, 112], 15, 61)}` },
+    delay: { inset: 3, jack: 66, led: [38, 19], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="4"/>${knob(14, 36, 5.5, level(p, 'mix'))}${knob(30, 36, 5.5, level(p, 'feedback'))}${knob(46, 36, 5.5, level(p, 'time'))}${knob(62, 36, 5.5, 0.5)}<path class="art-switch" d="M10 80 H66 L70 86 V134 Q70 137 67 137 H9 Q6 137 6 134 V86 Z"/>${ridges([93, 98, 103, 108], 16, 60)}` },
+  };
+  function pedalArt(pedal) {
+    const { inset, jack, draw } = ART[pedal.type];
+    const jacks = `<rect class="art-jack" x="${inset - 3}" y="${jack - 3}" width="3" height="6"/><rect class="art-jack" x="${ART_W - inset}" y="${jack - 3}" width="3" height="6"/>`;
+    return jacks + draw(pedal) + led(...ART[pedal.type].led);
+  }
+  const artSvg = (pedal, cls) => `<svg class="${cls}" viewBox="0 0 ${ART_W} ${ART_H}" aria-hidden="true" focusable="false">${pedalArt(pedal)}</svg>`;
   function createPedal(type, params) {
     return { id: 'pedal-' + (++nextId), type, number: ++counts[type], enabled: true,
       params: params ? { ...params } : Object.fromEntries(types[type].specs.map(p => [p.key, p.value])) };
@@ -160,7 +222,7 @@
   const pedalName = pedal => types[pedal.type].name + ' ' + pedal.number;
   function observed(type) { return state.chain.find(p => p.id === inspectId && p.type === type) || state.chain.find(p => p.id === selectedId && p.type === type) || state.chain.find(p => p.type === type); }
 
-  function buildParams(container, specs, target) {
+  function buildParams(container, specs, target, onChange) {
     for (const p of specs) {
       const value = target[p.key] ?? p.value;
       target[p.key] = value;
@@ -194,6 +256,7 @@
       const update = () => {
         out.textContent = p.format(target[p.key]);
         state.dirty = true;
+        onChange?.();
         saveBoard();
       };
       out.textContent = p.format(value);
@@ -258,9 +321,13 @@
     document.getElementById('settings-title').textContent = pedalName(pedal);
     document.getElementById('settings-state').textContent = pedal.enabled ? 'Enabled' : 'Bypassed';
     settings.dataset.type = pedal.type;
+    document.getElementById('settings-model').textContent = 'Outline after the ' + types[pedal.type].model;
     const container = document.getElementById('pedal-params');
     container.replaceChildren();
-    buildParams(container, types[pedal.type].specs, pedal.params);
+    buildParams(container, types[pedal.type].specs, pedal.params, () => {
+      const art = orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-art');
+      if (art) art.innerHTML = pedalArt(pedal);
+    });
     document.getElementById('pedal-curve-wrap').hidden = !['gate', 'comp'].includes(pedal.type);
     document.getElementById('effect-explanation').textContent = types[pedal.type].explanation;
     trails.gate.length = trails.comp.length = 0;
@@ -295,7 +362,8 @@
   for (const [type, info] of Object.entries(types)) {
     const button = document.createElement('button');
     button.dataset.type = type;
-    button.innerHTML = '<strong>' + info.name + '</strong><span>' + info.explanation.split('.')[0] + '.</span><span aria-hidden="true">+</span>';
+    const preview = { type, params: Object.fromEntries(info.specs.map(spec => [spec.key, spec.value])) };
+    button.innerHTML = artSvg(preview, 'choice-art') + '<strong>' + info.name + '</strong><span class="choice-text">' + info.explanation.split('.')[0] + '.</span><span class="choice-model">Outline after the ' + info.model + '</span><span class="choice-add" aria-hidden="true">+</span>';
     button.onclick = () => {
       const pedal = addPedal(type);
       library.close();
@@ -358,7 +426,8 @@
     resetScopeHistory();
     refreshInspect();
     settings.close();
-    scopeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // The page scroll is restored when the dialog closes; scroll after that.
+    requestAnimationFrame(() => scopeEl.scrollIntoView({ behavior: 'smooth', block: 'center' }));
   };
   document.getElementById('toggle-meters').onclick = e => {
     metersOpen = !metersOpen;
@@ -440,7 +509,7 @@
         item = document.createElement('li');
         item.dataset.effect = id;
         item.dataset.type = pedal.type;
-        item.innerHTML = '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-led" aria-hidden="true"></span><span class="pedal-name"></span><span class="pedal-status"></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder">⠿</button>';
+        item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder">⠿</button>';
         item.querySelector('.pedal-edit').onclick = () => openSettings(pedal);
         item.querySelector('.pedal-toggle').onclick = () => {
           pedal.enabled = !pedal.enabled;
@@ -488,6 +557,7 @@
         handle.onpointercancel = clearDrag;
       }
       item.classList.toggle('off', !pedal.enabled);
+      item.querySelector('.pedal-art').innerHTML = pedalArt(pedal);
       item.querySelector('.pedal-position').textContent = index + 1;
       item.querySelector('.pedal-name').textContent = types[pedal.type].short + ' ' + pedal.number;
       const toggle = item.querySelector('.pedal-toggle');
@@ -500,9 +570,102 @@
     if (previousList) previousList.replaceWith(orderList);
     document.getElementById('empty-chain').hidden = state.chain.length > 0;
     reserveBoardHeight();
+    drawCables();
     refreshInspect();
   }
+
+  /* Cable: Input → each pedal in processing order → Output. Runs straight
+   * between neighbours and snakes through the gap when the board wraps. */
+  const signalPath = document.querySelector('.signal-path');
+  const cables = document.getElementById('cables');
+  function roundedPath(points, radius = 6) {
+    const pts = points.filter((pt, i) => i === 0 || Math.hypot(pt[0] - points[i - 1][0], pt[1] - points[i - 1][1]) > 0.5);
+    let d = 'M' + pts[0].join(',');
+    for (let i = 1; i < pts.length - 1; i++) {
+      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+      const l1 = Math.hypot(x1 - x0, y1 - y0), l2 = Math.hypot(x2 - x1, y2 - y1);
+      const r = Math.min(radius, l1 / 2, l2 / 2);
+      const ax = x1 - (x1 - x0) / l1 * r, ay = y1 - (y1 - y0) / l1 * r;
+      const bx = x1 + (x2 - x1) / l2 * r, by = y1 + (y2 - y1) / l2 * r;
+      d += ` L${ax.toFixed(1)},${ay.toFixed(1)} Q${x1.toFixed(1)},${y1.toFixed(1)} ${bx.toFixed(1)},${by.toFixed(1)}`;
+    }
+    return d + ' L' + pts[pts.length - 1].map(v => v.toFixed(1)).join(',');
+  }
+  function drawCables() {
+    const base = signalPath.getBoundingClientRect();
+    if (!base.width) return;
+    const box = el => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left - base.left, right: r.right - base.left, top: r.top - base.top, bottom: r.bottom - base.top, width: r.width, height: r.height };
+    };
+    const endpoints = [...signalPath.querySelectorAll('.endpoint')];
+    const items = [...orderList.children];
+    const single = new Set(items.map(item => Math.round(item.offsetTop))).size <= 1;
+    signalPath.classList.toggle('single-row', single);
+    if (single) {
+      // One row: line Input and Output up with the jacks and run one straight
+      // cable behind the pedals.
+      const first = items[0] ? box(items[0]) : null;
+      const lineY = first ? first.top + ART[items[0].dataset.type].jack * first.width / ART_W : box(dropArea).top + box(dropArea).height / 2;
+      for (const endpoint of endpoints) {
+        const dot = box(endpoint.querySelector('i'));
+        const shift = lineY - (dot.top + dot.height / 2);
+        if (Math.abs(shift) > 0.5) endpoint.style.paddingTop = Math.max(0, parseFloat(getComputedStyle(endpoint).paddingTop) + shift) + 'px';
+      }
+      const a = box(endpoints[0].querySelector('i')), b = box(endpoints[1].querySelector('i'));
+      const y = a.top + a.height / 2;
+      cables.innerHTML = `<path d="M${a.right.toFixed(1)},${y.toFixed(1)} H${b.left.toFixed(1)}"/>`;
+      return;
+    }
+    for (const endpoint of endpoints) endpoint.style.paddingTop = '';
+    const inDot = box(document.querySelector('.endpoint-input i'));
+    const outDot = box(document.querySelector('.endpoint-output i'));
+    const nodes = [{ out: inDot.right, y: inDot.top + inDot.height / 2, left: inDot.left, right: inDot.right, top: inDot.top, bottom: inDot.bottom }];
+    for (const item of orderList.children) {
+      const b = box(item);
+      const art = ART[item.dataset.type];
+      const scale = b.width / ART_W;
+      nodes.push({ in: b.left + art.inset * scale, out: b.right - art.inset * scale, y: b.top + art.jack * scale, ...b });
+    }
+    nodes.push({ in: outDot.left, y: outDot.top + outDot.height / 2, ...outDot });
+    const gap = parseFloat(getComputedStyle(orderList).columnGap) || 8;
+    let paths = '';
+    for (let i = 0; i < nodes.length - 1; i++) {
+      const a = nodes[i], b = nodes[i + 1];
+      let pts;
+      if (b.in > a.out + 1) {
+        // Next pedal is to the right: straight, or one step if the heights differ.
+        const mid = Math.abs(a.y - b.y) < 1 ? null : (a.right + b.left) / 2;
+        pts = mid === null ? [[a.out, a.y], [b.in, b.y]] : [[a.out, a.y], [mid, a.y], [mid, b.y], [b.in, b.y]];
+      } else {
+        // Wrapped onto the next row: out, down through the row gap, back to the left, in.
+        const x1 = a.right + gap / 2, x2 = b.left - gap / 2, ym = (a.bottom + b.top) / 2;
+        pts = [[a.out, a.y], [x1, a.y], [x1, ym], [x2, ym], [x2, b.y], [b.in, b.y]];
+      }
+      paths += `<path d="${roundedPath(pts)}"/>`;
+    }
+    cables.innerHTML = paths;
+  }
+  new ResizeObserver(drawCables).observe(signalPath);
+  document.fonts?.ready.then(drawCables);
   renderOrder();
+
+  /* Freeze the page behind any open dialog (iOS ignores overflow: hidden on
+   * its own, so pin the body in place and restore the scroll on close). */
+  let lockedScroll = null;
+  function syncScrollLock() {
+    const open = !!document.querySelector('dialog[open]');
+    if (open && lockedScroll === null) {
+      lockedScroll = window.scrollY;
+      Object.assign(document.body.style, { position: 'fixed', top: -lockedScroll + 'px', left: '0', right: '0' });
+    } else if (!open && lockedScroll !== null) {
+      const y = lockedScroll;
+      lockedScroll = null;
+      Object.assign(document.body.style, { position: '', top: '', left: '', right: '' });
+      window.scrollTo(0, y);
+    }
+  }
+  new MutationObserver(syncScrollLock).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
 
   /* ------------------------------------------------------------ buffers */
 

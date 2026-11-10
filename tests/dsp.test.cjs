@@ -129,3 +129,50 @@ test('inactive banks publish waveform history and retain their state when select
   assert.equal(processor.chains.B.instances.get('b').processor, previousProcessor);
   assert.equal(processor.tapOutput, processor.chains.B.instances.get('b').out);
 });
+
+const { SR } = context.TL;
+const tone = (freq, seconds = 1, amp = 0.5) => Float32Array.from({ length: Math.round(SR * seconds) }, (_, i) => amp * Math.sin(2 * Math.PI * freq * i / SR));
+// Energy at one frequency (Goertzel), measured over the second half to skip start-up.
+function energyAt(buf, freq) {
+  const start = buf.length >> 1, k = 2 * Math.cos(2 * Math.PI * freq / SR);
+  let s1 = 0, s2 = 0;
+  for (let i = start; i < buf.length; i++) { const s0 = buf[i] + k * s1 - s2; s2 = s1; s1 = s0; }
+  return s1 * s1 + s2 * s2 - k * s1 * s2;
+}
+const pedal = (type, params) => ({ id: type + '1', type, enabled: true, params });
+
+test('octave pedal adds a sub octave and an octave up', () => {
+  const input = tone(220);
+  const sub = new EffectChain(input.length).process(input, [pedal('octave', { dry: 0, sub: 1, up: 0 })]);
+  assert(energyAt(sub, 110) > 20 * energyAt(sub, 220));
+  const up = new EffectChain(input.length).process(input, [pedal('octave', { dry: 0, sub: 0, up: 1 })]);
+  assert(energyAt(up, 440) > 20 * energyAt(up, 220));
+});
+
+test('harmonizer shifts pitch by the chosen interval', () => {
+  const input = tone(220);
+  const out = new EffectChain(input.length).process(input, [pedal('harm', { voice1: 12, voice2: 0, mix: 1, window: 50 })]);
+  assert(energyAt(out, 440) > 10 * energyAt(out, 220));
+  const fifth = new EffectChain(input.length).process(input, [pedal('harm', { voice1: 7, voice2: 0, mix: 1, window: 50 })]);
+  assert(energyAt(fifth, 220 * 2 ** (7 / 12)) > 10 * energyAt(fifth, 220));
+});
+
+test('fuzz squares off the wave and stays bounded', () => {
+  const input = tone(220, 1, 0.05);
+  const out = new EffectChain(input.length).process(input, [pedal('fuzz', { fuzz: 36, tone: 1, level: 0 })]);
+  let peak = 0, power = 0;
+  for (let i = out.length >> 1; i < out.length; i++) { assert(Number.isFinite(out[i])); peak = Math.max(peak, Math.abs(out[i])); power += out[i] ** 2; }
+  const rms = Math.sqrt(power / (out.length >> 1));
+  assert(peak <= 1.5);
+  assert(peak / rms < 1.3, 'crest factor of a square-ish wave is close to 1 (a sine is 1.41)');
+});
+
+test('new effects stream block by block exactly like one long buffer', () => {
+  const input = tone(196, 0.5);
+  const pedals = [pedal('fuzz', { fuzz: 24, tone: 0.5, level: -6 }), pedal('octave', { dry: 0.6, sub: 0.6, up: 0.3 }),
+    pedal('harm', { voice1: 4, voice2: 7, mix: 0.5, window: 40 })];
+  const continuous = new EffectChain(input.length).process(input, pedals).slice();
+  const blocks = new EffectChain(128), streamed = new Float32Array(input.length);
+  for (let offset = 0; offset + 128 <= input.length; offset += 128) streamed.set(blocks.process(input.slice(offset, offset + 128), pedals, false), offset);
+  for (let i = 0; i + 128 <= input.length; i++) assert(Math.abs(continuous[i] - streamed[i]) < 1e-5, 'sample ' + i);
+});
