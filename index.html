@@ -65,6 +65,11 @@
       <p id="effect-explanation" class="explain"></p>
       <div class="sheet-actions"><button id="pedal-earlier">← Earlier</button><button id="pedal-later">Later →</button><button id="duplicate-pedal">Duplicate</button><button id="remove-pedal">Remove</button></div>
     </dialog>
+    <dialog id="remove-confirm" class="effect-dialog remove-confirm" aria-labelledby="remove-title">
+      <h2 id="remove-title">Remove pedal?</h2>
+      <p id="remove-message"></p>
+      <div class="sheet-actions"><button id="cancel-remove">Keep pedal</button><button id="confirm-remove">Remove pedal</button></div>
+    </dialog>
   </main>
 
   <footer class="foot">Signals are generated in your browser. Nothing is recorded or uploaded.</footer>

@@ -158,6 +158,8 @@
   const dropArea = document.querySelector('.drop-area');
   const settings = document.getElementById('effect-settings');
   const library = document.getElementById('effect-library');
+  const removeConfirm = document.getElementById('remove-confirm');
+  let pendingRemoval = null;
   const selected = () => state.chain.find(p => p.id === selectedId);
   function announce(text) { document.getElementById('order-status').textContent = text; }
   function changed() { state.dirty = true; renderOrder(); }
@@ -198,6 +200,23 @@
     announce(pedalName(pedal) + ' added at position ' + state.chain.length);
     return pedal;
   }
+  function confirmRemoval(pedal) {
+    pendingRemoval = pedal.id;
+    document.getElementById('remove-message').textContent = 'Remove ' + pedalName(pedal) + ' from your signal chain?';
+    removeConfirm.showModal();
+  }
+  function removePedal(id) {
+    const pedal = state.chain.find(p => p.id === id);
+    if (!pedal) return;
+    state.chain = state.chain.filter(p => p.id !== id);
+    selectedId = null;
+    settings.close();
+    removeConfirm.close();
+    pendingRemoval = null;
+    changed();
+    document.getElementById('add-effect').focus();
+    announce(pedalName(pedal) + ' removed');
+  }
   document.getElementById('add-effect').onclick = () => library.showModal();
   for (const [type, info] of Object.entries(types)) {
     const button = document.createElement('button');
@@ -227,13 +246,14 @@
   document.getElementById('remove-pedal').onclick = () => {
     const pedal = selected();
     if (!pedal) return;
-    state.chain = state.chain.filter(p => p.id !== pedal.id);
-    selectedId = null;
-    settings.close();
-    changed();
-    document.getElementById('add-effect').focus();
-    announce(pedalName(pedal) + ' removed');
+    confirmRemoval(pedal);
   };
+  document.getElementById('cancel-remove').onclick = () => { removeConfirm.close(); pendingRemoval = null; };
+  document.getElementById('confirm-remove').onclick = () => removePedal(pendingRemoval);
+  removeConfirm.addEventListener('close', () => {
+    if (pendingRemoval && removeConfirm.returnValue !== 'remove') pendingRemoval = null;
+    removeConfirm.returnValue = '';
+  });
   document.getElementById('pedal-earlier').onclick = () => moveEffect(selectedId, state.chain.findIndex(p => p.id === selectedId) - 1);
   document.getElementById('pedal-later').onclick = () => moveEffect(selectedId, state.chain.findIndex(p => p.id === selectedId) + 1);
 
@@ -289,6 +309,7 @@
           clearDrag();
           if (target && target !== item && orderList.contains(target)) moveEffect(id, state.chain.findIndex(p => p.id === target.dataset.effect));
           else if (!target && dropArea.contains(hit)) moveEffect(id, state.chain.length - 1);
+          else if (!target && !dropArea.contains(hit)) confirmRemoval(pedal);
         };
         handle.onpointercancel = clearDrag;
       }
