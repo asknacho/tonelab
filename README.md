@@ -29,6 +29,7 @@ The gate and compressor settings show transfer curves (input level → output le
 
 The page starts with **I want to sound like…**: pick a famous sound (The Edge, Hendrix, Gilmour) or a technique (clean echo, boost into overdrive, tight metal rhythm, surf tremolo and reverb, ambient swells, lush 80s clean, funky auto-wah, slow phaser swirl) and it's built on the board in A. Its first **What if…** goes into B: the same sound with one change, such as the echo on the beat, the compressor before the gate, or the fuzz before the octave.
 
+- **Finding a sound.** The box is searchable: type part of a name (accents are ignored) and use the arrow keys and Enter, or tap an item. Songs and techniques are both searched.
 - **A and B** each have their own picker: what-ifs, *Same as A/B*, any sound, or your own. *Match volume* keeps the comparison fair.
 - **Step by step** shows your guitar, then each pedal in order with what it does in plain words, and the signal after it, drawn live from the same chain you hear. Pedals that differ from the other slot are marked, and a box explains what B changes.
 - **The lab and pedalboard** below work as before. Changing a loaded sound marks it *(edited)*; **Save as my sound** keeps it under *My sounds*. A board you built is never lost: before a sound replaces it, it's kept as *My last board*. Loading a sound can also be undone.
