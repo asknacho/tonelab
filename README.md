@@ -11,7 +11,7 @@ Tonelab generates a test signal (guitar plucks, with an adjustable noise floor),
 - **Overdrive**: drive, dry/wet mix
 - **Delay**: time, feedback, dry/wet mix
 
-Tap **Listen** to hear the synthesized source, then compare **Dry input** with **With effects**. Guitar uses a plucked-string model, rather than a recorded sample. Audio starts only after a user gesture and has a volume control. The internal 8 kHz signal is resampled for playback.
+Tap **Listen** to hear the synthesized source, then compare **Dry input** with **With effects**. Guitar uses a plucked-string model, rather than a recorded sample. Audio starts only after a user gesture and has a volume control. The internal 24 kHz signal is resampled for playback.
 
 Use **Add effect** to build any combination, including repeated effects. Every pedal has its own settings, processor state, and on/off control. Tap a pedal to bypass it; **Edit** opens its settings sheet, where you can duplicate it, remove it, or move it earlier/later.
 

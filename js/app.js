@@ -87,9 +87,76 @@
       params: params ? { ...params } : Object.fromEntries(types[type].specs.map(p => [p.key, p.value])) };
   }
   const state = { playing: true, speed: 1, scale: 'db', chain: ['gate', 'comp', 'drive', 'delay'].map(type => createPedal(type)), dirty: true };
+  const clone = value => JSON.parse(JSON.stringify(value));
+  const storageKey = 'tonelab-board-v1';
+  let activeBank = 'A';
+  let banks = { A: clone(state.chain), B: clone(state.chain) };
+  let restoredNoise = -48;
+  let inspectId = '';
+  let metersOpen = false;
+  let matchVolume = true;
+  let saveTimer;
+  let storageAvailable = true;
+
+  function validateChain(chain) {
+    if (!Array.isArray(chain)) throw new Error('Invalid chain');
+    const ids = new Set();
+    return chain.map(pedal => {
+      if (!pedal || !Object.hasOwn(types, pedal.type) || typeof pedal.id !== 'string' || !/^pedal-[1-9][0-9]*$/.test(pedal.id) || ids.has(pedal.id) || !Number.isSafeInteger(Number(pedal.id.slice(6)))) throw new Error('Invalid pedal');
+      ids.add(pedal.id);
+      const params = {};
+      for (const spec of types[pedal.type].specs) {
+        const value = pedal.params?.[spec.key];
+        params[spec.key] = typeof value === 'number' && Number.isFinite(value) ? Math.max(spec.min, Math.min(spec.max, value)) : spec.value;
+      }
+      return { id: pedal.id, type: pedal.type, number: Number.isSafeInteger(pedal.number) && pedal.number > 0 ? pedal.number : 1, enabled: pedal.enabled !== false, params };
+    });
+  }
+  function restoreBoard(data) {
+    if (data?.version !== 1 || !['A', 'B'].includes(data.active)) throw new Error('Unknown board format');
+    const restored = { A: validateChain(data.banks?.A), B: validateChain(data.banks?.B) };
+    banks = restored;
+    activeBank = data.active;
+    state.chain = clone(banks[activeBank]);
+    restoredNoise = typeof data.noise === 'number' && Number.isFinite(data.noise) ? Math.max(-80, Math.min(-20, data.noise)) : -48;
+    matchVolume = data.matchVolume !== false;
+    for (const pedal of [...banks.A, ...banks.B]) {
+      nextId = Math.max(nextId, Number(pedal.id.slice(6)));
+      counts[pedal.type] = Math.max(counts[pedal.type], pedal.number);
+    }
+  }
+  let restoreMessage = '';
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) restoreBoard(JSON.parse(saved));
+  } catch { storageAvailable = false; }
+  if (location.hash.startsWith('#board=')) {
+    try {
+      const encoded = location.hash.slice(7).replace(/-/g, '+').replace(/_/g, '/');
+      restoreBoard(JSON.parse(atob(encoded)));
+      restoreMessage = 'Shared pedalboard loaded';
+      history.replaceState(null, '', location.pathname + location.search);
+    } catch { restoreMessage = 'This shared link is invalid. Your saved board was kept.'; }
+  }
+  function snapshot() {
+    banks[activeBank] = clone(state.chain);
+    return { version: 1, active: activeBank, banks, noise: source.noiseDb, matchVolume };
+  }
+  function saveBoard() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(snapshot()));
+        document.getElementById('save-status').textContent = 'Saved on this device';
+      } catch {
+        storageAvailable = false;
+        document.getElementById('save-status').textContent = 'Local saving unavailable · use Share';
+      }
+    }, 250);
+  }
   let selectedId = null;
   const pedalName = pedal => types[pedal.type].name + ' ' + pedal.number;
-  function observed(type) { return state.chain.find(p => p.id === selectedId && p.type === type) || state.chain.find(p => p.type === type); }
+  function observed(type) { return state.chain.find(p => p.id === inspectId && p.type === type) || state.chain.find(p => p.id === selectedId && p.type === type) || state.chain.find(p => p.type === type); }
 
   function buildParams(container, specs, target) {
     for (const p of specs) {
@@ -125,6 +192,7 @@
       const update = () => {
         out.textContent = p.format(target[p.key]);
         state.dirty = true;
+        saveBoard();
       };
       out.textContent = p.format(value);
       container.appendChild(row);
@@ -134,6 +202,7 @@
   /* ------------------------------------------------------------- toolbar */
 
   const source = new Source('guitar');
+  source.noiseDb = restoredNoise;
 
   function segmented(id, onChange) {
     const el = document.getElementById(id);
@@ -148,10 +217,13 @@
 
   const noise = document.getElementById('noise');
   const noiseOut = document.getElementById('noise-out');
+  noise.value = restoredNoise;
+  noiseOut.textContent = fmtDb(restoredNoise);
   noise.addEventListener('input', () => {
     source.noiseDb = Number(noise.value);
     state.dirty = true;
     noiseOut.textContent = fmtDb(source.noiseDb);
+    saveBoard();
   });
 
   const orderList = document.getElementById('effect-order');
@@ -162,7 +234,7 @@
   let pendingRemoval = null;
   const selected = () => state.chain.find(p => p.id === selectedId);
   function announce(text) { document.getElementById('order-status').textContent = text; }
-  function changed() { state.dirty = true; renderOrder(); }
+  function changed() { state.dirty = true; renderOrder(); saveBoard(); }
   function moveEffect(id, to) {
     const from = state.chain.findIndex(p => p.id === id);
     to = Math.max(0, Math.min(state.chain.length - 1, to));
@@ -257,6 +329,87 @@
   document.getElementById('pedal-earlier').onclick = () => moveEffect(selectedId, state.chain.findIndex(p => p.id === selectedId) - 1);
   document.getElementById('pedal-later').onclick = () => moveEffect(selectedId, state.chain.findIndex(p => p.id === selectedId) + 1);
 
+  const inspectSelect = document.getElementById('inspect-point');
+  function refreshInspect() {
+    if (!state.chain.some(p => p.id === inspectId)) inspectId = '';
+    inspectSelect.replaceChildren(new Option('Full chain', ''));
+    state.chain.forEach(pedal => inspectSelect.add(new Option(pedalName(pedal), pedal.id)));
+    inspectSelect.value = inspectId;
+    const pedal = state.chain.find(p => p.id === inspectId);
+    document.getElementById('scope-caption').textContent = pedal ? pedalName(pedal) + ' · input → output' : 'Guitar input → full chain output';
+    document.querySelector('.sw-in').parentElement.lastChild.textContent = pedal ? 'Pedal input' : 'Guitar input';
+    document.querySelector('.sw-out').parentElement.lastChild.textContent = pedal ? 'Pedal output' : 'Chain output';
+    state.dirty = true;
+  }
+  inspectSelect.onchange = () => {
+    inspectId = inspectSelect.value;
+    resetScopeHistory();
+    refreshInspect();
+  };
+  document.getElementById('inspect-pedal').onclick = () => {
+    inspectId = selectedId;
+    resetScopeHistory();
+    refreshInspect();
+    settings.close();
+    scopeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  document.getElementById('toggle-meters').onclick = e => {
+    metersOpen = !metersOpen;
+    e.target.setAttribute('aria-expanded', String(metersOpen));
+    e.target.textContent = metersOpen ? 'Hide meters' : 'Show meters';
+    state.dirty = true;
+  };
+  function syncBanks() {
+    document.querySelectorAll('#compare-bank button').forEach(button => {
+      button.classList.toggle('on', button.dataset.bank === activeBank);
+      button.setAttribute('aria-pressed', String(button.dataset.bank === activeBank));
+    });
+    document.getElementById('copy-bank').textContent = activeBank === 'A' ? 'Copy A to B' : 'Copy B to A';
+  }
+  document.getElementById('compare-bank').onclick = e => {
+    const bank = e.target.closest('[data-bank]')?.dataset.bank;
+    if (!bank || bank === activeBank) return;
+    banks[activeBank] = clone(state.chain);
+    activeBank = bank;
+    state.chain = clone(banks[activeBank]);
+    orderList.replaceChildren();
+    selectedId = null;
+    inspectId = '';
+    resetScopeHistory();
+    changed();
+    syncBanks();
+    announce('Configuration ' + activeBank + ' selected');
+  };
+  document.getElementById('copy-bank').onclick = () => {
+    const other = activeBank === 'A' ? 'B' : 'A';
+    banks[other] = clone(state.chain);
+    state.dirty = true;
+    saveBoard();
+    announce('Configuration ' + activeBank + ' copied to ' + other);
+  };
+  document.getElementById('match-volume').checked = matchVolume;
+  document.getElementById('match-volume').onchange = e => {
+    matchVolume = e.target.checked;
+    state.dirty = true;
+    saveBoard();
+  };
+  document.getElementById('share-board').onclick = async () => {
+    const encoded = btoa(JSON.stringify(snapshot())).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const url = new URL(location.href);
+    url.hash = 'board=' + encoded;
+    try {
+      await navigator.clipboard.writeText(url.href);
+      announce('Share link copied, including A and B');
+    } catch {
+      const field = document.getElementById('share-link');
+      field.value = url.href;
+      document.getElementById('share-dialog').showModal();
+      field.select();
+    }
+  };
+  document.querySelector('#share-dialog .sheet-close').onclick = () => document.getElementById('share-dialog').close();
+  syncBanks();
+
   function renderOrder() {
     for (const item of [...orderList.children]) if (!state.chain.some(p => p.id === item.dataset.effect)) item.remove();
     state.chain.forEach((pedal, index) => {
@@ -324,12 +477,17 @@
       if (orderList.children[index] !== item) orderList.insertBefore(item, orderList.children[index] || null);
     });
     document.getElementById('empty-chain').hidden = state.chain.length > 0;
+    refreshInspect();
   }
   renderOrder();
 
   /* ------------------------------------------------------------ buffers */
 
   const input = new Float32Array(N);
+  const scopeInput = new Float32Array(N);
+  const scopeOutput = new Float32Array(N);
+  function resetScopeHistory() { scopeInput.fill(0); scopeOutput.fill(0); }
+
   const gateGain = new Float32Array(N);
   const compOut = new Float32Array(N);
   const compGR = new Float32Array(N);
@@ -350,7 +508,13 @@
 
   function processChain() {
     compOut.set(visualChain.process(input, state.chain));
-    document.getElementById('lanes').hidden = !state.chain.some(p => ['gate', 'comp'].includes(p.type));
+    if (!listening) {
+      const pedal = state.chain.find(p => p.id === inspectId);
+      const entry = pedal && visualChain.instances.get(pedal.id);
+      scopeInput.set(entry ? entry.input : input);
+      scopeOutput.set(entry && pedal.enabled ? entry.out : entry ? entry.input : compOut);
+    }
+    document.getElementById('lanes').hidden = !metersOpen || !state.chain.some(p => ['gate', 'comp'].includes(p.type));
     // The scope meters follow the inspected pedal of each type, or the first.
     for (const type of ['gate', 'comp']) {
       const pedal = observed(type);
@@ -507,13 +671,14 @@
     // Waveforms
     const cols = Math.max(1, Math.floor(w * dpr));
     const step = w / cols;
-    fillWave(ctx, columns(input, cols), cols, step, y, C.ghost);
-    fillWave(ctx, columns(compOut, cols), cols, step, y, C.ink);
+    fillWave(ctx, columns(scopeInput, cols), cols, step, y, C.ghost);
+    fillWave(ctx, columns(scopeOutput, cols), cols, step, y, C.ink);
 
     // Thresholds
     const thresholds = [];
-    if (state.gateOn) thresholds.push([state.gate.threshold, C.gate, pedalName(observed('gate')), 'left']);
-    if (state.compOn) thresholds.push([state.comp.threshold, C.comp, pedalName(observed('comp')), 'right']);
+    const showThresholds = !inspectId || ['gate', 'comp'].includes(state.chain.find(p => p.id === inspectId)?.type);
+    if (showThresholds && state.gateOn && (!inspectId || observed('gate')?.id === inspectId)) thresholds.push([state.gate.threshold, C.gate, pedalName(observed('gate')), 'left']);
+    if (showThresholds && state.compOn && (!inspectId || observed('comp')?.id === inspectId)) thresholds.push([state.comp.threshold, C.comp, pedalName(observed('comp')), 'right']);
     ctx.lineWidth = 1.5;
     ctx.setLineDash([6, 5]);
     for (const [db, col] of thresholds) {
@@ -692,8 +857,9 @@
   const listen = document.getElementById('listen');
   const audioStatus = document.getElementById('audio-status');
   function sendAudioState() {
+    banks[activeBank] = clone(state.chain);
     audioNode?.port.postMessage({ type: 'settings', state: { playing: state.playing, speed: state.speed, chain: state.chain }, kind: source.kind,
-      noiseDb: source.noiseDb, monitor, volume: Number(document.getElementById('volume').value) });
+      noiseDb: source.noiseDb, banks, activeBank, inspectId, matchVolume, monitor, volume: Number(document.getElementById('volume').value) });
   }
   segmented('monitor', v => { monitor = v; sendAudioState(); });
   document.getElementById('volume').oninput = sendAudioState;
@@ -713,6 +879,11 @@
           const samples = data.samples;
           input.copyWithin(0, samples.length);
           input.set(samples, N - samples.length);
+          for (const [buffer, block] of [[scopeInput, data.tapInput], [scopeOutput, data.tapOutput]]) {
+            if (!block) continue;
+            buffer.copyWithin(0, block.length);
+            buffer.set(block, N - block.length);
+          }
           total += samples.length;
           state.dirty = true;
         };
@@ -723,6 +894,7 @@
         await audioContext.suspend();
       } else {
         input.fill(0);
+        resetScopeHistory();
         listening = true;
         sendAudioState();
         await audioContext.resume();
@@ -742,6 +914,7 @@
 
   let last = performance.now();
   let carry = 0;
+  let lastDraw = 0;
 
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000);
@@ -755,6 +928,8 @@
         state.dirty = true;
       }
     }
+    if (now - lastDraw < 50) { requestAnimationFrame(frame); return; }
+    lastDraw = now;
     if (state.dirty) {
       processChain();
       state.dirty = false;
@@ -765,5 +940,7 @@
     requestAnimationFrame(frame);
   }
 
+  document.getElementById('save-status').textContent = restoreMessage || (storageAvailable ? 'Autosave enabled' : 'Local saving unavailable · use Share');
+  saveBoard();
   requestAnimationFrame(frame);
 })(window.TL);

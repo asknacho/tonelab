@@ -146,3 +146,34 @@ canvas { display: block; width: 100%; }
   .curve { width: min(240px, 100%); margin-inline: auto; }
   .order-status { margin-left: 32px; margin-right: 32px; }
 }
+
+.masthead { padding-top: 20px; padding-bottom: 14px; }
+.lede { font-size: 13px; }
+.scope { height: 250px; }
+.lab-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 0 24px 10px; color: var(--ink-2); font-size: 12px; }
+.lab-tools label { display: flex; align-items: center; gap: 6px; }
+.lab-tools select, .lab-tools button { background: var(--card); color: var(--ink); border: 1px solid var(--rule); padding: 7px 9px; border-radius: 5px; min-height: 36px; }
+#inspect-point { max-width: 190px; }
+#scope-caption { color: var(--ink-3); }
+.board-actions { display: flex; gap: 8px; }
+.comparison-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; }
+.comparison-bar label { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+.comparison-bar input { accent-color: var(--gate); }
+#save-status { font-size: 11px; color: var(--ink-3); }
+#share-link { display: block; width: 100%; padding: 12px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); margin-top: 10px; }
+#inspect-pedal { margin-bottom: 14px; }
+@media (max-width: 560px) {
+  .masthead { padding-top: 14px; padding-bottom: 12px; }
+  h1 { font-size: 30px; margin-bottom: 5px; }
+  .lede { font-size: 12px; line-height: 1.4; }
+  .listen-bar { gap: 8px 12px; margin-bottom: 10px; }
+  #audio-status { display: none; }
+  .lab-tools { padding-inline: 16px; gap: 6px 10px; }
+  #scope-caption { flex-basis: 100%; }
+  .scope { height: 180px; }
+  .chain-editor { margin-top: 16px; }
+  .chain-heading h2 { font-size: 21px; }
+  .board-button { padding-inline: 9px; font-size: 12px; }
+  .chain-hint { margin-block: 8px 10px; }
+  #save-status { flex-basis: 100%; }
+}

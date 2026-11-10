@@ -1,12 +1,12 @@
 /*
  * Tonelab DSP: shared synthesis and effects for the scope and audio worklet.
- * An 8 kHz internal sample rate keeps the live waveform inexpensive; the
+ * A 24 kHz internal sample rate preserves guitar harmonics; the
  * worklet resamples it for playback.
  */
 (function (TL) {
   'use strict';
 
-  const SR = 8000;
+  const SR = 24000;
   const TAU = Math.PI * 2;
 
   const dbToLin = (db) => Math.pow(10, db / 20);
@@ -29,7 +29,7 @@
 
   function pluck(freq, amp, decay) {
     // Karplus–Strong: a short noise burst circulates through a damped string.
-    const length = Math.max(2, Math.round(SR / freq));
+    const length = Math.max(2, Math.round(SR / freq - 0.5));
     const string = new Float32Array(length);
     const random = rng(Math.round(freq * 100 + amp * 10000));
     for (let i = 0; i < length; i++) string[i] = random() * 2 - 1;

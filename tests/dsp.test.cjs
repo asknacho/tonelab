@@ -75,3 +75,32 @@ test('audio worklet keeps rendering when duplicate pedals are added, reordered, 
   }
   assert(peak > 0.001);
 });
+
+test('A/B volume matching equalizes different chains and pedal taps expose their actual buffers', () => {
+  let Processor;
+  const runtime = vm.createContext({ Float32Array, Math, sampleRate: 48000,
+    AudioWorkletProcessor: class { constructor() { this.port = { postMessage() {} }; } },
+    registerProcessor: (_, value) => { Processor = value; } });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/dsp.js'), 'utf8'), runtime);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/audio-worklet.js'), 'utf8').replace("import './dsp.js';", ''), runtime);
+  const banks = { A: [comp('a', -30)], B: [{ id: 'b', type: 'drive', enabled: true, params: { drive: 20, mix: 1 } }] };
+  function render(activeBank) {
+    const processor = new Processor();
+    processor.port.onmessage({ data: { type: 'settings', kind: 'guitar', noiseDb: -48, monitor: 'wet', volume: 0.1, matchVolume: true, banks, activeBank, state: { playing: true, speed: 1 } } });
+    let power = 0, count = 0;
+    for (let block = 0; block < 3000; block++) {
+      const output = new Float32Array(128);
+      processor.process([], [[output]]);
+      if (block > 1500) for (const value of output) { power += value * value; count++; }
+    }
+    return { processor, rms: Math.sqrt(power / count) };
+  }
+  const a = render('A'), b = render('B');
+  assert(Math.abs(20 * Math.log10(a.rms / b.rms)) < 1.5);
+  const settings = { ...a.processor.settings, inspectId: 'a' };
+  a.processor.port.onmessage({ data: settings });
+  a.processor.renderBlock();
+  const entry = a.processor.chains.A.instances.get('a');
+  assert.equal(a.processor.tapInput, entry.input);
+  assert.equal(a.processor.tapOutput, entry.out);
+});

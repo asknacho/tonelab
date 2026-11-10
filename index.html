@@ -32,9 +32,14 @@
         </label>
         <span id="audio-status" role="status">Synthesized guitar</span>
       </div>
+      <div class="lab-tools">
+        <label>Inspect <select id="inspect-point"><option value="">Full chain</option></select></label>
+        <button id="toggle-meters" aria-expanded="false">Show meters</button>
+        <span id="scope-caption">Guitar input → full chain output</span>
+      </div>
       <div class="scope-wrap">
         <canvas id="scope" class="scope"></canvas>
-        <canvas id="lanes" class="lanes"></canvas>
+        <canvas id="lanes" class="lanes" hidden></canvas>
       </div>
 
       <ul class="legend">
@@ -46,7 +51,8 @@
     </section>
 
     <section class="chain-editor" aria-labelledby="chain-title">
-      <header class="chain-heading"><h2 id="chain-title">Your pedalboard</h2><button id="add-effect" class="board-button">+ Add effect</button></header>
+      <header class="chain-heading"><h2 id="chain-title">Your pedalboard</h2><div class="board-actions"><button id="share-board" class="board-button">Share</button><button id="add-effect" class="board-button">+ Add effect</button></div></header>
+      <div class="comparison-bar"><div class="segmented" id="compare-bank" aria-label="Chain configuration"><button data-bank="A" aria-pressed="true" class="on">A</button><button data-bank="B" aria-pressed="false">B</button></div><button id="copy-bank" class="board-button">Copy A to B</button><label><input id="match-volume" type="checkbox" checked /> Match volume</label><span id="save-status" role="status"></span></div>
       <p class="chain-hint">Tap to bypass · drag to reorder · edit for settings</p>
       <div class="signal-path">
         <span class="endpoint endpoint-input">Input <i aria-hidden="true"></i></span>
@@ -63,8 +69,10 @@
       <header class="sheet-head"><div><span id="settings-state" class="field-label"></span><h2 id="settings-title"></h2></div><button class="sheet-close">Done</button></header>
       <div class="settings-body"><div class="params" id="pedal-params"></div><figure class="curve" id="pedal-curve-wrap"><canvas id="pedal-curve"></canvas><figcaption><span class="badge" id="pedal-state"></span><span class="readout" id="pedal-readout"></span></figcaption></figure></div>
       <p id="effect-explanation" class="explain"></p>
+      <button id="inspect-pedal" class="board-button">Listen and view this pedal</button>
       <div class="sheet-actions"><button id="pedal-earlier">← Earlier</button><button id="pedal-later">Later →</button><button id="duplicate-pedal">Duplicate</button><button id="remove-pedal">Remove</button></div>
     </dialog>
+    <dialog id="share-dialog" class="effect-dialog" aria-labelledby="share-title"><header class="sheet-head"><h2 id="share-title">Share your board</h2><button class="sheet-close">Done</button></header><label>Copy this link<input id="share-link" type="text" readonly /></label></dialog>
     <dialog id="remove-confirm" class="effect-dialog remove-confirm" aria-labelledby="remove-title">
       <h2 id="remove-title">Remove pedal?</h2>
       <p id="remove-message"></p>
