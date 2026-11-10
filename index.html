@@ -46,7 +46,9 @@
       <p id="journey-tip" class="journey-tip"></p>
     </section>
 
-    <section class="panel scope-panel">
+    <details class="panel scope-panel demo" id="demo" open>
+      <summary class="demo-summary"><span class="demo-title">Live demo</span><span class="demo-hint">Listen to the guitar and see the sound</span></summary>
+
       <div class="listen-bar">
         <button class="listen-button" id="listen" aria-pressed="false">Listen</button>
         <div class="segmented" id="monitor" aria-label="Listen to">
@@ -80,7 +82,7 @@
         <li class="lg-gate"><i class="sw sw-dash gate"></i>Gate threshold</li>
         <li class="lg-comp"><i class="sw sw-dash comp"></i>Compressor threshold</li>
       </ul>
-    </section>
+    </details>
 
     <section class="chain-editor" aria-labelledby="chain-title">
       <header class="chain-heading"><h2 id="chain-title">Your pedalboard</h2><div class="board-actions"><button id="share-board" class="board-button">Share</button><button id="add-effect" class="board-button">+ Add effect</button></div></header>

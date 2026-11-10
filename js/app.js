@@ -443,6 +443,7 @@
     refreshInspect();
     settings.close();
     // The page scroll is restored when the dialog closes; scroll after that.
+    demo.open = true;
     requestAnimationFrame(() => scopeEl.scrollIntoView({ behavior: 'smooth', block: 'center' }));
   };
   document.getElementById('toggle-meters').onclick = e => {
@@ -1324,8 +1325,11 @@
     document.getElementById('journey-slot').textContent = activeBank + ' · ' + slotLabel(s);
     document.getElementById('journey-play').textContent = (tone || lessonTone())?.play || 'Your guitar, before any pedals.';
     const items = [];
-    const wave = (stage, label, big) => `<li class="journey-wave${big ? ' journey-out' : ''}"><span class="journey-wave-label">${label}</span><canvas data-stage="${stage}" aria-label="${label} waveform" role="img"></canvas></li>`;
-    items.push(wave('input', 'Your guitar', chain.length === 0));
+    // Each step has a Play button: it plays the signal at that point in the chain.
+    const wave = (stage, label, big, listen) => `<li class="journey-wave${big ? ' journey-out' : ''}"><div class="journey-wave-top"><span class="journey-wave-label">${label}</span>` +
+      `<button type="button" class="journey-listen" data-pedal="${listen.pedal}" data-monitor="${listen.monitor}" aria-label="Play: ${label}">▶ Play</button></div>` +
+      `<canvas data-stage="${stage}" aria-label="${label} waveform" role="img"></canvas></li>`;
+    items.push(wave('input', 'Your guitar', chain.length === 0, { pedal: '', monitor: 'dry' }));
     chain.forEach((pedal, i) => {
       const info = { name: kindName(pedal) };
       const chips = '<span class="chip-model">' + modelOf(pedal).name + '</span>' + controlsFor(pedal).slice(0, 3).map(c => `<span>${c.label} ${controlValue(pedal, c)}</span>`).join('');
@@ -1334,7 +1338,9 @@
         artSvg(pedal, 'journey-art') +
         `<div><button class="journey-name" data-edit="${pedal.id}">${i + 1} · ${info.name}</button><div class="journey-chips">${chips}</div>` +
         `<p class="journey-note"></p>${diff ? `<p class="journey-diff">${diff}</p>` : ''}</div></li>`);
-      items.push(wave(pedal.id, i === chain.length - 1 ? 'What you hear' : 'After the ' + info.name.toLowerCase(), i === chain.length - 1));
+      const last = i === chain.length - 1;
+      items.push(wave(pedal.id, last ? 'What you hear' : 'After the ' + info.name.toLowerCase(), last,
+        last ? { pedal: '', monitor: 'wet' } : { pedal: pedal.id, monitor: 'wet' }));
     });
     journeyList.innerHTML = items.join('');
     // Notes are plain text: set them as text, not markup.
@@ -1367,6 +1373,28 @@
   document.querySelectorAll('#whatif-box [data-hear]').forEach(button => button.onclick = () => {
     switchBank(button.dataset.hear);
     if (!listening) listen.click();
+  });
+  // Play the signal at one point in the chain: "after a pedal" means that
+  // pedal's output (wet), "your guitar" means the dry input, and an empty
+  // pedal id means the whole chain. The audio starts if it isn't already.
+  async function listenTo(pedal, monitorChoice) {
+    demo.open = true;
+    inspectId = pedal;
+    inspectByBank[activeBank] = pedal;
+    monitor = monitorChoice;
+    document.querySelectorAll('#monitor button').forEach(b => {
+      const on = b.dataset.value === monitorChoice;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    resetScopeHistory();
+    refreshInspect();
+    if (listening) sendAudioState();
+    else listen.click();
+  }
+  journeyList.addEventListener('click', e => {
+    const button = e.target.closest('.journey-listen');
+    if (button) listenTo(button.dataset.pedal, button.dataset.monitor);
   });
   function drawJourney() {
     const box = journeyList.getBoundingClientRect();
@@ -1866,6 +1894,11 @@
   }
 
   const scopeEl = document.getElementById('scope');
+  // The demo folds away; remember whether it was open.
+  try { if (localStorage.getItem('tonelab-demo') === 'closed') demo.open = false; } catch {}
+  demo.addEventListener('toggle', () => {
+    try { localStorage.setItem('tonelab-demo', demo.open ? 'open' : 'closed'); } catch {}
+  });
   const lanesEl = document.getElementById('lanes');
 
   function timeLines(ctx, w, h, withLabels) {
