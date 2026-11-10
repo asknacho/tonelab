@@ -94,10 +94,11 @@ canvas { display: block; width: 100%; }
 [data-type=trem] { --accent: #a5531b; }
 [data-type=swell] { --accent: #5f6670; }
 [data-type=reverb] { --accent: #6a4c93; }
-[data-type=gate], [data-type=comp], [data-type=phaser], [data-type=swell] { --inset: 9; }
-[data-type=boost] { --inset: 14; }
-[data-type=chorus] { --inset: 6; }
-[data-type=fuzz] { --inset: 1.5; }
+[data-shape=mxr] { --inset: 9; }
+[data-shape=mini] { --inset: 14; }
+[data-shape=small] { --inset: 6; }
+[data-shape=round] { --inset: 1.5; }
+[data-shape=big], [data-shape=whammy] { --inset: 1; }
 
 /* Pedal cards: an outline drawn in a 76 × 140 box, with the controls laid
  * over it in the same proportions (chrome · face · drag handle). */
@@ -316,3 +317,15 @@ canvas { display: block; width: 100%; }
 .journey-meta { margin: 6px 0 0; font-size: 12px; color: var(--ink-2); }
 #journey-slot { font: 500 12px var(--mono); }
 .tone-view .lg-gate, .tone-view .lg-comp { display: none; }
+
+/* Pedal model picker, "Show all controls", and switch controls */
+.model-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; margin: -6px 0 18px; }
+.model-pick { display: flex; flex-direction: column; gap: 6px; flex: 1 1 260px; min-width: 0; }
+.model-pick select { font-weight: 600; }
+.show-all { display: flex; align-items: center; gap: 6px; min-height: 44px; font-size: 13px; color: var(--ink-2); }
+.show-all input { accent-color: var(--accent, var(--ink)); width: 18px; height: 18px; }
+.param-switch .switch-options { display: flex; flex-wrap: wrap; width: 100%; margin-top: 4px; }
+.param-switch .switch-options button { flex: 1 1 auto; min-height: 40px; padding: 6px 10px; font-size: 13px; }
+.param-switch .switch-options button.on { background: var(--accent, var(--ink)); color: var(--card); }
+.params-more { margin: 10px 0 0; padding-top: 12px; border-top: 1px dashed var(--rule); font: 500 11px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+.journey-chips .chip-model { background: transparent; border: 1px solid var(--rule); color: var(--ink-2); }
