@@ -3,6 +3,16 @@ import './dsp.js';
 const { SR, Source, EffectChain } = globalThis.TL;
 const BLOCK_SIZE = 256;
 const BANKS = ['A', 'B'];
+// Match volume may lift a quiet chain by at most about +12 dB, so it can't blast the ear.
+const MATCH_MAX = 4;
+// Peaks above 0.8 bend smoothly toward full scale instead of being hard-clipped,
+// which sounds much less brittle on fuzz and distortion.
+function softLimit(x) {
+  const a = Math.abs(x);
+  if (a <= 0.8) return x;
+  const over = Math.tanh((a - 0.8) / 0.2) * 0.2;
+  return (x < 0 ? -1 : 1) * (0.8 + over);
+}
 
 class TonelabAudio extends AudioWorkletProcessor {
   constructor() {
@@ -64,7 +74,7 @@ class TonelabAudio extends AudioWorkletProcessor {
       powers.input += alpha * (inputPower / BLOCK_SIZE - powers.input);
       powers.output += alpha * (outputPower / BLOCK_SIZE - powers.output);
       this.targetMatches[bank] = settings.matchVolume && powers.output > 1e-9
-        ? Math.max(0.05, Math.min(8, Math.sqrt(powers.input / powers.output))) : 1;
+        ? Math.max(0.05, Math.min(MATCH_MAX, Math.sqrt(powers.input / powers.output))) : 1;
       if (bank === active) {
         activeInput = tapInput;
         activeOutput = tapOutput;
@@ -114,7 +124,7 @@ class TonelabAudio extends AudioWorkletProcessor {
       }
       this.gain += (this.settings.volume - this.gain) * 0.003;
       const sample = this.current + (this.next - this.current) * this.fraction;
-      out[i] = Math.max(-1, Math.min(1, sample * this.gain));
+      out[i] = softLimit(sample * this.gain);
     }
     return true;
   }
