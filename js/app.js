@@ -707,6 +707,61 @@
           chain: [['drive', { drive: 8, mix: 0.5 }]] },
       ],
     },
+    {
+      id: 'cerati-persiana', group: 'Songs', title: 'Gustavo Cerati · Persiana Americana', short: 'Persiana',
+      summary: 'A clean, shimmering guitar floating in a wide space: soft chorus, a gentle echo and a big room. In the spirit of the song, not a copy of its recording.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play clean chords, or single notes with space between them, and let them ring into the echo.',
+      chain: [
+        ['comp', { threshold: -26, ratio: 2.5, attack: 12, release: 220, knee: 6, makeup: 2, blend: 1 }, 'Keeps the clean notes even, so the chorus and echoes sit at a steady level.'],
+        ['chorus:smallclone', { rate: 0.6, depth: 0.35, mix: 0.45 }, 'A slow, gentle wobble on a copy of your playing: the shimmer that makes clean chords feel wide.'],
+        ['delay:dd3', { time: 375, feedback: 0.3, mix: 0.25, character: 0 }, 'A soft, clean echo on a dotted eighth, so each repeat lands between your notes.'],
+        ['reverb:bigsky', { decay: 0.7, predelay: 30, mix: 0.3, tone: 0.6, mode: 1 }, 'A big hall that makes the whole thing float in the air.'],
+      ],
+      tip: 'Keep the chorus subtle. Turned up, it becomes a seasick warble; a little is what gives the shimmer.',
+      whatIfs: [
+        { id: 'no-chorus', label: 'No chorus', note: 'Without the chorus the notes sit still and narrow. The echoes and room are still there, but the shimmer is gone.',
+          chain: [['comp', { threshold: -26, ratio: 2.5, attack: 12, release: 220, knee: 6, makeup: 2, blend: 1 }], ['delay:dd3', { time: 375, feedback: 0.3, mix: 0.25, character: 0 }], ['reverb:bigsky', { decay: 0.7, predelay: 30, mix: 0.3, tone: 0.6, mode: 1 }]] },
+        { id: 'chorus-after-reverb', label: 'Chorus after the reverb', note: 'Now the chorus wobbles the whole reverb tail too, so the room itself seems to sway. It’s a more dreamy, unsettled sound.',
+          chain: [['comp', { threshold: -26, ratio: 2.5, attack: 12, release: 220, knee: 6, makeup: 2, blend: 1 }], ['delay:dd3', { time: 375, feedback: 0.3, mix: 0.25, character: 0 }], ['reverb:bigsky', { decay: 0.7, predelay: 30, mix: 0.3, tone: 0.6, mode: 1 }], ['chorus:smallclone', { rate: 0.6, depth: 0.35, mix: 0.45 }]] },
+      ],
+    },
+    {
+      id: 'audioslave-stone', group: 'Songs', title: 'Audioslave · Like a Stone', short: 'Like a Stone',
+      summary: 'A clean, ringing intro that opens up into a warm, driven lead: chorus and a wide room over a little overdrive. In the spirit of the song, not a copy of its recording.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play a clean, ringing arpeggio, then dig in with a few single notes and listen to the room catch them.',
+      chain: [
+        ['drive:ts9', { drive: 5, tone: 0.5, level: -3, mix: 0.6 }, 'A light overdrive, just enough to thicken the notes without losing the clean sparkle. The chorus comes after it, so the wobble only touches your playing, and the room stays steady.'],
+        ['chorus:smallclone', { rate: 0.9, depth: 0.45, mix: 0.5 }, 'Adds a wide, moving copy of your playing, so the ringing notes feel bigger.'],
+        ['reverb:bigsky', { decay: 0.6, predelay: 20, mix: 0.3, tone: 0.55, dwell: 0.55, mode: 1 }, 'A big hall that carries each note out into the space, making the lead feel big.'],
+      ],
+      tip: 'Roll the drive back for the clean intro; push it a little for the lead. The same chain covers both.',
+      whatIfs: [
+        { id: 'no-drive', label: 'No overdrive', note: 'Clean all the way: the chorus and room do the work. The notes are cleaner and thinner, closer to the intro.',
+          chain: [['chorus:smallclone', { rate: 0.9, depth: 0.45, mix: 0.5 }], ['reverb:bigsky', { decay: 0.6, predelay: 20, mix: 0.3, tone: 0.55, dwell: 0.55, mode: 1 }]] },
+        { id: 'reverb-first', label: 'Reverb before the chorus', note: 'Now the chorus sits after the room, so it wobbles the reverb tail as well. The sound is more dreamy and swirling.',
+          chain: [['drive:ts9', { drive: 5, tone: 0.5, level: -3, mix: 0.6 }], ['reverb:bigsky', { decay: 0.6, predelay: 20, mix: 0.3, tone: 0.55, dwell: 0.55, mode: 1 }], ['chorus:smallclone', { rate: 0.9, depth: 0.45, mix: 0.5 }]] },
+      ],
+    },
+    {
+      id: 'mayer-daughters', group: 'Songs', title: 'John Mayer · Daughters', short: 'Daughters',
+      summary: 'A warm, clean single-coil tone with a little compression and body from a boost, sitting in a small room. In the spirit of the song, not a copy of its recording.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play clean, warm single notes and chords with a light touch. Notice how evenly the picks come out.',
+      chain: [
+        ['comp:keeley', { threshold: -24, makeup: 2, tone: 0.5, input: 0, blend: 0.7 }, 'Evens out the picking gently, so soft and loud notes sit close together.'],
+        ['boost:spark', { boost: 3, voicing: 1, bass: 0, treble: 0, level: 0 }, 'A small lift with the fat setting, adding warmth in the low mids without any grit.'],
+        ['reverb:bigsky', { decay: 0.35, predelay: 10, mix: 0.2, tone: 0.5, mode: 0 }, 'A small room, just enough to place the guitar in a space.'],
+      ],
+      tip: 'Turn the guitar’s volume knob down a little for the warmest clean. The compressor and boost reward a softer touch.',
+      whatIfs: [
+        { id: 'no-comp', label: 'No compressor', note: 'Without the compressor, loud picks stand out from soft ones. The sound is more dynamic and a bit less smooth.',
+          chain: [['boost:spark', { boost: 3, voicing: 1, bass: 0, treble: 0, level: 0 }], ['reverb:bigsky', { decay: 0.35, predelay: 10, mix: 0.2, tone: 0.5, mode: 0 }]] },
+        { id: 'mid-boost', label: 'Mid boost instead of fat', note: 'The Mid setting pushes the middle forward instead of the low mids. It cuts through more, and feels a little brighter and more vocal.',
+          chain: [['comp:keeley', { threshold: -24, makeup: 2, tone: 0.5, input: 0, blend: 0.7 }], ['boost:spark', { boost: 3, voicing: 2, bass: 0, treble: 0, level: 0 }], ['reverb:bigsky', { decay: 0.35, predelay: 10, mix: 0.2, tone: 0.5, mode: 0 }]] },
+      ],
+    },
   ];
   const toneById = id => TONES.find(tone => tone.id === id);
 
