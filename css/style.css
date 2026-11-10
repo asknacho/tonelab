@@ -349,3 +349,12 @@ canvas { display: block; width: 100%; }
 .journey-listen { flex: none; min-height: 36px; padding: 0 12px; border: 1px solid var(--ink); border-radius: 8px; background: var(--card); color: var(--ink); font: 600 13px var(--sans); }
 .journey-listen:hover { background: var(--ink); color: var(--paper); }
 .journey-out .journey-listen { background: var(--ink); color: var(--paper); }
+
+/* Collapsible live demo */
+.demo-summary { list-style: none; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; min-height: 48px; padding: 12px 24px; cursor: pointer; position: relative; padding-right: 56px; }
+.demo-summary::-webkit-details-marker { display: none; }
+.demo-summary::after { content: ''; position: absolute; right: 26px; top: 50%; width: 9px; height: 9px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: translateY(-70%) rotate(45deg); transition: transform .15s; }
+.demo[open] > .demo-summary::after { transform: translateY(-30%) rotate(225deg); }
+.demo-title { font: 600 18px/1.2 var(--serif); }
+.demo-hint { font-size: 13px; color: var(--ink-2); }
+.demo-summary:focus-visible { outline: 2px solid var(--gate); outline-offset: -2px; }

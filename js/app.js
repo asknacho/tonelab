@@ -443,6 +443,7 @@
     refreshInspect();
     settings.close();
     // The page scroll is restored when the dialog closes; scroll after that.
+    demo.open = true;
     requestAnimationFrame(() => scopeEl.scrollIntoView({ behavior: 'smooth', block: 'center' }));
   };
   document.getElementById('toggle-meters').onclick = e => {
@@ -1377,6 +1378,7 @@
   // pedal's output (wet), "your guitar" means the dry input, and an empty
   // pedal id means the whole chain. The audio starts if it isn't already.
   async function listenTo(pedal, monitorChoice) {
+    demo.open = true;
     inspectId = pedal;
     inspectByBank[activeBank] = pedal;
     monitor = monitorChoice;
@@ -1892,6 +1894,11 @@
   }
 
   const scopeEl = document.getElementById('scope');
+  // The demo folds away; remember whether it was open.
+  try { if (localStorage.getItem('tonelab-demo') === 'closed') demo.open = false; } catch {}
+  demo.addEventListener('toggle', () => {
+    try { localStorage.setItem('tonelab-demo', demo.open ? 'open' : 'closed'); } catch {}
+  });
   const lanesEl = document.getElementById('lanes');
 
   function timeLines(ctx, w, h, withLabels) {
