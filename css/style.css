@@ -177,3 +177,11 @@ canvas { display: block; width: 100%; }
   .chain-hint { margin-block: 8px 10px; }
   #save-status { flex-basis: 100%; }
 }
+
+/* Keep comparison controls and the page position stable across configurations. */
+.legend { min-height: 24px; }
+.order-status, .order-status:empty { display: block; min-height: 36px; }
+#save-status { min-height: 17px; }
+@media (max-width: 560px) {
+  .legend { min-height: 70px; }
+}

@@ -104,3 +104,28 @@ test('A/B volume matching equalizes different chains and pedal taps expose their
   assert.equal(a.processor.tapInput, entry.input);
   assert.equal(a.processor.tapOutput, entry.out);
 });
+
+
+test('inactive banks publish waveform history and retain their state when selected', () => {
+  let Processor;
+  const messages = [];
+  const runtime = vm.createContext({ Float32Array, Math, sampleRate: 48000,
+    AudioWorkletProcessor: class { constructor() { this.port = { postMessage: data => messages.push(data) }; } },
+    registerProcessor: (_, value) => { Processor = value; } });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/dsp.js'), 'utf8'), runtime);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/audio-worklet.js'), 'utf8').replace("import './dsp.js';", ''), runtime);
+  const processor = new Processor();
+  const data = { type: 'settings', kind: 'guitar', noiseDb: -48, monitor: 'wet', volume: 0.1, matchVolume: true,
+    banks: { A: [comp('a')], B: [comp('b', -30)] }, activeBank: 'A', inspectByBank: { A: '', B: '' }, state: { playing: true, speed: 1 } };
+  processor.port.onmessage({ data });
+  for (let i = 0; i < 100; i++) processor.renderBlock();
+  assert(messages.every(message => message.views.A.output.length === 256 && message.views.B.output.length === 256));
+  assert(messages.some(message => message.views.B.output.some(value => Math.abs(value) > 0.001)));
+  const previousSourcePosition = processor.source.n;
+  const previousProcessor = processor.chains.B.instances.get('b').processor;
+  processor.port.onmessage({ data: { ...data, activeBank: 'B' } });
+  processor.renderBlock();
+  assert.equal(processor.source.n, previousSourcePosition + 256);
+  assert.equal(processor.chains.B.instances.get('b').processor, previousProcessor);
+  assert.equal(processor.tapOutput, processor.chains.B.instances.get('b').out);
+});

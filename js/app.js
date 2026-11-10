@@ -93,6 +93,8 @@
   let banks = { A: clone(state.chain), B: clone(state.chain) };
   let restoredNoise = -48;
   let inspectId = '';
+  const inspectByBank = { A: '', B: '' };
+  let rebuildOrder = false;
   let metersOpen = false;
   let matchVolume = true;
   let saveTimer;
@@ -226,7 +228,7 @@
     saveBoard();
   });
 
-  const orderList = document.getElementById('effect-order');
+  let orderList = document.getElementById('effect-order');
   const dropArea = document.querySelector('.drop-area');
   const settings = document.getElementById('effect-settings');
   const library = document.getElementById('effect-library');
@@ -331,7 +333,10 @@
 
   const inspectSelect = document.getElementById('inspect-point');
   function refreshInspect() {
-    if (!state.chain.some(p => p.id === inspectId)) inspectId = '';
+    if (inspectId && !state.chain.some(p => p.id === inspectId)) {
+      inspectId = '';
+      resetScopeHistory();
+    }
     inspectSelect.replaceChildren(new Option('Full chain', ''));
     state.chain.forEach(pedal => inspectSelect.add(new Option(pedalName(pedal), pedal.id)));
     inspectSelect.value = inspectId;
@@ -374,10 +379,10 @@
     banks[activeBank] = clone(state.chain);
     activeBank = bank;
     state.chain = clone(banks[activeBank]);
-    orderList.replaceChildren();
+    rebuildOrder = true;
     selectedId = null;
-    inspectId = '';
-    resetScopeHistory();
+    inspectId = inspectByBank[bank];
+    selectScopeHistory();
     changed();
     syncBanks();
     announce('Configuration ' + activeBank + ' selected');
@@ -412,7 +417,21 @@
   document.querySelector('#share-dialog .sheet-close').onclick = () => document.getElementById('share-dialog').close();
   syncBanks();
 
+  function reserveBoardHeight() {
+    const card = orderList.firstElementChild;
+    const cardWidth = card ? card.getBoundingClientRect().width : 62;
+    const cardHeight = card ? card.getBoundingClientRect().height : 101;
+    const gap = parseFloat(getComputedStyle(orderList).gap) || 6;
+    const columns = Math.max(1, Math.floor((orderList.clientWidth + gap) / (cardWidth + gap)));
+    const other = activeBank === 'A' ? 'B' : 'A';
+    const rows = Math.ceil(Math.max(state.chain.length, banks[other].length) / columns);
+    dropArea.style.minHeight = Math.max(126, rows * (cardHeight + gap) - gap + 28) + 'px';
+  }
+  window.addEventListener('resize', reserveBoardHeight);
   function renderOrder() {
+    const previousList = rebuildOrder ? orderList : null;
+    if (previousList) orderList = previousList.cloneNode(false);
+    rebuildOrder = false;
     for (const item of [...orderList.children]) if (!state.chain.some(p => p.id === item.dataset.effect)) item.remove();
     state.chain.forEach((pedal, index) => {
       const id = pedal.id;
@@ -478,7 +497,9 @@
       // Keep DOM nodes in place during playback and editing to preserve focus.
       if (orderList.children[index] !== item) orderList.insertBefore(item, orderList.children[index] || null);
     });
+    if (previousList) previousList.replaceWith(orderList);
     document.getElementById('empty-chain').hidden = state.chain.length > 0;
+    reserveBoardHeight();
     refreshInspect();
   }
   renderOrder();
@@ -486,14 +507,26 @@
   /* ------------------------------------------------------------ buffers */
 
   const input = new Float32Array(N);
-  const scopeInput = new Float32Array(N);
-  const scopeOutput = new Float32Array(N);
-  function resetScopeHistory() { scopeInput.fill(0); scopeOutput.fill(0); }
+  const scopeHistory = {
+    A: { input: new Float32Array(N), output: new Float32Array(N) },
+    B: { input: new Float32Array(N), output: new Float32Array(N) },
+  };
+  let scopeInput = scopeHistory[activeBank].input;
+  let scopeOutput = scopeHistory[activeBank].output;
+  function selectScopeHistory() {
+    scopeInput = scopeHistory[activeBank].input;
+    scopeOutput = scopeHistory[activeBank].output;
+  }
+  function resetScopeHistory() {
+    inspectByBank[activeBank] = inspectId;
+    scopeInput.fill(0);
+    scopeOutput.fill(0);
+  }
 
   const gateGain = new Float32Array(N);
-  const compOut = new Float32Array(N);
   const compGR = new Float32Array(N);
-  const visualChain = new EffectChain(N);
+  const visualChains = { A: new EffectChain(N), B: new EffectChain(N) };
+  let visualChain = visualChains[activeBank];
 
   let total = 0; // samples generated since start
 
@@ -509,14 +542,18 @@
   }
 
   function processChain() {
-    compOut.set(visualChain.process(input, state.chain));
-    if (!listening) {
-      const pedal = state.chain.find(p => p.id === inspectId);
-      const entry = pedal && visualChain.instances.get(pedal.id);
-      scopeInput.set(entry ? entry.input : input);
-      scopeOutput.set(entry && pedal.enabled ? entry.out : entry ? entry.input : compOut);
+    banks[activeBank] = state.chain;
+    for (const bank of ['A', 'B']) {
+      const output = visualChains[bank].process(input, banks[bank]);
+      if (!listening) {
+        const pedal = banks[bank].find(p => p.id === inspectByBank[bank]);
+        const entry = pedal && visualChains[bank].instances.get(pedal.id);
+        scopeHistory[bank].input.set(entry ? entry.input : input);
+        scopeHistory[bank].output.set(entry && pedal.enabled ? entry.out : entry ? entry.input : output);
+      }
     }
-    document.getElementById('lanes').hidden = !metersOpen || !state.chain.some(p => ['gate', 'comp'].includes(p.type));
+    visualChain = visualChains[activeBank];
+    document.getElementById('lanes').hidden = !metersOpen;
     // The scope meters follow the inspected pedal of each type, or the first.
     for (const type of ['gate', 'comp']) {
       const pedal = observed(type);
@@ -861,7 +898,7 @@
   function sendAudioState() {
     banks[activeBank] = clone(state.chain);
     audioNode?.port.postMessage({ type: 'settings', state: { playing: state.playing, speed: state.speed, chain: state.chain }, kind: source.kind,
-      noiseDb: source.noiseDb, banks, activeBank, inspectId, matchVolume, monitor, volume: Number(document.getElementById('volume').value) });
+      noiseDb: source.noiseDb, banks, activeBank, inspectId, inspectByBank, matchVolume, monitor, volume: Number(document.getElementById('volume').value) });
   }
   segmented('monitor', v => { monitor = v; sendAudioState(); });
   document.getElementById('volume').oninput = sendAudioState;
@@ -881,10 +918,13 @@
           const samples = data.samples;
           input.copyWithin(0, samples.length);
           input.set(samples, N - samples.length);
-          for (const [buffer, block] of [[scopeInput, data.tapInput], [scopeOutput, data.tapOutput]]) {
-            if (!block) continue;
-            buffer.copyWithin(0, block.length);
-            buffer.set(block, N - block.length);
+          for (const bank of ['A', 'B']) {
+            const view = data.views?.[bank];
+            if (!view || view.inspectId !== inspectByBank[bank]) continue;
+            for (const [buffer, block] of [[scopeHistory[bank].input, view.input], [scopeHistory[bank].output, view.output]]) {
+              buffer.copyWithin(0, block.length);
+              buffer.set(block, N - block.length);
+            }
           }
           total += samples.length;
           state.dirty = true;
@@ -896,7 +936,7 @@
         await audioContext.suspend();
       } else {
         input.fill(0);
-        resetScopeHistory();
+        for (const history of Object.values(scopeHistory)) { history.input.fill(0); history.output.fill(0); }
         listening = true;
         sendAudioState();
         await audioContext.resume();
