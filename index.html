@@ -55,6 +55,7 @@
       <div class="comparison-bar"><div class="segmented" id="compare-bank" aria-label="Chain configuration"><button data-bank="A" aria-pressed="true" class="on">A</button><button data-bank="B" aria-pressed="false">B</button></div><button id="copy-bank" class="board-button">Copy A to B</button><label><input id="match-volume" type="checkbox" checked /> Match volume</label><span id="save-status" role="status"></span></div>
       <p class="chain-hint">Tap to bypass · drag to reorder · edit for settings</p>
       <div class="signal-path">
+        <svg id="cables" class="cables" aria-hidden="true"></svg>
         <span class="endpoint endpoint-input">Input <i aria-hidden="true"></i></span>
         <div class="drop-area" aria-label="Effect drop area"><ol id="effect-order" aria-label="Effects, processed in numbered order"></ol><p id="empty-chain" hidden>Clean guitar. Add an effect to start building.</p></div>
         <span class="endpoint endpoint-output"><i aria-hidden="true"></i>Output</span>
@@ -66,7 +67,7 @@
       <div id="effect-choices"></div>
     </dialog>
     <dialog id="effect-settings" class="effect-dialog" aria-labelledby="settings-title">
-      <header class="sheet-head"><div><span id="settings-state" class="field-label"></span><h2 id="settings-title"></h2></div><button class="sheet-close">Done</button></header>
+      <header class="sheet-head"><div><span id="settings-state" class="field-label"></span><h2 id="settings-title"></h2><p id="settings-model" class="model-note"></p></div><button class="sheet-close">Done</button></header>
       <div class="settings-body"><div class="params" id="pedal-params"></div><figure class="curve" id="pedal-curve-wrap"><canvas id="pedal-curve"></canvas><figcaption><span class="badge" id="pedal-state"></span><span class="readout" id="pedal-readout"></span></figcaption></figure></div>
       <p id="effect-explanation" class="explain"></p>
       <button id="inspect-pedal" class="board-button">Listen and view this pedal</button>
