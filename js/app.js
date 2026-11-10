@@ -762,6 +762,186 @@
           chain: [['comp:keeley', { threshold: -24, makeup: 2, tone: 0.5, input: 0, blend: 0.7 }], ['boost:spark', { boost: 3, voicing: 2, bass: 0, treble: 0, level: 0 }], ['reverb:bigsky', { decay: 0.35, predelay: 10, mix: 0.2, tone: 0.5, mode: 0 }]] },
       ],
     },
+    {
+      id: 'srv-texas', group: 'Songs', title: 'Stevie Ray Vaughan · Texas blues', short: 'Texas blues',
+      summary: 'A punchy blues crunch: a tight compressor and a mid-focused overdrive that makes single notes sing and sustain. In the spirit of the style, not a copy of any recording.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Hit single notes hard and let them ring. Listen to the sustain and the edge on each note.',
+      chain: [
+        ['comp:keeley', { threshold: -28, makeup: 4, tone: 0.5, input: 0, blend: 0.8 }, 'Evens out your picking, so hard and soft notes sit at a similar level and sustain longer.'],
+        ['drive:ts9', { drive: 14, tone: 0.55, level: -2, mix: 1, voicing: 1, clipping: 0 }, 'A mid-hump overdrive: it cuts the lows before clipping, so single notes cut through the band.'],
+      ],
+      tip: 'Roll the guitar’s volume knob back a little to clean up chords without changing the lead tone.',
+      whatIfs: [
+        { id: 'no-comp', label: 'No compressor', note: 'Hard picks jump out and soft notes get lost. The sustain is shorter and less even.',
+          chain: [['drive:ts9', { drive: 14, tone: 0.55, level: -2, mix: 1, voicing: 1, clipping: 0 }]] },
+        { id: 'drive-first', label: 'Overdrive before the compressor', note: 'The compressor now only evens out the already-clipped sound. Notes feel squashed and lose some of their edge.',
+          chain: [['drive:ts9', { drive: 14, tone: 0.55, level: -2, mix: 1, voicing: 1, clipping: 0 }], ['comp:keeley', { threshold: -28, makeup: 4, tone: 0.5, input: 0, blend: 0.8 }]] },
+      ],
+    },
+    {
+      id: 'summers-chorus', group: 'Songs', title: 'Andy Summers · clean chorus', short: 'Clean chorus',
+      summary: 'Clean, bright chords with a wide, warm chorus and a soft echo. In the spirit of the clean chorus sound of the early 80s, not a copy of any recording.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play clean arpeggios and chords with a light touch, and let the chorus spread them out.',
+      chain: [
+        ['comp:keeley', { threshold: -24, makeup: 1, tone: 0.55, input: 0, blend: 0.8 }, 'Keeps clean notes at a steady level, so the chorus and echo don’t jump around.'],
+        ['chorus:ce2w', { rate: 0.9, depth: 0.5, mix: 0.5, voice: 1 }, 'A warm, wide chorus: a slightly detuned copy of your playing that moves slowly.'],
+        ['delay:dd3', { time: 330, feedback: 0.25, mix: 0.2, character: 0 }, 'A quiet echo that sits in the gaps between chords.'],
+        ['reverb:bigsky', { decay: 0.4, predelay: 15, mix: 0.2, tone: 0.6, mode: 0 }, 'A little room, so the guitar sits in a space.'],
+      ],
+      tip: 'Keep the echo low. It should be felt more than heard.',
+      whatIfs: [
+        { id: 'no-delay', label: 'No delay', note: 'The chorus and room are still there, but the echo in the gaps is gone. The chords sound closer and less spacious.',
+          chain: [['comp:keeley', { threshold: -24, makeup: 1, tone: 0.55, input: 0, blend: 0.8 }], ['chorus:ce2w', { rate: 0.9, depth: 0.5, mix: 0.5, voice: 1 }], ['reverb:bigsky', { decay: 0.4, predelay: 15, mix: 0.2, tone: 0.6, mode: 0 }]] },
+        { id: 'no-chorus', label: 'No chorus', note: 'Clean and narrow. The echo and room remain, but the wide, moving shimmer is gone.',
+          chain: [['comp:keeley', { threshold: -24, makeup: 1, tone: 0.55, input: 0, blend: 0.8 }], ['delay:dd3', { time: 330, feedback: 0.25, mix: 0.2, character: 0 }], ['reverb:bigsky', { decay: 0.4, predelay: 15, mix: 0.2, tone: 0.6, mode: 0 }]] },
+      ],
+    },
+    {
+      id: 'marr-jangle', group: 'Songs', title: 'Johnny Marr · jangle', short: 'Jangle',
+      summary: 'Bright, ringing clean chords with a light chorus and a plate room. In the spirit of the jangly clean style, not a copy of any recording.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Strum open chords with a bright, quick attack, and let them ring.',
+      chain: [
+        ['comp:keeley', { threshold: -22, makeup: 1, tone: 0.6, input: 0, blend: 0.8 }, 'Keeps the strums even, so every chord rings out at the same level.'],
+        ['chorus:smallclone', { rate: 0.7, depth: 0.3, mix: 0.4 }, 'A light shimmer, enough to make the strings sound bright without blurring them.'],
+        ['reverb:bigsky', { decay: 0.45, predelay: 10, mix: 0.25, tone: 0.75, mode: 2 }, 'A bright plate: a dense, smooth reverb that keeps the chords crisp.'],
+      ],
+      tip: 'Bright is the point here: lift the treble on the reverb before you touch the guitar’s tone knob.',
+      whatIfs: [
+        { id: 'room', label: 'Room instead of plate', note: 'A room is darker and less bright. The chords lose their sparkle and sit back in the mix.',
+          chain: [['comp:keeley', { threshold: -22, makeup: 1, tone: 0.6, input: 0, blend: 0.8 }], ['chorus:smallclone', { rate: 0.7, depth: 0.3, mix: 0.4 }], ['reverb:bigsky', { decay: 0.45, predelay: 10, mix: 0.25, tone: 0.75, mode: 0 }]] },
+        { id: 'deep-chorus', label: 'Deeper chorus', note: 'With more depth the chorus wobbles much more. The chords get seasick and lose their crispness.',
+          chain: [['comp:keeley', { threshold: -22, makeup: 1, tone: 0.6, input: 0, blend: 0.8 }], ['chorus:smallclone', { rate: 0.7, depth: 0.9, mix: 0.4 }], ['reverb:bigsky', { decay: 0.45, predelay: 10, mix: 0.25, tone: 0.75, mode: 2 }]] },
+      ],
+    },
+    {
+      id: 'queen-layers', group: 'Songs', title: 'Brian May · layered lead echo', short: 'Layered lead',
+      summary: 'A singing lead with mild overdrive and two echoes at different times, so each note comes back in layers. In the spirit of the style, not a copy of any recording.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play a melody with long notes and bends. Listen for the echoes stacking up behind each note.',
+      chain: [
+        ['drive:ts9', { drive: 8, tone: 0.6, level: -1, mix: 0.9, voicing: 0, clipping: 1 }, 'A mild, warm overdrive: enough to make the lead sing, without hiding the notes.'],
+        ['delay:dd3', { time: 300, feedback: 0.35, mix: 0.3, character: 0 }, 'The first echo: quick and clean, so it doubles each note.'],
+        ['delay:multi', { time: 600, feedback: 0.3, mix: 0.25, character: 0.1, type: 0 }, 'A second, slower echo that lands after the first. Together they build layers.'],
+        ['reverb:bigsky', { decay: 0.5, predelay: 10, mix: 0.25, tone: 0.55, mode: 2 }, 'A plate that gives the layers some room.'],
+      ],
+      tip: 'Set the second echo to about twice the first one’s time for a layered, stacked feel.',
+      whatIfs: [
+        { id: 'one-echo', label: 'One echo', note: 'Only the first echo. Each note has one repeat, so it sounds simpler and less layered.',
+          chain: [['drive:ts9', { drive: 8, tone: 0.6, level: -1, mix: 0.9, voicing: 0, clipping: 1 }], ['delay:dd3', { time: 300, feedback: 0.35, mix: 0.3, character: 0 }], ['reverb:bigsky', { decay: 0.5, predelay: 10, mix: 0.25, tone: 0.55, mode: 2 }]] },
+        { id: 'echo-before-drive', label: 'Echo before the overdrive', note: 'Now the echoes are overdriven too, so the repeats grow gritty and harsher with each one.',
+          chain: [['delay:dd3', { time: 300, feedback: 0.35, mix: 0.3, character: 0 }], ['delay:multi', { time: 600, feedback: 0.3, mix: 0.25, character: 0.1, type: 0 }], ['drive:ts9', { drive: 8, tone: 0.6, level: -1, mix: 0.9, voicing: 0, clipping: 1 }], ['reverb:bigsky', { decay: 0.5, predelay: 10, mix: 0.25, tone: 0.55, mode: 2 }]] },
+      ],
+    },
+    {
+      id: 'beck-wah', group: 'Songs', title: 'Jeff Beck · wah lead', short: 'Wah lead',
+      summary: 'A vocal wah lead on a bright overdrive, with the wah parked in the middle. In the spirit of the style, not a copy of any recording.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Bend a note and rock the wah with your foot. Hold the wah still and play single notes to hear it sing.',
+      chain: [
+        ['drive:ts9', { drive: 12, tone: 0.7, level: 0, mix: 1, voicing: 0, clipping: 0 }, 'A bright overdrive that gives the wah something to shape.'],
+        ['wah:crybaby', { position: 0.6, mode: 0, resonance: 5, filter: 0, sensitivity: 14, speed: 1.5, direction: 0, range: 0.5, level: 0 }, 'The wah is parked just past the middle. A peak in the sound gives the notes a vocal, talking quality.'],
+        ['reverb:bigsky', { decay: 0.45, predelay: 20, mix: 0.2, tone: 0.6, mode: 1 }, 'A small hall, so the wah lead has space around it.'],
+      ],
+      tip: 'Rock the wah slowly during a long bend. That sweep is the vocal sound.',
+      whatIfs: [
+        { id: 'auto-wah', label: 'Wah rocks by itself', note: 'The wah now sweeps on its own, with no foot needed. The lead pulses steadily, like an automatic wah.',
+          chain: [['drive:ts9', { drive: 12, tone: 0.7, level: 0, mix: 1, voicing: 0, clipping: 0 }], ['wah:crybaby', { position: 0.6, mode: 2, resonance: 5, filter: 0, sensitivity: 14, speed: 1.2, direction: 0, range: 0.5, level: 0 }], ['reverb:bigsky', { decay: 0.45, predelay: 20, mix: 0.2, tone: 0.6, mode: 1 }]] },
+        { id: 'wah-after-drive', label: 'Wah after the overdrive', note: 'The overdrive now feeds the wah, so the filter gets a harder, fuzzier signal. The sweep is more aggressive and less smooth.',
+          chain: [['wah:crybaby', { position: 0.6, mode: 0, resonance: 5, filter: 0, sensitivity: 14, speed: 1.5, direction: 0, range: 0.5, level: 0 }], ['drive:ts9', { drive: 12, tone: 0.7, level: 0, mix: 1, voicing: 0, clipping: 0 }], ['reverb:bigsky', { decay: 0.45, predelay: 20, mix: 0.2, tone: 0.6, mode: 1 }]] },
+      ],
+    },
+    {
+      id: 'lizzy-harmony', group: 'Songs', title: 'Thin Lizzy · harmony lead', short: 'Harmony lead',
+      summary: 'Melodies with a harmony a third above, on a bright overdrive and a plate-like room. The harmony follows the key, so it stays in the scale. In the spirit of the style, not a copy of any recording.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play a melody in A major, mostly single notes. Single notes give the cleanest harmony.',
+      chain: [
+        ['drive:ts9', { drive: 8, tone: 0.6, level: -2, mix: 0.8, voicing: 1, clipping: 0 }, 'A moderate overdrive: enough sustain for the lead, with the notes still clear.'],
+        ['harm:ps6', { mode: 1, key: 9, mix: 0.5, steps1: 2, steps2: 0 }, 'Adds a third above each note, using only the notes of A major so the harmony sounds right.'],
+        ['reverb:bigsky', { decay: 0.4, predelay: 15, mix: 0.2, tone: 0.6, mode: 2 }, 'A bright room that carries the harmony with the lead.'],
+      ],
+      tip: 'Harmony works best on slow, clear melodies. Fast runs can make the harmony lag behind.',
+      whatIfs: [
+        { id: 'fixed-third', label: 'Always a major third', note: 'The harmony is always a major third up, even when the note makes it clash with the key. Some harmonies sound off.',
+          chain: [['drive:ts9', { drive: 8, tone: 0.6, level: -2, mix: 0.8, voicing: 1, clipping: 0 }], ['harm:ps6', { mode: 0, voice1: 4, voice2: 0, mix: 0.5 }], ['reverb:bigsky', { decay: 0.4, predelay: 15, mix: 0.2, tone: 0.6, mode: 2 }]] },
+        { id: 'minor-key', label: 'Minor key', note: 'Using the minor scale gives a darker harmony. The same melody sounds moodier.',
+          chain: [['drive:ts9', { drive: 8, tone: 0.6, level: -2, mix: 0.8, voicing: 1, clipping: 0 }], ['harm:ps6', { mode: 2, key: 9, mix: 0.5, steps1: 2, steps2: 0 }], ['reverb:bigsky', { decay: 0.4, predelay: 15, mix: 0.2, tone: 0.6, mode: 2 }]] },
+      ],
+    },
+    {
+      id: 'shoegaze-wall', group: 'Techniques', title: 'Shoegaze wall of sound', short: 'Wall of sound',
+      summary: 'A huge, washed-out wall: fuzz, a wide chorus, a long echo and a big reverb. In the spirit of the shoegaze style.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Hold big chords and let them swell into the fuzz. The sound is in the sustain.',
+      chain: [
+        ['fuzz:bigmuff', { fuzz: 28, tone: 0.5, level: -8, bias: 0.5, gate: 0, compress: 0.3, stability: 1 }, 'Heavy, sustaining fuzz: it turns chords into a thick, smooth wall.'],
+        ['chorus:smallclone', { rate: 0.4, depth: 0.6, mix: 0.5 }, 'A slow, deep wobble that makes the wall feel like it’s moving.'],
+        ['delay:dd3', { time: 450, feedback: 0.45, mix: 0.35, character: 0.3 }, 'Long, slightly dark echoes that fill the gaps between chords.'],
+        ['reverb:bigsky', { decay: 0.8, predelay: 30, mix: 0.4, tone: 0.45, mode: 1 }, 'A huge hall: the whole sound drifts in the air.'],
+      ],
+      tip: 'Lower the fuzz if the chords blur into mud. Some clarity makes the wall more impressive.',
+      whatIfs: [
+        { id: 'clean-wall', label: 'Clean wall (no fuzz)', note: 'Without the fuzz it’s a clean, shimmering wash of chorus and echo. Softer, but the sound loses its weight.',
+          chain: [['chorus:smallclone', { rate: 0.4, depth: 0.6, mix: 0.5 }], ['delay:dd3', { time: 450, feedback: 0.45, mix: 0.35, character: 0.3 }], ['reverb:bigsky', { decay: 0.8, predelay: 30, mix: 0.4, tone: 0.45, mode: 1 }]] },
+        { id: 'reverb-in-fuzz', label: 'Reverb before the fuzz', note: 'The fuzz now clips the reverb too, so the room turns into a noisy, gritty haze.',
+          chain: [['chorus:smallclone', { rate: 0.4, depth: 0.6, mix: 0.5 }], ['delay:dd3', { time: 450, feedback: 0.45, mix: 0.35, character: 0.3 }], ['reverb:bigsky', { decay: 0.8, predelay: 30, mix: 0.4, tone: 0.45, mode: 1 }], ['fuzz:bigmuff', { fuzz: 28, tone: 0.5, level: -8, bias: 0.5, gate: 0, compress: 0.3, stability: 1 }]] },
+      ],
+    },
+    {
+      id: 'dub-echo', group: 'Techniques', title: 'Dub echo', short: 'Dub echo',
+      summary: 'A long, dark tape echo over a spring-like room, the sound of studio dub reggae. In the spirit of the style.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play short, sparse chords or single stabs, then let the echoes do the rest.',
+      chain: [
+        ['delay:multi', { time: 480, feedback: 0.6, mix: 0.45, character: 0.5, type: 2, subdivision: 0, modDepth: 0.2, modRate: 0.6 }, 'A tape echo: each repeat gets darker and wobbles a little, the core of the dub sound.'],
+        ['reverb:fender', { dwell: 0.5, mix: 0.3, tone: 0.4 }, 'A spring room: a small, boingy space that the echoes bounce around in.'],
+      ],
+      tip: 'Mute the echo for a beat, then bring it back in. The gaps are part of the sound.',
+      whatIfs: [
+        { id: 'digital', label: 'Digital echo', note: 'Clean, exact repeats. Bright and precise, but the dark, wobbling dub character is gone.',
+          chain: [['delay:multi', { time: 480, feedback: 0.6, mix: 0.45, character: 0, type: 0, subdivision: 0, modDepth: 0, modRate: 0.6 }], ['reverb:fender', { dwell: 0.5, mix: 0.3, tone: 0.4 }]] },
+        { id: 'reverb-first', label: 'Echo after the room', note: 'The echoes now repeat the room as well, so they wash over each other into a long, murky haze.',
+          chain: [['reverb:fender', { dwell: 0.5, mix: 0.3, tone: 0.4 }], ['delay:multi', { time: 480, feedback: 0.6, mix: 0.45, character: 0.5, type: 2, subdivision: 0, modDepth: 0.2, modRate: 0.6 }]] },
+      ],
+    },
+    {
+      id: 'country-twang', group: 'Techniques', title: 'Country twang', short: 'Twang',
+      summary: 'A snappy, clean twang with a touch of drive and a spring room. In the spirit of the style.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Pick quick single notes and double-stops, and listen for the snap on each attack.',
+      chain: [
+        ['comp:dynacomp', { threshold: -26, ratio: 4, attack: 3, release: 120, knee: 3, makeup: 3, tone: 0.5, input: 0 }, 'A quick compressor that keeps the snap of each pick even.'],
+        ['drive:ts9', { drive: 3, tone: 0.7, level: 0, mix: 0.5, voicing: 0, clipping: 0 }, 'Just a touch of grit, so the twang has some bite.'],
+        ['reverb:fender', { dwell: 0.5, mix: 0.3, tone: 0.7 }, 'A spring room: the classic boing that makes twang sound like twang.'],
+      ],
+      tip: 'Use the bridge pickup and a little less drive for the cleanest twang.',
+      whatIfs: [
+        { id: 'no-drive', label: 'No drive', note: 'Clean twang: crisp and bright, with no grit. The snap is still there, but it sounds more polite.',
+          chain: [['comp:dynacomp', { threshold: -26, ratio: 4, attack: 3, release: 120, knee: 3, makeup: 3, tone: 0.5, input: 0 }], ['reverb:fender', { dwell: 0.5, mix: 0.3, tone: 0.7 }]] },
+        { id: 'plate', label: 'Plate instead of spring', note: 'A plate is smoother and less boingy. The twang loses its snap and sounds more like a smooth ballad.',
+          chain: [['comp:dynacomp', { threshold: -26, ratio: 4, attack: 3, release: 120, knee: 3, makeup: 3, tone: 0.5, input: 0 }], ['drive:ts9', { drive: 3, tone: 0.7, level: 0, mix: 0.5, voicing: 0, clipping: 0 }], ['reverb:bigsky', { decay: 0.4, predelay: 10, mix: 0.3, tone: 0.7, mode: 2 }]] },
+      ],
+    },
+    {
+      id: 'funk-chank', group: 'Techniques', title: 'Funk chank', short: 'Funk chank',
+      summary: 'Tight, bright, percussive rhythm guitar: a fast compressor and a little presence and mid lift for the chicken-scratch sound. In the spirit of the style.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play short, muted chords on the upbeats. Listen for the tight, percussive “chank”.',
+      chain: [
+        ['comp:cali76', { threshold: -30, makeup: 4, ratio: 6, attack: 2, release: 90, blend: 1 }, 'A fast, tight compressor: it grabs each chord and lets it go quickly, so the rhythm stays crisp.'],
+        ['eq:paraeq', { mid: 3, midFreq: 1500, midQ: 1, bass: -2, bassFreq: 120, bassQ: 0.7, treble: 2, trebleFreq: 3000, trebleQ: 0.7, presence: 3, level: 0 }, 'Lifts the middle and the top, so the chank cuts through a band. The low end is trimmed to stay tight.'],
+      ],
+      tip: 'Mute the strings slightly with your fretting hand for the percussive version.',
+      whatIfs: [
+        { id: 'slow-attack', label: 'Slower compressor attack', note: 'A slower attack lets each pick click through before the compression, so the chank loses its snap.',
+          chain: [['comp:cali76', { threshold: -30, makeup: 4, ratio: 6, attack: 40, release: 90, blend: 1 }], ['eq:paraeq', { mid: 3, midFreq: 1500, midQ: 1, bass: -2, bassFreq: 120, bassQ: 0.7, treble: 2, trebleFreq: 3000, trebleQ: 0.7, presence: 3, level: 0 }]] },
+        { id: 'no-eq', label: 'No EQ lift', note: 'Without the mid and top lift the sound is flatter and less cutting. It sits back in the band.',
+          chain: [['comp:cali76', { threshold: -30, makeup: 4, ratio: 6, attack: 2, release: 90, blend: 1 }]] },
+      ],
+    },
   ];
   const toneById = id => TONES.find(tone => tone.id === id);
 
@@ -908,6 +1088,7 @@
 
   /* Pickers: "I want to sound like" and one per slot. */
   const heroSelect = document.getElementById('tone-pick');
+  let syncCombo = () => {};
   const slotSelects = { A: document.getElementById('slot-A'), B: document.getElementById('slot-B') };
   function group(label, entries) {
     const g = document.createElement('optgroup');
@@ -921,6 +1102,7 @@
     if (myTones.length) heroSelect.appendChild(group('My sounds', myTones.map(t => [t.name, 'mine:' + t.id])));
     const shown = toneOf(slots.A);
     heroSelect.value = shown ? 'tone:' + shown.id : slots.A.kind === 'mine' ? 'mine:' + slots.A.mine : '';
+    syncCombo();
     const lesson = lessonTone();
     document.getElementById('tone-summary').textContent = lesson ? lesson.summary : 'Pick a famous sound to see how it’s built, pedal by pedal. Or build your own on the board below.';
 
@@ -954,6 +1136,106 @@
     announce(label + ' loaded');
     offerUndo(label + ' loaded', () => applyBoard(before));
   };
+  /* Searchable "I want to sound like…": a text box over the sound list. The
+   * hidden <select> stays the source of truth, so choosing an item fires the
+   * same change as before. */
+  {
+    const search = document.getElementById('tone-search');
+    const list = document.getElementById('tone-list');
+    const fold = text => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    let items = [], shown = [], active = -1, open = false;
+    const options = () => [...list.querySelectorAll('[role="option"]')];
+    function readItems() {
+      items = [];
+      for (const child of heroSelect.children) {
+        if (child.tagName === 'OPTGROUP') for (const o of child.children) items.push({ value: o.value, label: o.textContent, group: child.label });
+        else if (child.value) items.push({ value: child.value, label: child.textContent, group: '' });
+      }
+    }
+    function setActive(i, scroll) {
+      active = i;
+      const opts = options();
+      opts.forEach((o, k) => { o.setAttribute('aria-selected', String(k === i)); o.classList.toggle('active', k === i); });
+      if (i >= 0 && opts[i]) {
+        search.setAttribute('aria-activedescendant', opts[i].id);
+        if (scroll) opts[i].scrollIntoView({ block: 'nearest' });
+      } else search.removeAttribute('aria-activedescendant');
+    }
+    function render(query) {
+      const q = fold(query.trim());
+      shown = items.filter(item => !q || fold(item.label).includes(q) || fold(item.group).includes(q));
+      list.replaceChildren();
+      let group = null;
+      shown.forEach((item, i) => {
+        if (item.group && item.group !== group) {
+          group = item.group;
+          const heading = document.createElement('li');
+          heading.className = 'combo-group';
+          heading.setAttribute('role', 'presentation');
+          heading.textContent = group;
+          list.appendChild(heading);
+        }
+        const li = document.createElement('li');
+        li.id = 'tone-opt-' + i;
+        li.setAttribute('role', 'option');
+        li.setAttribute('aria-selected', 'false');
+        li.dataset.value = item.value;
+        li.textContent = item.label;
+        li.onmousedown = e => { e.preventDefault(); choose(item.value); };
+        list.appendChild(li);
+      });
+      if (!shown.length) {
+        const empty = document.createElement('li');
+        empty.className = 'combo-empty';
+        empty.setAttribute('role', 'presentation');
+        empty.textContent = 'No sound matches “' + query.trim() + '”. Try another word.';
+        list.appendChild(empty);
+      }
+      setActive(shown.length ? 0 : -1, false);
+    }
+    function show() { if (!open) { open = true; list.hidden = false; search.setAttribute('aria-expanded', 'true'); } }
+    function hide() {
+      open = false;
+      list.hidden = true;
+      search.setAttribute('aria-expanded', 'false');
+      search.removeAttribute('aria-activedescendant');
+    }
+    // Show the chosen sound's name in the box, unless the user is typing.
+    function restore() {
+      const current = heroSelect.selectedOptions[0];
+      search.value = current && current.value ? current.textContent : '';
+    }
+    function choose(value) {
+      const item = items.find(i => i.value === value);
+      if (!item) return;
+      hide();
+      heroSelect.value = value;
+      search.value = item.label;
+      heroSelect.dispatchEvent(new Event('change'));
+      search.blur();
+    }
+    syncCombo = () => { readItems(); if (document.activeElement !== search) restore(); };
+    search.addEventListener('focus', () => { search.select(); render(''); show(); });
+    search.addEventListener('click', () => { if (!open) { search.select(); render(''); show(); } });
+    search.addEventListener('input', () => { render(search.value); show(); });
+    search.addEventListener('blur', () => { hide(); restore(); });
+    search.addEventListener('keydown', e => {
+      const n = shown.length;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!open) { render(search.value); show(); }
+        if (n) setActive((Math.max(active, 0) + (e.key === 'ArrowDown' ? 1 : -1) + n) % n, true);
+      } else if (e.key === 'Home' && open && n) { e.preventDefault(); setActive(0, true); }
+      else if (e.key === 'End' && open && n) { e.preventDefault(); setActive(n - 1, true); }
+      else if (e.key === 'Enter') {
+        if (open && active >= 0 && shown[active]) { e.preventDefault(); choose(shown[active].value); }
+      } else if (e.key === 'Escape') {
+        if (open) { e.preventDefault(); hide(); restore(); }
+      }
+    });
+    readItems();
+    restore();
+  }
   for (const bank of ['A', 'B']) slotSelects[bank].onchange = () => {
     const select = slotSelects[bank];
     if (select.value === 'current') return;
