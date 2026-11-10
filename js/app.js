@@ -441,12 +441,18 @@
   // Normally at the top of the screen; while a pedal is open for editing it
   // sits inline in the editor, so it never covers the pinned chain or scope.
   const undoHome = undoToast.parentElement;
+  // Its home is the status line under the header; when that is scrolled out
+  // of view it floats at the top of the screen instead.
   function placeUndo() {
     const inline = !settings.hidden;
     const target = inline ? settings.querySelector('.inspector-status') : undoHome;
     if (undoToast.parentElement !== target) target.appendChild(undoToast);
-    undoToast.classList.toggle('inline', inline);
+    const box = undoHome.getBoundingClientRect();
+    const home = !inline && box.top >= 0 && box.top < innerHeight - 60;
+    undoToast.classList.toggle('inline', inline || home);
+    undoToast.classList.toggle('home', home);
   }
+  addEventListener('scroll', () => { if (!undoToast.hidden && settings.hidden) placeUndo(); }, { passive: true });
   function offerUndo(text, restore) {
     placeUndo();
     undoAction = restore;
@@ -468,6 +474,7 @@
     undo();
   });
   document.getElementById('add-effect').onclick = () => library.showModal();
+  document.getElementById('strip-add').onclick = () => library.showModal();
   for (const [type, info] of Object.entries(types)) {
     const button = document.createElement('button');
     button.dataset.type = type;
@@ -552,7 +559,7 @@
     const items = ['<li class="strip-end">In</li>', dot(0)];
     chain.forEach((pedal, i) => {
       items.push(`<li class="strip-pedal${pedal.enabled ? '' : ' off'}${pedal.id === selectedId && !settings.hidden ? ' selected' : ''}" data-type="${pedal.type}">` +
-        `<button type="button" data-strip-edit="${pedal.id}" aria-label="Tweak ${pedalName(pedal)}">${artSvg(pedal, 'strip-art')}<span>${kindName(pedal)}</span></button></li>`);
+        `<button type="button" data-strip-edit="${pedal.id}" aria-label="Tweak ${pedalName(pedal)}">${artSvg(pedal, 'strip-art')}<span>${modelOf(pedal).short || types[pedal.type].short || kindName(pedal)}</span></button></li>`);
       if (i < chain.length - 1) items.push(dot(i + 1));
     });
     if (chain.length) items.push(dot(chain.length));
@@ -562,7 +569,8 @@
     const focus = strip.querySelector('.strip-pedal.selected') || strip.querySelector('.strip-dot.on');
     if (focus && strip.scrollWidth > strip.clientWidth) {
       const box = focus.getBoundingClientRect(), outer = strip.getBoundingClientRect();
-      if (box.left < outer.left || box.right > outer.right) strip.scrollLeft += box.left - outer.left - (outer.width - box.width) / 2;
+      if (box.right > outer.right) strip.scrollLeft += box.right - outer.right + 12;
+      else if (box.left < outer.left) strip.scrollLeft -= outer.left - box.left + 12;
     }
   }
   strip.addEventListener('click', e => {
