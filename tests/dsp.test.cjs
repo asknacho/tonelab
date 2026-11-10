@@ -176,3 +176,86 @@ test('new effects stream block by block exactly like one long buffer', () => {
   for (let offset = 0; offset + 128 <= input.length; offset += 128) streamed.set(blocks.process(input.slice(offset, offset + 128), pedals, false), offset);
   for (let i = 0; i + 128 <= input.length; i++) assert(Math.abs(continuous[i] - streamed[i]) < 1e-5, 'sample ' + i);
 });
+
+// ---- Boost, distortion, tremolo, swell, reverb, chorus, phaser, wah, EQ, delay character
+const { eqResponse } = context.TL;
+const noise = (seconds, amp = 0.3, seed = 7) => { let a = seed; return Float32Array.from({ length: Math.round(SR * seconds) }, () => { a = (a * 1103515245 + 12345) & 0x7fffffff; return amp * (a / 0x3fffffff - 1); }); };
+const rmsOf = (b, from = 0, to = b.length) => { let p = 0; for (let i = from; i < to; i++) p += b[i] ** 2; return Math.sqrt(p / (to - from)); };
+const run = (type, params, input) => new EffectChain(input.length).process(input, [pedal(type, params)]).slice();
+
+test('every new effect streams block by block exactly like one long buffer', () => {
+  const input = Float32Array.from(tone(196, 0.6), (v, i) => v + 0.05 * noise(0.6)[i]);
+  const pedals = [pedal('boost', { boost: 6 }), pedal('dist', { gain: 20, tone: 0.5, level: -6 }), pedal('eq', { bass: 4, mid: -6, midFreq: 800, treble: 3, level: 0 }),
+    pedal('wah', { mode: 1, position: 0.5, sensitivity: 12, speed: 1.5, resonance: 5 }), pedal('chorus', { rate: 0.8, depth: 0.5, mix: 0.6 }),
+    pedal('phaser', { rate: 0.5, depth: 0.7, feedback: 0.4 }), pedal('trem', { rate: 5, depth: 0.6, shape: 0.3 }), pedal('swell', { rise: 200, sensitivity: -40 }),
+    pedal('delay', { time: 120, feedback: 0.4, mix: 0.4, character: 0.7 }), pedal('reverb', { decay: 0.6, tone: 0.5, mix: 0.4 })].map((p, i) => ({ ...p, id: p.type + i }));
+  const continuous = new EffectChain(input.length).process(input, pedals).slice();
+  const blocks = new EffectChain(128), streamed = new Float32Array(input.length);
+  for (let offset = 0; offset + 128 <= input.length; offset += 128) streamed.set(blocks.process(input.slice(offset, offset + 128), pedals, false), offset);
+  for (let i = 0; i + 128 <= input.length; i++) assert(Math.abs(continuous[i] - streamed[i]) < 1e-4, 'sample ' + i);
+});
+
+test('boost adds clean gain; distortion flattens the tops', () => {
+  const input = tone(220, 0.5, 0.1);
+  const boosted = run('boost', { boost: 12 }, input);
+  assert(Math.abs(rmsOf(boosted) / rmsOf(input) - 10 ** (12 / 20)) < 1e-3);
+  const dist = run('dist', { gain: 40, tone: 1, level: 0 }, input);
+  let peak = 0; for (let i = dist.length >> 1; i < dist.length; i++) peak = Math.max(peak, Math.abs(dist[i]));
+  assert(peak <= 1.05 && peak / rmsOf(dist, dist.length >> 1) < 1.25, 'hard-clipped wave is nearly square');
+});
+
+test('tremolo pulses the volume at its rate and depth', () => {
+  const out = run('trem', { rate: 4, depth: 0.8, shape: 0 }, tone(440, 1, 0.5));
+  const slices = []; for (let k = 0; k < 40; k++) slices.push(rmsOf(out, k * SR / 40, (k + 1) * SR / 40));
+  assert(Math.min(...slices) < 0.35 * Math.max(...slices));
+});
+
+test('swell fades each new note in instead of starting with the pick', () => {
+  const input = new Float32Array(SR); for (let i = SR / 4; i < SR; i++) input[i] = 0.5 * Math.sin(2 * Math.PI * 220 * i / SR);
+  const out = run('swell', { rise: 400, sensitivity: -40 }, input);
+  assert(rmsOf(out, SR / 4, SR / 4 + SR / 50) < 0.05 * rmsOf(input, SR / 4, SR / 4 + SR / 50), 'first 20 ms are nearly silent');
+  assert(rmsOf(out, SR * 0.8, SR) > 0.9 * rmsOf(input, SR * 0.8, SR), 'fully up after the rise time');
+});
+
+test('reverb rings after the note stops, longer with more decay', () => {
+  const input = new Float32Array(SR * 2); input.set(tone(330, 0.2, 0.5));
+  const tail = decay => rmsOf(run('reverb', { decay, tone: 0.5, mix: 0.5 }, input), SR * 0.6, SR * 0.9);
+  assert(tail(0.2) > 1e-4 && tail(0.9) > 3 * tail(0.2));
+});
+
+test('chorus and phaser change the sound over time but keep the level', () => {
+  const input = noise(2);
+  for (const [type, params] of [['chorus', { rate: 1, depth: 1, mix: 1 }], ['phaser', { rate: 1, depth: 1, feedback: 0.5 }]]) {
+    const out = run(type, params, input);
+    const ratio = rmsOf(out) / rmsOf(input);
+    assert(ratio > 0.5 && ratio < 1.2, type + ' level ' + ratio);
+    // energy near 800 Hz moves as the effect sweeps
+    const band = (from) => { const s = out.slice(from, from + SR / 8); return energyAt(Float32Array.from([...s, ...s]), 800); };
+    const values = [0, 1, 2, 3, 4, 5, 6].map(k => band(Math.round(k * SR / 7)));
+    assert(Math.max(...values) > 2 * Math.min(...values), type + ' sweeps');
+  }
+});
+
+test('wah: toe is brighter than heel; following the picking opens it on loud notes', () => {
+  const input = noise(1);
+  const heel = run('wah', { mode: 0, position: 0, sensitivity: 12, speed: 1, resonance: 5 }, input);
+  const toe = run('wah', { mode: 0, position: 1, sensitivity: 12, speed: 1, resonance: 5 }, input);
+  assert(energyAt(toe, 2000) > 10 * energyAt(heel, 2000));
+  assert(energyAt(heel, 350) > 10 * energyAt(toe, 350));
+});
+
+test('EQ boosts and cuts where it says, and its drawn response matches', () => {
+  const p = { bass: 12, mid: -12, midFreq: 800, treble: 0, level: 0 };
+  for (const f of [80, 800, 5000]) {
+    const input = tone(f, 1, 0.1), out = run('eq', p, input);
+    const measured = 20 * Math.log10(rmsOf(out, SR / 2) / rmsOf(input, SR / 2));
+    assert(Math.abs(measured - eqResponse(p, f)) < 0.5, f + ' Hz: ' + measured + ' vs ' + eqResponse(p, f));
+  }
+  assert(eqResponse(p, 80) > 9 && eqResponse(p, 800) < -11);
+});
+
+test('delay character makes each repeat darker', () => {
+  const input = new Float32Array(SR * 2); input.set(noise(0.05, 0.5));
+  const echoTreble = character => { const out = run('delay', { time: 300, feedback: 0.6, mix: 1, character }, input); const second = out.slice(Math.round(SR * 0.6), Math.round(SR * 0.66)); return energyAt(Float32Array.from([...second, ...second]), 4000); };
+  assert(echoTreble(1) < 0.1 * echoTreble(0));
+});

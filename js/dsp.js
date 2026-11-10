@@ -300,16 +300,251 @@
     }
   }
 
+  // Delay. Character 0 is a clean digital echo; turning it up darkens and
+  // roughens each repeat a little more, like analog (bucket-brigade) delays.
   class Delay {
-    reset() { this.buffer = new Float32Array(SR * 2); this.pos = 0; }
+    reset() { this.buffer = new Float32Array(SR * 2); this.pos = 0; this.lp = 0; }
     process(inp, out, unused, p, n, reset = true) {
       if (reset) this.reset();
       const lag = Math.round(p.time * SR / 1000);
+      const character = p.character ?? 0;
+      const lpC = 1 - Math.exp(-TAU * 11000 * Math.pow(1500 / 11000, character) / SR);
+      const drive = 1 + 2 * character;
       for (let i = 0; i < n; i++) {
-        const echo = this.buffer[(this.pos - lag + this.buffer.length) % this.buffer.length];
+        let echo = this.buffer[(this.pos - lag + this.buffer.length) % this.buffer.length];
+        if (character > 0) {
+          this.lp += (echo - this.lp) * lpC;
+          echo = Math.tanh(this.lp * drive) / drive;
+        }
         this.buffer[this.pos] = inp[i] + echo * p.feedback;
         out[i] = inp[i] * (1 - p.mix) + echo * p.mix;
         this.pos = (this.pos + 1) % this.buffer.length;
+      }
+    }
+  }
+
+  // Boost: clean extra volume.
+  class Boost {
+    process(inp, out, unused, p, n) {
+      const g = dbToLin(p.boost);
+      for (let i = 0; i < n; i++) out[i] = inp[i] * g;
+    }
+  }
+
+  // Distortion: gain into hard clipping (flat tops), then a tone filter.
+  class Distortion {
+    reset() { this.lp1 = 0; this.lp2 = 0; }
+    process(inp, out, unused, p, n, reset = true) {
+      if (reset) this.reset();
+      const g = dbToLin(p.gain), level = dbToLin(p.level);
+      const c = 1 - Math.exp(-TAU * 600 * Math.pow(12, p.tone) / SR);
+      let { lp1, lp2 } = this;
+      for (let i = 0; i < n; i++) {
+        const x = Math.max(-1, Math.min(1, inp[i] * g));
+        lp1 += (x - lp1) * c;
+        lp2 += (lp1 - lp2) * c;
+        out[i] = lp2 * level;
+      }
+      Object.assign(this, { lp1, lp2 });
+    }
+  }
+
+  // Tremolo: turns the volume up and down. Shape blends a smooth (sine)
+  // pulse into a choppy (square-ish) one.
+  class Tremolo {
+    reset() { this.phase = 0; }
+    process(inp, out, unused, p, n, reset = true) {
+      if (reset) this.reset();
+      const inc = p.rate / SR, hard = 1 + 30 * p.shape * p.shape;
+      for (let i = 0; i < n; i++) {
+        const s = Math.tanh(hard * Math.sin(TAU * this.phase)) / Math.tanh(hard);
+        out[i] = inp[i] * (1 - p.depth * (0.5 - 0.5 * s));
+        this.phase += inc;
+        if (this.phase >= 1) this.phase -= 1;
+      }
+    }
+  }
+
+  // Volume swell (an automatic volume pedal): each new pick drops the volume
+  // to zero and fades it back in, hiding the attack.
+  class Swell {
+    reset() { this.fast = 0; this.slow = 0; this.gain = 1; this.armed = true; }
+    process(inp, out, unused, p, n, reset = true) {
+      if (reset) this.reset();
+      const thr = dbToLin(p.sensitivity), riseInc = 1 / Math.max(1, p.rise * 0.001 * SR);
+      const fastC = timeCoef(3), slowC = timeCoef(60);
+      let { fast, slow, gain, armed } = this;
+      for (let i = 0; i < n; i++) {
+        const a = Math.abs(inp[i]);
+        fast = Math.max(a, fast * fastC);
+        slow = slowC * slow + (1 - slowC) * fast;
+        if (armed && fast > thr && fast > 2.5 * slow) { gain = 0; armed = false; }
+        else if (!armed && fast < 1.5 * slow) armed = true;
+        gain = Math.min(1, gain + riseInc);
+        out[i] = inp[i] * gain * gain;
+      }
+      Object.assign(this, { fast, slow, gain, armed });
+    }
+  }
+
+  // Reverb: parallel damped comb filters into allpass diffusers (a small
+  // Freeverb-style room). Decay sets how long it rings; tone, how bright.
+  const COMBS = [607, 646, 695, 738, 774, 811];
+  const ALLPASSES = [302, 240, 186, 122];
+  class Reverb {
+    reset() {
+      this.combs = COMBS.map(len => ({ buf: new Float32Array(len), i: 0, lp: 0 }));
+      this.aps = ALLPASSES.map(len => ({ buf: new Float32Array(len), i: 0 }));
+    }
+    process(inp, out, unused, p, n, reset = true) {
+      if (reset) this.reset();
+      const fb = 0.7 + 0.23 * p.decay, damp = 0.05 + 0.55 * (1 - p.tone);
+      for (let i = 0; i < n; i++) {
+        const x = inp[i] * 0.1;
+        let s = 0;
+        for (const c of this.combs) {
+          const y = c.buf[c.i];
+          c.lp = y * (1 - damp) + c.lp * damp;
+          c.buf[c.i] = x + c.lp * fb;
+          if (++c.i === c.buf.length) c.i = 0;
+          s += y;
+        }
+        for (const a of this.aps) {
+          const b = a.buf[a.i];
+          a.buf[a.i] = s + b * 0.5;
+          if (++a.i === a.buf.length) a.i = 0;
+          s = b - s;
+        }
+        out[i] = inp[i] * (1 - 0.4 * p.mix) + s * p.mix;
+      }
+    }
+  }
+
+  // Chorus: blends in a copy whose delay (and so pitch) wobbles slowly.
+  class Chorus {
+    reset() { this.buf = new Float32Array(Math.round(SR * 0.04)); this.pos = 0; this.phase = 0; }
+    process(inp, out, unused, p, n, reset = true) {
+      if (reset) this.reset();
+      const L = this.buf.length, base = 0.012 * SR, depth = p.depth * 0.004 * SR, inc = p.rate / SR;
+      for (let i = 0; i < n; i++) {
+        this.buf[this.pos] = inp[i];
+        const d = base + depth * (0.5 + 0.5 * Math.sin(TAU * this.phase));
+        const at = this.pos - d;
+        let i0 = Math.floor(at);
+        const frac = at - i0;
+        if (i0 < 0) i0 += L;
+        const i1 = i0 + 1 === L ? 0 : i0 + 1;
+        const wet = this.buf[i0] + (this.buf[i1] - this.buf[i0]) * frac;
+        out[i] = inp[i] * (1 - 0.5 * p.mix) + wet * 0.5 * p.mix;
+        if (++this.pos === L) this.pos = 0;
+        this.phase += inc;
+        if (this.phase >= 1) this.phase -= 1;
+      }
+    }
+  }
+
+  // Phaser: four sweeping allpass stages mixed with the dry signal cut
+  // moving notches into the sound.
+  class Phaser {
+    reset() { this.x1 = new Float64Array(4); this.y1 = new Float64Array(4); this.phase = 0; this.last = 0; }
+    process(inp, out, unused, p, n, reset = true) {
+      if (reset) this.reset();
+      const inc = p.rate / SR, span = 1 + 3 * p.depth, fb = p.feedback * 0.7;
+      for (let i = 0; i < n; i++) {
+        const lfo = 0.5 - 0.5 * Math.cos(TAU * this.phase);
+        const f = 250 * Math.pow(2, span * lfo);
+        const t = Math.tan(Math.PI * Math.min(f, SR * 0.45) / SR);
+        const a = (t - 1) / (t + 1);
+        let s = inp[i] + this.last * fb;
+        for (let k = 0; k < 4; k++) {
+          const y = a * s + this.x1[k] - a * this.y1[k];
+          this.x1[k] = s;
+          this.y1[k] = y;
+          s = y;
+        }
+        this.last = s;
+        out[i] = 0.5 * (inp[i] + s);
+        this.phase += inc;
+        if (this.phase >= 1) this.phase -= 1;
+      }
+    }
+  }
+
+  // Wah: a resonant band-pass filter swept from heel (dark) to toe (bright).
+  // Mode 0 holds it still, 1 follows your picking (an envelope filter or
+  // auto-wah), 2 rocks it back and forth by itself.
+  class Wah {
+    reset() { this.ic1 = 0; this.ic2 = 0; this.env = 0; this.phase = 0; this.f = 0; }
+    process(inp, out, unused, p, n, reset = true) {
+      if (reset) this.reset();
+      const mode = Math.round(p.mode), k = 1 / p.resonance, sens = dbToLin(p.sensitivity);
+      const envA = timeCoef(3), envR = timeCoef(150), smooth = 1 - Math.exp(-1 / (0.004 * SR));
+      if (!this.f) this.f = 350 * Math.pow(2200 / 350, p.position);
+      for (let i = 0; i < n; i++) {
+        const x = inp[i], a = Math.abs(x);
+        this.env = a > this.env ? envA * this.env + (1 - envA) * a : envR * this.env + (1 - envR) * a;
+        let t = p.position;
+        if (mode === 1) t = Math.min(1, this.env * sens * 1.5);
+        else if (mode === 2) { t = 0.5 - 0.5 * Math.cos(TAU * this.phase); this.phase += p.speed / SR; if (this.phase >= 1) this.phase -= 1; }
+        this.f += (350 * Math.pow(2200 / 350, t) - this.f) * smooth;
+        const g = Math.tan(Math.PI * this.f / SR);
+        const a1 = 1 / (1 + g * (g + k)), a2 = g * a1, a3 = g * a2;
+        const v3 = x - this.ic2;
+        const v1 = a1 * this.ic1 + a2 * v3;
+        const v2 = this.ic2 + a2 * this.ic1 + a3 * v3;
+        this.ic1 = 2 * v1 - this.ic1;
+        this.ic2 = 2 * v2 - this.ic2;
+        out[i] = 1.6 * k * v1 + 0.1 * v2;
+      }
+    }
+  }
+
+  // EQ: bass and treble shelves around a sweepable mid band (RBJ biquads).
+  function biquad(kind, f, gainDb) {
+    const A = Math.pow(10, gainDb / 40), w = TAU * f / SR, cw = Math.cos(w), sw = Math.sin(w);
+    let b0, b1, b2, a0, a1, a2;
+    if (kind === 'peak') {
+      const alpha = sw / 2; // Q = 1
+      b0 = 1 + alpha * A; b1 = -2 * cw; b2 = 1 - alpha * A; a0 = 1 + alpha / A; a1 = -2 * cw; a2 = 1 - alpha / A;
+    } else {
+      const s = 2 * Math.sqrt(A) * (sw / 2) * Math.SQRT2, sign = kind === 'low' ? 1 : -1; // shelf slope 1
+      b0 = A * ((A + 1) - sign * (A - 1) * cw + s);
+      b1 = sign * 2 * A * ((A - 1) - sign * (A + 1) * cw);
+      b2 = A * ((A + 1) - sign * (A - 1) * cw - s);
+      a0 = (A + 1) + sign * (A - 1) * cw + s;
+      a1 = -sign * 2 * ((A - 1) + sign * (A + 1) * cw);
+      a2 = (A + 1) + sign * (A - 1) * cw - s;
+    }
+    return [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0];
+  }
+  const eqFilters = p => [biquad('low', 120, p.bass), biquad('peak', p.midFreq, p.mid), biquad('high', 3000, p.treble)];
+  // The EQ's boost or cut at one frequency, in dB (used to draw its sliders).
+  function eqResponse(p, f) {
+    const w = TAU * f / SR;
+    let db = p.level;
+    for (const [b0, b1, b2, a1, a2] of eqFilters(p)) {
+      const re = (c0, c1, c2) => c0 + c1 * Math.cos(w) + c2 * Math.cos(2 * w);
+      const im = (c1, c2) => -c1 * Math.sin(w) - c2 * Math.sin(2 * w);
+      const num = Math.hypot(re(b0, b1, b2), im(b1, b2)), den = Math.hypot(re(1, a1, a2), im(a1, a2));
+      db += 20 * Math.log10(num / den);
+    }
+    return db;
+  }
+  class Equalizer {
+    reset() { this.z = [[0, 0], [0, 0], [0, 0]]; }
+    process(inp, out, unused, p, n, reset = true) {
+      if (reset) this.reset();
+      const filters = eqFilters(p), g = dbToLin(p.level);
+      for (let i = 0; i < n; i++) {
+        let x = inp[i];
+        for (let k = 0; k < 3; k++) {
+          const [b0, b1, b2, a1, a2] = filters[k], z = this.z[k];
+          const y = b0 * x + z[0];
+          z[0] = b1 * x - a1 * y + z[1];
+          z[1] = b2 * x - a2 * y;
+          x = y;
+        }
+        out[i] = x * g;
       }
     }
   }
@@ -472,7 +707,8 @@
   class EffectChain {
     constructor(size) { this.size = size; this.instances = new Map(); }
     process(input, pedals, reset = true) {
-      const constructors = { gate: NoiseGate, comp: Compressor, drive: Overdrive, fuzz: Fuzz, octave: Octave, harm: Harmonizer, delay: Delay };
+      const constructors = { gate: NoiseGate, comp: Compressor, boost: Boost, drive: Overdrive, dist: Distortion, fuzz: Fuzz, eq: Equalizer, wah: Wah,
+        octave: Octave, harm: Harmonizer, chorus: Chorus, phaser: Phaser, trem: Tremolo, swell: Swell, delay: Delay, reverb: Reverb };
       const alive = new Set(pedals.map(pedal => pedal.id));
       for (const id of this.instances.keys()) if (!alive.has(id)) this.instances.delete(id);
       let signal = input;
@@ -494,5 +730,6 @@
     }
   }
 
-  Object.assign(TL, { SR, dbToLin, linToDb, Source, NoiseGate, Compressor, Overdrive, Fuzz, Octave, Harmonizer, Delay, EffectChain, compCurve });
+  Object.assign(TL, { SR, dbToLin, linToDb, Source, NoiseGate, Compressor, Overdrive, Fuzz, Octave, Harmonizer, Delay, EffectChain, compCurve,
+    Boost, Distortion, Tremolo, Swell, Reverb, Chorus, Phaser, Wah, Equalizer, eqResponse });
 })((globalThis.TL = globalThis.TL || {}));
