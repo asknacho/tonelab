@@ -30,6 +30,10 @@
           <span class="field-label">Noise floor <output id="noise-out">−48 dB</output></span>
           <input type="range" id="noise" min="-80" max="-20" step="1" value="-48" />
         </label>
+        <label class="field pattern-control">
+          <span class="field-label">Playing</span>
+          <select id="pattern"><option value="guitar">Free picking</option><option value="eighths">Steady eighths · 126 BPM</option></select>
+        </label>
         <span id="audio-status" role="status">Synthesized guitar</span>
       </div>
       <div class="lab-tools">
@@ -52,6 +56,22 @@
 
     <section class="chain-editor" aria-labelledby="chain-title">
       <header class="chain-heading"><h2 id="chain-title">Your pedalboard</h2><div class="board-actions"><button id="share-board" class="board-button">Share</button><button id="add-effect" class="board-button">+ Add effect</button></div></header>
+      <aside id="recipe-guide" class="recipe-guide" aria-labelledby="recipe-guide-title" hidden>
+        <header class="recipe-guide-head">
+          <div><span class="field-label">Tone recipe</span><h3 id="recipe-guide-title"></h3><p id="recipe-guide-kicker"></p></div>
+          <button id="close-recipe" class="board-button">Close</button>
+        </header>
+        <ol id="recipe-steps"></ol>
+        <div class="recipe-compare">
+          <h4>Compare A and B</h4>
+          <p id="recipe-compare"></p>
+          <div class="recipe-hear">
+            <button data-hear="A"><b>Hear A</b><span></span></button>
+            <button data-hear="B"><b>Hear B</b><span></span></button>
+          </div>
+        </div>
+        <p id="recipe-tip" class="recipe-tip"></p>
+      </aside>
       <div class="comparison-bar"><div class="segmented" id="compare-bank" aria-label="Chain configuration"><button data-bank="A" aria-pressed="true" class="on">A</button><button data-bank="B" aria-pressed="false">B</button></div><button id="copy-bank" class="board-button">Copy A to B</button><label><input id="match-volume" type="checkbox" checked /> Match volume</label><span id="save-status" role="status"></span></div>
       <p class="chain-hint">Tap to bypass · drag to reorder · edit for settings</p>
       <div class="signal-path">
@@ -61,6 +81,12 @@
         <span class="endpoint endpoint-output"><i aria-hidden="true"></i>Output</span>
       </div>
       <p id="order-status" class="order-status" role="status" aria-live="polite"></p>
+    </section>
+    <section class="recipes" aria-labelledby="recipes-title">
+      <h2 id="recipes-title">Tone recipes</h2>
+      <p class="recipes-lede">Classic sounds, step by step. Loading a recipe puts its board in A and an alternative in B, so you can hear what each choice does. It replaces your boards, but you can undo.</p>
+      <div id="recipe-list" class="recipe-list"></div>
+      <p class="recipes-note">Recipes are approximations built from Tonelab’s effects, based on widely described techniques, not copies of anyone’s exact rig.</p>
     </section>
     <dialog id="effect-library" class="effect-dialog" aria-labelledby="library-title">
       <header class="sheet-head"><div><h2 id="library-title">Add an effect</h2><p>Every pedal has its own settings. Add any effect again.</p></div><button class="sheet-close" aria-label="Close effect library">Close</button></header>

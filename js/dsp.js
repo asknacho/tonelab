@@ -114,11 +114,13 @@
   /* ---------------------------------------------------------------- source */
 
   const SCALE = [110, 123.5, 146.8, 164.8, 196, 220, 246.9, 293.7, 329.6];
+  const ARPEGGIO = [146.8, 220, 293.7, 220, 146.8, 220, 329.6, 220]; // a generic D-based pattern
 
   class Source {
     constructor(kind) {
       this.kind = kind;
       this.noiseDb = -48;
+      this.tempo = 126; // used by the steady-eighths pattern
       this.reset();
     }
 
@@ -140,7 +142,12 @@
 
     schedule() {
       const r = this.rand;
-      if (this.kind === 'guitar') {
+      if (this.kind === 'eighths') {
+        // Steady eighth notes on a repeating arpeggio, evenly picked.
+        const notes = ARPEGGIO[this.step++ % ARPEGGIO.length];
+        this.voices.push(pluck(notes, dbToLin(-7 + 1.5 * r()), 0.2));
+        this.nextEvent = this.n + Math.round(SR * 30 / this.tempo);
+      } else if (this.kind === 'guitar') {
         const amp = 1.4 * dbToLin(-18 + 18 * r());
         const decay = 0.08 + 0.22 * r(); // time constant of the exponential decay
         const notes = r() < 0.3 ? 2 : 1;

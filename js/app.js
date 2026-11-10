@@ -150,10 +150,12 @@
   }
   const state = { playing: true, speed: 1, scale: 'db', chain: ['gate', 'comp', 'drive', 'delay'].map(type => createPedal(type)), dirty: true };
   const clone = value => JSON.parse(JSON.stringify(value));
+  const PATTERNS = ['guitar', 'eighths'];
   const storageKey = 'tonelab-board-v1';
   let activeBank = 'A';
   let banks = { A: clone(state.chain), B: clone(state.chain) };
   let restoredNoise = -48;
+  let restoredSource = { kind: 'guitar', tempo: 126 };
   let inspectId = '';
   const inspectByBank = { A: '', B: '' };
   let rebuildOrder = false;
@@ -184,6 +186,8 @@
     state.chain = clone(banks[activeBank]);
     restoredNoise = typeof data.noise === 'number' && Number.isFinite(data.noise) ? Math.max(-80, Math.min(-20, data.noise)) : -48;
     matchVolume = data.matchVolume !== false;
+    const kind = data.source?.kind, tempo = data.source?.tempo;
+    restoredSource = { kind: PATTERNS.includes(kind) ? kind : 'guitar', tempo: typeof tempo === 'number' && tempo >= 40 && tempo <= 240 ? tempo : 126 };
     for (const pedal of [...banks.A, ...banks.B]) {
       nextId = Math.max(nextId, Number(pedal.id.slice(6)));
       counts[pedal.type] = Math.max(counts[pedal.type], pedal.number);
@@ -204,7 +208,7 @@
   }
   function snapshot() {
     banks[activeBank] = clone(state.chain);
-    return { version: 1, active: activeBank, banks, noise: source.noiseDb, matchVolume };
+    return { version: 1, active: activeBank, banks, noise: source.noiseDb, matchVolume, source: { kind: source.kind, tempo: source.tempo } };
   }
   function saveBoard() {
     clearTimeout(saveTimer);
@@ -268,6 +272,21 @@
 
   const source = new Source('guitar');
   source.noiseDb = restoredNoise;
+  source.setKind(restoredSource.kind);
+  source.tempo = restoredSource.tempo;
+
+  // What the synthesized guitar plays: free picking or steady eighth notes.
+  const patternSelect = document.getElementById('pattern');
+  function syncPattern() {
+    patternSelect.querySelector('[value="eighths"]').textContent = 'Steady eighths · ' + Math.round(source.tempo) + ' BPM';
+    patternSelect.value = source.kind;
+  }
+  patternSelect.onchange = () => {
+    source.setKind(patternSelect.value);
+    state.dirty = true;
+    saveBoard();
+  };
+  syncPattern();
 
   function segmented(id, onChange) {
     const el = document.getElementById(id);
@@ -348,40 +367,44 @@
     changed();
     document.getElementById('add-effect').focus({ preventScroll: true });
     announce(pedalName(pedal) + ' removed');
-    offerUndo(pedal, index);
+    const bank = activeBank;
+    offerUndo(pedalName(pedal) + ' removed', () => {
+      // Put it back on the board it came from, even if A/B was switched since.
+      if (activeBank !== bank) document.querySelector('#compare-bank [data-bank="' + bank + '"]').click();
+      state.chain.splice(Math.min(index, state.chain.length), 0, pedal);
+      changed();
+      announce(pedalName(pedal) + ' restored at position ' + (state.chain.indexOf(pedal) + 1));
+      orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-toggle')?.focus({ preventScroll: true });
+    });
   }
 
-  /* Undo bar: removing has no confirmation, so the last removal can be put
-   * back (same place, same settings) for a few seconds. */
+  /* Undo bar: removing a pedal or loading a recipe has no confirmation, so
+   * the last such change can be reversed for a few seconds. */
   const undoToast = document.getElementById('undo-toast');
-  let lastRemoved = null, undoTimer;
+  let undoAction = null, undoTimer;
   function hideUndo() {
     clearTimeout(undoTimer);
     undoToast.hidden = true;
-    lastRemoved = null;
+    undoAction = null;
   }
-  function offerUndo(pedal, index) {
-    lastRemoved = { pedal, index, bank: activeBank };
-    document.getElementById('undo-text').textContent = pedalName(pedal) + ' removed';
+  function offerUndo(text, restore) {
+    undoAction = restore;
+    document.getElementById('undo-text').textContent = text;
     undoToast.hidden = false;
     clearTimeout(undoTimer);
     undoTimer = setTimeout(hideUndo, 8000);
   }
-  function undoRemove() {
-    if (!lastRemoved || lastRemoved.bank !== activeBank) return hideUndo();
-    const { pedal, index } = lastRemoved;
+  function undo() {
+    const action = undoAction;
     hideUndo();
-    state.chain.splice(Math.min(index, state.chain.length), 0, pedal);
-    changed();
-    announce(pedalName(pedal) + ' restored at position ' + (state.chain.indexOf(pedal) + 1));
-    orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-toggle')?.focus({ preventScroll: true });
+    action?.();
   }
-  document.getElementById('undo-button').onclick = undoRemove;
+  document.getElementById('undo-button').onclick = undo;
   document.addEventListener('keydown', e => {
-    if (!lastRemoved || e.key.toLowerCase() !== 'z' || !(e.ctrlKey || e.metaKey) || e.shiftKey) return;
+    if (!undoAction || e.key.toLowerCase() !== 'z' || !(e.ctrlKey || e.metaKey) || e.shiftKey) return;
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
     e.preventDefault();
-    undoRemove();
+    undo();
   });
   document.getElementById('add-effect').onclick = () => library.showModal();
   for (const [type, info] of Object.entries(types)) {
@@ -464,7 +487,6 @@
   document.getElementById('compare-bank').onclick = e => {
     const bank = e.target.closest('[data-bank]')?.dataset.bank;
     if (!bank || bank === activeBank) return;
-    hideUndo();
     banks[activeBank] = clone(state.chain);
     activeBank = bank;
     state.chain = clone(banks[activeBank]);
@@ -474,6 +496,7 @@
     selectScopeHistory();
     changed();
     syncBanks();
+    syncHear();
     announce('Configuration ' + activeBank + ' selected');
   };
   document.getElementById('copy-bank').onclick = () => {
@@ -505,6 +528,147 @@
   };
   document.querySelector('#share-dialog .sheet-close').onclick = () => document.getElementById('share-dialog').close();
   syncBanks();
+
+  /* ------------------------------------------------------------ recipes */
+
+  // Each recipe loads a board into A and an alternative into B, so the
+  // difference can be heard with A/B and Match volume. Pedal params not
+  // listed use the pedal's defaults.
+  const RECIPES = [
+    {
+      id: 'endless-echo',
+      title: 'Endless, clean echo',
+      kicker: 'Noise gate + compressor + delay',
+      summary: 'Long repeats that hang in the air, without hiss building up between notes.',
+      source: { kind: 'guitar' }, noise: -40,
+      a: { label: 'Gate → Comp → Delay', chain: [
+        ['gate', { threshold: -32, attack: 1, hold: 60, release: 250, range: -80 }],
+        ['comp', { threshold: -30, ratio: 6, attack: 15, release: 400, knee: 6, makeup: 10 }],
+        ['delay', { time: 520, feedback: 0.62, mix: 0.4 }]] },
+      b: { label: 'Comp → Gate → Delay', chain: [
+        ['comp', { threshold: -30, ratio: 6, attack: 15, release: 400, knee: 6, makeup: 10 }],
+        ['gate', { threshold: -32, attack: 1, hold: 60, release: 250, range: -80 }],
+        ['delay', { time: 520, feedback: 0.62, mix: 0.4 }]] },
+      steps: [
+        'The noise floor is raised to −40 dB, like a noisy single-coil pickup, so the hiss is easy to hear.',
+        'Noise gate first, threshold at −32 dB, just above the hiss. It mutes the hiss between notes before anything can turn it up.',
+        'Compressor next: −30 dB threshold, 6:1 ratio, a slow 400 ms release and +10 dB makeup. Notes stay loud for longer as they ring out, so every repeat starts strong.',
+        'Delay last: 520 ms with 62% feedback, so the repeats keep going. Because the gate comes before the delay, the echoes fade naturally instead of being chopped off.',
+      ],
+      compare: 'B swaps the gate and the compressor. The compressor’s +10 dB makeup lifts the hiss above the gate’s threshold, so the gate never closes and the delay repeats the hiss again and again. Switch between A and B and watch the gaps between notes in the waveform.',
+      tip: 'Try dragging the gate to after the delay: it cuts each echo trail off as soon as you stop playing. Usually a mistake, but sometimes exactly what a tight rhythm part needs.',
+    },
+    {
+      id: 'dotted-eighth',
+      title: 'Dotted-eighth echo',
+      kicker: 'As on U2’s “Where the Streets Have No Name”',
+      summary: 'The Edge’s signature: one delay set to ¾ of a beat turns steady eighth notes into a shimmering cascade.',
+      source: { kind: 'eighths', tempo: 126 }, noise: -60,
+      a: { label: 'Dotted eighth · 357 ms', chain: [
+        ['comp', { threshold: -26, ratio: 3, attack: 10, release: 150, knee: 6, makeup: 4 }],
+        ['drive', { drive: 6, mix: 0.3 }],
+        ['delay', { time: 357, feedback: 0.3, mix: 0.45 }]] },
+      b: { label: 'Straight eighth · 238 ms', chain: [
+        ['comp', { threshold: -26, ratio: 3, attack: 10, release: 150, knee: 6, makeup: 4 }],
+        ['drive', { drive: 6, mix: 0.3 }],
+        ['delay', { time: 238, feedback: 0.3, mix: 0.45 }]] },
+      steps: [
+        'Play steady eighth notes. The guitar switches to an even arpeggio at about 126 BPM, the song’s tempo (a generic pattern, not the actual part).',
+        'Light compression keeps every note at the same level, so the echoes are even too.',
+        'A touch of drive stands in for an amp pushed just past clean.',
+        'Delay at a dotted eighth: 60,000 ÷ 126 × ¾ ≈ 357 ms. Each echo lands halfway between two of the notes you play, so you hear twice as many notes as you pick.',
+        'Keep feedback low (about 30%) so the pattern stays clear, and the mix high (about 45%) so the echoes are nearly as loud as the notes.',
+      ],
+      compare: 'B sets the delay to a straight eighth (238 ms). Now each echo lands on top of the next note and smears it, instead of filling the gap between notes.',
+      tip: 'For any song, a dotted-eighth delay is 45,000 ÷ BPM milliseconds. At 120 BPM that’s 375 ms.',
+    },
+  ];
+
+  function buildChain(spec) {
+    const seen = {};
+    const chain = spec.map(([type, params]) => {
+      const number = (seen[type] = (seen[type] || 0) + 1);
+      counts[type] = Math.max(counts[type], number);
+      return { id: 'pedal-' + (++nextId), type, number, enabled: true,
+        params: { ...Object.fromEntries(types[type].specs.map(p => [p.key, p.value])), ...params } };
+    });
+    return validateChain(chain); // clamps every value into its slider's range
+  }
+
+  // Replace both boards and the source settings (used by recipes and their undo).
+  function applyBoard({ A, B, active, noiseDb, kind, tempo }) {
+    banks = { A: clone(A), B: clone(B) };
+    activeBank = active;
+    state.chain = clone(banks[activeBank]);
+    rebuildOrder = true;
+    selectedId = null;
+    inspectId = inspectByBank.A = inspectByBank.B = '';
+    selectScopeHistory();
+    source.noiseDb = noiseDb;
+    noise.value = noiseDb;
+    noiseOut.textContent = fmtDb(noiseDb);
+    source.tempo = tempo;
+    if (source.kind !== kind) source.setKind(kind);
+    syncPattern();
+    changed();
+    syncBanks();
+  }
+
+  const guide = document.getElementById('recipe-guide');
+  let activeRecipe = null;
+  function showGuide(recipe) {
+    activeRecipe = recipe;
+    guide.hidden = !recipe;
+    if (!recipe) return;
+    document.getElementById('recipe-guide-title').textContent = recipe.title;
+    document.getElementById('recipe-guide-kicker').textContent = recipe.kicker;
+    document.getElementById('recipe-steps').replaceChildren(...recipe.steps.map(text => Object.assign(document.createElement('li'), { textContent: text })));
+    document.getElementById('recipe-compare').textContent = recipe.compare;
+    document.getElementById('recipe-tip').textContent = recipe.tip;
+    for (const bank of ['A', 'B']) document.querySelector('#recipe-guide [data-hear="' + bank + '"] span').textContent = recipe[bank.toLowerCase()].label;
+    syncHear();
+  }
+  function syncHear() {
+    document.querySelectorAll('#recipe-guide [data-hear]').forEach(button => button.classList.toggle('on', button.dataset.hear === activeBank));
+  }
+
+  function loadRecipe(recipe) {
+    banks[activeBank] = clone(state.chain);
+    const before = { A: banks.A, B: banks.B, active: activeBank, noiseDb: source.noiseDb, kind: source.kind, tempo: source.tempo };
+    const previousRecipe = activeRecipe;
+    applyBoard({ A: buildChain(recipe.a.chain), B: buildChain(recipe.b.chain), active: 'A',
+      noiseDb: recipe.noise ?? source.noiseDb, kind: recipe.source?.kind ?? 'guitar', tempo: recipe.source?.tempo ?? source.tempo });
+    showGuide(recipe);
+    announce(recipe.title + ' loaded into A and B');
+    offerUndo(recipe.title + ' loaded', () => {
+      applyBoard(before);
+      showGuide(previousRecipe);
+      announce('Your previous boards are back');
+    });
+    document.querySelector('.chain-editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  const recipeList = document.getElementById('recipe-list');
+  for (const recipe of RECIPES) {
+    const card = document.createElement('article');
+    card.className = 'recipe-card';
+    const preview = buildChain(recipe.a.chain);
+    nextId -= preview.length; // previews don't use up pedal ids
+    card.innerHTML = '<p class="recipe-kicker"></p><h3></h3><p class="recipe-summary"></p><div class="recipe-chain" aria-hidden="true">' +
+      preview.map(pedal => '<span data-type="' + pedal.type + '">' + artSvg(pedal, 'recipe-art') + '</span>').join('<i></i>') +
+      '</div><button class="board-button recipe-load">Load recipe</button>';
+    card.querySelector('.recipe-kicker').textContent = recipe.kicker;
+    card.querySelector('h3').textContent = recipe.title;
+    card.querySelector('.recipe-summary').textContent = recipe.summary;
+    card.querySelector('.recipe-load').setAttribute('aria-label', 'Load recipe: ' + recipe.title);
+    card.querySelector('.recipe-load').onclick = () => loadRecipe(recipe);
+    recipeList.appendChild(card);
+  }
+  document.querySelectorAll('#recipe-guide [data-hear]').forEach(button => button.onclick = () => {
+    document.querySelector('#compare-bank [data-bank="' + button.dataset.hear + '"]').click();
+    if (!listening) listen.click();
+  });
+  document.getElementById('close-recipe').onclick = () => showGuide(null);
 
   function reserveBoardHeight() {
     const card = orderList.firstElementChild;
@@ -1108,7 +1272,7 @@
   const audioStatus = document.getElementById('audio-status');
   function sendAudioState() {
     banks[activeBank] = clone(state.chain);
-    audioNode?.port.postMessage({ type: 'settings', state: { playing: state.playing, speed: state.speed, chain: state.chain }, kind: source.kind,
+    audioNode?.port.postMessage({ type: 'settings', state: { playing: state.playing, speed: state.speed, chain: state.chain }, kind: source.kind, tempo: source.tempo,
       noiseDb: source.noiseDb, banks, activeBank, inspectId, inspectByBank, matchVolume, monitor, volume: Number(document.getElementById('volume').value) });
   }
   segmented('monitor', v => { monitor = v; sendAudioState(); });

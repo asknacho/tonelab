@@ -24,6 +24,17 @@ Drag the handles to change processing order on desktop or mobile, or use the arr
 
 The gate and compressor settings show transfer curves (input level → output level) with a dot tracking the signal. Scope meters and threshold lines follow the most recently inspected gate/compressor, or the first instance of each type. Their labels identify the pedal being measured.
 
+## Tone recipes
+
+Below the pedalboard, **Tone recipes** explain classic sounds step by step. Loading one puts its board in A and an alternative in B (with the right noise floor and playing pattern), so switching A/B with Match volume shows what each choice does. Loading replaces both boards; an Undo bar puts them back.
+
+- **Endless, clean echo**: gate → compressor → delay, compared with compressor → gate → delay (the compressor's makeup lifts the hiss past the gate, and the delay repeats it).
+- **Dotted-eighth echo**, as on U2's "Where the Streets Have No Name": a ¾-beat delay (≈357 ms at 126 BPM) over steady eighth notes, compared with a straight-eighth delay.
+
+Recipes live in the `RECIPES` list in `js/app.js`: each has A and B chains (pedal type plus any settings that differ from the defaults), the source pattern and noise floor, the steps, and the comparison text.
+
+The **Playing** selector switches the synthesized guitar between free picking and steady eighth notes.
+
 ## Run it
 
 It's a static site with no build step. Serve the folder locally (audio requires localhost or HTTPS):
