@@ -414,3 +414,64 @@ test('reverb: pre-delay, low cut, and spring and shimmer modes', () => {
   const spring = run('reverb', { ...p, mode: 3 }, long);
   assert(spring.every(Number.isFinite) && rmsOf(spring) > 0);
 });
+
+// ---- Playing patterns: strums, picking, single sustained notes, tweakable speed
+const { Source, PATTERNS } = context.TL;
+const playPattern = (kind, tempo, seconds) => { const s = new Source(kind); s.noiseDb = -90; s.tempo = tempo; const b = new Float32Array(Math.round(SR * seconds)); s.generate(b, 0, b.length); return b; };
+// Strum onsets: a strum is several strings a few ms apart, so group them with a refractory time.
+const strumOnsets = (b) => {
+  const w = Math.round(SR * 0.01); const out = []; let prev = 0, last = -9;
+  for (let i = 0; i + w <= b.length; i += w) { const e = rmsOf(b, i, i + w); if (e > 0.04 && e > 1.8 * prev && i / SR - last > 0.2) { out.push(i / SR); last = i / SR; } prev = e; }
+  return out;
+};
+
+test('every playing pattern is well formed and renders clean, sensible audio', () => {
+  for (const [id, p] of Object.entries(PATTERNS)) {
+    assert(typeof p.label === 'string' && p.group, id + ' has a label and a group');
+    if (!p.tempo) continue;
+    if (p.grid) {
+      const tokens = p.steps.split(' ');
+      assert.equal(tokens.length, p.grid, id + ': one token per step');
+      assert(tokens.every(t => /^[DUduxbchL0-5.]$/.test(t)), id + ': valid tokens');
+      assert(p.chords.length > 0 && p.chords.every(c => c.length >= 3 && c.every(f => f > 60 && f < 500)), id + ': chords');
+    }
+    const audio = playPattern(id, p.tempo, 6);
+    let peak = 0; for (const v of audio) { assert(Number.isFinite(v)); peak = Math.max(peak, Math.abs(v)); }
+    assert(peak > 0.05 && peak < 1.0, id + ' peak ' + peak);
+    assert(rmsOf(audio, SR) > 0.01, id + ' is audible');
+  }
+});
+
+test('speed scales the rhythm: doubling the tempo doubles the strums', () => {
+  const count = bpm => strumOnsets(playPattern('strum-down', bpm, 12)).length;
+  const slow = count(60), fast = count(120);
+  assert(Math.abs(slow - 12) <= 1, 'quarter notes at 60 BPM: ' + slow);
+  assert(Math.abs(fast - 2 * slow) <= 2, 'at 120 BPM: ' + fast);
+});
+
+test('a strum plays the chord, a bass pick plays one string', () => {
+  const slice = b => Float32Array.from(b.slice(Math.round(0.15 * SR), Math.round(0.9 * SR)));
+  const strum = slice(playPattern('strum-down', 60, 2)), bass = slice(playPattern('boomchick', 60, 2));
+  // D chord: its top string (F♯4, 370 Hz) sounds, and a note it doesn't contain (185 Hz) doesn't.
+  assert(energyAt(strum, 370) > 3 * energyAt(strum, 185), 'the chord’s notes are there');
+  // The bass pick is the G string alone: 98 Hz, with none of the chord's B (123.5 Hz).
+  assert(energyAt(bass, 98) > 50 * energyAt(bass, 123.5), 'one string only');
+});
+
+test('the sustain pattern rings for seconds, and its speed follows the tempo', () => {
+  const held = playPattern('sustain', 60, 7);
+  const at = t => rmsOf(held, Math.round(t * SR), Math.round((t + 0.05) * SR));
+  assert(at(3.1) > 0.1 * at(0.15), 'still above -20 dB three seconds after the pick');
+  assert(at(5.1) > 0.02 * at(0.15), 'and still audible five seconds after');
+  const quick = playPattern('sustain', 120, 4); // notes 3 s apart instead of 6
+  const jump = rmsOf(quick, Math.round(3.15 * SR), Math.round(3.25 * SR)) / rmsOf(quick, Math.round(2.9 * SR), Math.round(3.0 * SR));
+  assert(jump > 2, 'a new note lands at 3.1 s at 120 BPM (jump ' + jump.toFixed(1) + '×)');
+});
+
+test('a shuffle uses a triplet grid and chugs are palm-muted (short)', () => {
+  assert.equal(PATTERNS.shuffle.grid, 12);
+  const chug = playPattern('chug', 120, 3), power = playPattern('power', 120, 3);
+  // Compare just before the next hit: the muted chug has died, the open chord still rings.
+  const decay = b => rmsOf(b, Math.round(0.28 * SR), Math.round(0.33 * SR)) / rmsOf(b, Math.round(0.12 * SR), Math.round(0.17 * SR));
+  assert(decay(chug) < 0.05 && decay(power) > 0.2, 'chug ' + decay(chug).toFixed(3) + ', open chord ' + decay(power).toFixed(3));
+});
