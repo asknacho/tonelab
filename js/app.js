@@ -340,15 +340,49 @@
     return pedal;
   }
   function removePedal(id) {
-    const pedal = state.chain.find(p => p.id === id);
-    if (!pedal) return;
-    state.chain = state.chain.filter(p => p.id !== id);
+    const index = state.chain.findIndex(p => p.id === id);
+    if (index < 0) return;
+    const [pedal] = state.chain.splice(index, 1);
     selectedId = null;
     settings.close();
     changed();
     document.getElementById('add-effect').focus({ preventScroll: true });
     announce(pedalName(pedal) + ' removed');
+    offerUndo(pedal, index);
   }
+
+  /* Undo bar: removing has no confirmation, so the last removal can be put
+   * back (same place, same settings) for a few seconds. */
+  const undoToast = document.getElementById('undo-toast');
+  let lastRemoved = null, undoTimer;
+  function hideUndo() {
+    clearTimeout(undoTimer);
+    undoToast.hidden = true;
+    lastRemoved = null;
+  }
+  function offerUndo(pedal, index) {
+    lastRemoved = { pedal, index, bank: activeBank };
+    document.getElementById('undo-text').textContent = pedalName(pedal) + ' removed';
+    undoToast.hidden = false;
+    clearTimeout(undoTimer);
+    undoTimer = setTimeout(hideUndo, 8000);
+  }
+  function undoRemove() {
+    if (!lastRemoved || lastRemoved.bank !== activeBank) return hideUndo();
+    const { pedal, index } = lastRemoved;
+    hideUndo();
+    state.chain.splice(Math.min(index, state.chain.length), 0, pedal);
+    changed();
+    announce(pedalName(pedal) + ' restored at position ' + (state.chain.indexOf(pedal) + 1));
+    orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-toggle')?.focus({ preventScroll: true });
+  }
+  document.getElementById('undo-button').onclick = undoRemove;
+  document.addEventListener('keydown', e => {
+    if (!lastRemoved || e.key.toLowerCase() !== 'z' || !(e.ctrlKey || e.metaKey) || e.shiftKey) return;
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+    e.preventDefault();
+    undoRemove();
+  });
   document.getElementById('add-effect').onclick = () => library.showModal();
   for (const [type, info] of Object.entries(types)) {
     const button = document.createElement('button');
@@ -430,6 +464,7 @@
   document.getElementById('compare-bank').onclick = e => {
     const bank = e.target.closest('[data-bank]')?.dataset.bank;
     if (!bank || bank === activeBank) return;
+    hideUndo();
     banks[activeBank] = clone(state.chain);
     activeBank = bank;
     state.chain = clone(banks[activeBank]);

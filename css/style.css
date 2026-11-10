@@ -225,3 +225,11 @@ canvas { display: block; width: 100%; }
 @media (max-width: 560px) {
   .legend { min-height: 70px; }
 }
+
+/* Undo bar after removing a pedal. */
+.undo-toast { position: fixed; z-index: 60; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); translate: -50% 0; display: flex; align-items: center; gap: 16px; max-width: calc(100% - 32px); padding: 6px 6px 6px 16px; border-radius: 10px; background: var(--ink); color: var(--paper); font-size: 14px; box-shadow: 0 10px 30px #1f1d1840; animation: toast-in .18s ease-out; }
+.undo-toast span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.undo-toast button { flex: none; min-height: 40px; padding: 0 16px; border: 1px solid #ffffff40; border-radius: 7px; background: transparent; color: var(--paper); font-weight: 600; }
+.undo-toast button:hover { background: #ffffff1a; }
+@keyframes toast-in { from { opacity: 0; translate: -50% 10px; } }
+@media (prefers-reduced-motion: reduce) { .undo-toast { animation: none; } }
