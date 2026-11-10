@@ -145,7 +145,7 @@
       if (this.kind === 'eighths') {
         // Steady eighth notes on a repeating arpeggio, evenly picked.
         const notes = ARPEGGIO[this.step++ % ARPEGGIO.length];
-        this.voices.push(pluck(notes, dbToLin(-7 + 1.5 * r()), 0.2));
+        this.voices.push(pluck(notes, dbToLin(-7 + 1.5 * r()), 0.035)); // short, choppy picks
         this.nextEvent = this.n + Math.round(SR * 30 / this.tempo);
       } else if (this.kind === 'guitar') {
         const amp = 1.4 * dbToLin(-18 + 18 * r());

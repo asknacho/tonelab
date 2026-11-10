@@ -24,16 +24,17 @@ Drag the handles to change processing order on desktop or mobile, or use the arr
 
 The gate and compressor settings show transfer curves (input level → output level) with a dot tracking the signal. Scope meters and threshold lines follow the most recently inspected gate/compressor, or the first instance of each type. Their labels identify the pedal being measured.
 
-## Tone recipes
+## I want to sound like…
 
-Below the pedalboard, **Tone recipes** explain classic sounds step by step. Loading one puts its board in A and an alternative in B (with the right noise floor and playing pattern), so switching A/B with Match volume shows what each choice does. Loading replaces both boards; an Undo bar puts them back.
+The page starts with **I want to sound like…**: pick a famous sound (The Edge, Hendrix, Gilmour) or a technique (Endless, clean echo) and it's built on the board in A. Its first **What if…** goes into B: the same sound with one change, such as the echo on the beat, the compressor before the gate, or the fuzz before the octave.
 
-- **Endless, clean echo**: gate → compressor → delay, compared with compressor → gate → delay (the compressor's makeup lifts the hiss past the gate, and the delay repeats it).
-- **Dotted-eighth echo**, as on U2's "Where the Streets Have No Name": a ¾-beat delay (≈357 ms at 126 BPM) over steady eighth notes, compared with a straight-eighth delay.
+- **A and B** each have their own picker: what-ifs, *Same as A/B*, any sound, or your own. *Match volume* keeps the comparison fair.
+- **Step by step** shows your guitar, then each pedal in order with what it does in plain words, and the signal after it, drawn live from the same chain you hear. Pedals that differ from the other slot are marked, and a box explains what B changes.
+- **The lab and pedalboard** below work as before. Changing a loaded sound marks it *(edited)*; **Save as my sound** keeps it under *My sounds*. A board you built is never lost: before a sound replaces it, it's kept as *My last board*. Loading a sound can also be undone.
 
-Recipes live in the `RECIPES` list in `js/app.js`: each has A and B chains (pedal type plus any settings that differ from the defaults), the source pattern and noise floor, the steps, and the comparison text.
+Sounds live in the `TONES` list in `js/app.js`: each has the playing pattern and noise floor, a short "how to play it", each pedal as `[type, settings, what it does]`, a tip, and its what-ifs (each with a chain and an explanation). The what-ifs were checked against Tonelab's own effects (for example, compressor-before-gate really does leave the gate open on hiss).
 
-The **Playing** selector switches the synthesized guitar between free picking and steady eighth notes.
+The **Playing** selector switches the synthesized guitar between free picking and steady, short eighth notes.
 
 ## Run it
 
