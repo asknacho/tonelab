@@ -622,9 +622,9 @@
         const x1 = a.right + gap / 2, x2 = b.left - gap / 2, ym = (a.bottom + b.top) / 2;
         pts = [[a.out, a.y], [x1, a.y], [x1, ym], [x2, ym], [x2, b.y], [b.in, b.y]];
       }
-      paths += `<path d="${roundedPath(pts)}" marker-end="url(#cable-arrow)"/>`;
+      paths += `<path d="${roundedPath(pts)}"/>`;
     }
-    cables.innerHTML = '<defs><marker id="cable-arrow" viewBox="0 0 8 8" refX="7.5" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0.5 L8,4 L0,7.5 z"/></marker></defs>' + paths;
+    cables.innerHTML = paths;
   }
   new ResizeObserver(drawCables).observe(signalPath);
   document.fonts?.ready.then(drawCables);
