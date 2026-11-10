@@ -63,8 +63,10 @@
         </div>
       </div>
 
+      <div class="workspace-side">
       <section id="effect-settings" class="inspector" aria-labelledby="settings-title" hidden>
         <header class="sheet-head"><div><span id="settings-state" class="field-label"></span><h2 id="settings-title"></h2></div><div class="inspector-head-actions"><span id="pedal-saved" class="pedal-saved" role="status"></span><button class="sheet-close board-button">Done</button></div></header>
+        <div class="inspector-status"></div>
         <p id="pedal-note" class="pedal-note"></p>
         <p id="pedal-diff" class="journey-diff" hidden></p>
         <div class="model-row"><label class="model-pick"><span class="field-label">Pedal</span><span class="select-wrap"><select id="pedal-model"></select><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span></label><label class="show-all"><input type="checkbox" id="show-all" /> <span id="show-all-label">Show all controls</span></label></div>
@@ -89,6 +91,7 @@
           <input type="range" id="noise" min="-80" max="-20" step="1" value="-48" />
         </label>
       </details>
+      </div>
     </section>
 
     <section class="chain-editor" aria-labelledby="chain-title">

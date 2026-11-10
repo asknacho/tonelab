@@ -331,6 +331,7 @@
     selectedId = null;
     document.body.classList.remove('editing');
     renderStrip();
+    if (!undoToast.hidden) placeUndo();
   }
   function showPedalNotes(pedal) {
     document.getElementById('pedal-note').textContent = noteFor(pedal, state.chain);
@@ -399,6 +400,7 @@
     settings.hidden = false;
     document.body.classList.add('editing');
     renderStrip();
+    if (!undoToast.hidden) placeUndo();
     if (!wasOpen) requestAnimationFrame(() => settings.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
   }
   function addPedal(type, params, model) {
@@ -436,7 +438,17 @@
     undoToast.hidden = true;
     undoAction = null;
   }
+  // Normally at the top of the screen; while a pedal is open for editing it
+  // sits inline in the editor, so it never covers the pinned chain or scope.
+  const undoHome = undoToast.parentElement;
+  function placeUndo() {
+    const inline = !settings.hidden;
+    const target = inline ? settings.querySelector('.inspector-status') : undoHome;
+    if (undoToast.parentElement !== target) target.appendChild(undoToast);
+    undoToast.classList.toggle('inline', inline);
+  }
   function offerUndo(text, restore) {
+    placeUndo();
     undoAction = restore;
     document.getElementById('undo-text').textContent = text;
     undoToast.hidden = false;
