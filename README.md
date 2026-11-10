@@ -8,8 +8,14 @@ Tonelab generates a test signal (guitar plucks, a drum loop or a speech-like voi
 
 - **Noise gate**: threshold, attack, hold, release, range
 - **Compressor**: threshold, ratio, attack, release, knee, makeup
+- **Overdrive**: drive, dry/wet mix
+- **Delay**: time, feedback, dry/wet mix
 
-Each effect shows its transfer curve (input level → output level) with a dot tracking the live signal. A lane under the waveform shows what the effect is doing over time: gate gain and compressor gain reduction.
+Tap **Listen** to hear the synthesized source, then compare **Dry input** with **With effects**. Guitar uses a plucked-string model, rather than a recorded sample. Audio starts only after a user gesture and has a volume control. The internal 8 kHz signal is resampled for playback.
+
+Drag the effect handles to change the processing order on desktop or mobile. Arrow buttons and keyboard left/right arrows provide another way to reorder the chain.
+
+The gate and compressor show their transfer curves (input level → output level) with a dot tracking the live signal. A lane under the waveform shows what the effect is doing over time: gate gain and compressor gain reduction.
 
 ## Run it
 
@@ -25,5 +31,6 @@ python3 -m http.server 8000
 - `css/style.css`: styles (paper palette)
 - `js/dsp.js`: signal generator, noise gate, compressor
 - `js/app.js`: controls, effect chain and canvas drawing
+- `js/audio-worklet.js`: continuous audio rendering off the main thread
 
 Space toggles pause.

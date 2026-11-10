@@ -313,3 +313,33 @@ canvas { display: block; width: 100%; }
   .curve { max-width: 260px; }
   .play { margin-left: 0; }
 }
+
+/* The waveform is the edge-to-edge lab surface; controls retain a small gutter. */
+.scope-panel { padding-left: 0; padding-right: 0; }
+.toolbar, .listen-bar, .legend { margin-left: 18px; margin-right: 18px; }
+.listen-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+.listen-button { background: var(--ink); color: var(--paper); border: 0; border-radius: 7px; padding: 10px 16px; font: 500 14px var(--sans); cursor: pointer; }
+.volume { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.volume input { width: 100px; min-width: 70px; }
+#audio-status { font-size: 12px; color: var(--ink-2); }
+.chain-editor { margin-top: 28px; }
+.chain-editor h2 { font: 600 26px var(--serif); margin: 0; }
+.chain-editor p { color: var(--ink-2); margin: 6px 0 14px; }
+#effect-order { display: flex; flex-wrap: wrap; gap: 10px; padding: 0; list-style: none; }
+#effect-order li { display: flex; align-items: center; gap: 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--card); padding: 5px; }
+#effect-order button { min-width: 38px; min-height: 40px; border: 0; background: transparent; color: var(--ink); border-radius: 5px; font-size: 20px; cursor: pointer; }
+#effect-order button:disabled { opacity: 0.25; cursor: default; }
+#effect-order button:focus-visible { outline: 2px solid var(--gate); }
+#effect-order .drag-handle { touch-action: none; cursor: grab; }
+#effect-order .dragging { opacity: 0.55; }
+#effect-order .drop-target { outline: 2px solid var(--gate); }
+.order-status:empty { display: none; }
+#fx-drive { --accent: #91632c; }
+#fx-delay { --accent: #626a9b; }
+#drive-params, #delay-params { margin-top: 20px; }
+@media (max-width: 560px) {
+  .scope-panel { width: auto; margin-left: -16px; margin-right: -16px; }
+  .toolbar, .listen-bar, .legend { margin-left: 16px; margin-right: 16px; }
+  #effect-order { display: grid; grid-template-columns: 1fr; }
+  #effect-order li > span { flex: 1; }
+}

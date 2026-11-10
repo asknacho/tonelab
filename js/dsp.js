@@ -1,7 +1,7 @@
 /*
- * Tonelab DSP: a test-signal generator and the dynamics effects.
- * Everything runs at a low "visual" sample rate. That's plenty to draw the
- * waveform and keeps the per-frame cost tiny.
+ * Tonelab DSP: shared synthesis and effects for the scope and audio worklet.
+ * An 8 kHz internal sample rate keeps the live waveform inexpensive; the
+ * worklet resamples it for playback.
  */
 (function (TL) {
   'use strict';
@@ -28,17 +28,21 @@
   /* ---------------------------------------------------------------- voices */
 
   function pluck(freq, amp, decay) {
-    const d = decay * SR;
-    const atk = 0.004 * SR;
-    let t = 0;
+    // Karplus–Strong: a short noise burst circulates through a damped string.
+    const length = Math.max(2, Math.round(SR / freq));
+    const string = new Float32Array(length);
+    const random = rng(Math.round(freq * 100 + amp * 10000));
+    for (let i = 0; i < length; i++) string[i] = random() * 2 - 1;
+    let t = 0, pos = 0;
+    const damping = Math.pow(0.001, 1 / (decay * 12 * freq));
     return {
       done: false,
       tick() {
-        const env = amp * Math.min(1, t / atk) * Math.exp(-t / d);
-        const x = (TAU * freq * t) / SR;
-        const s = (Math.sin(x) + 0.5 * Math.sin(2 * x) + 0.3 * Math.sin(3 * x + 0.4)) / 1.8;
-        if (++t > 9 * d) this.done = true;
-        return env * s;
+        const sample = string[pos];
+        string[pos] = damping * 0.5 * (sample + string[(pos + 1) % length]);
+        pos = (pos + 1) % length;
+        if (++t > decay * 12 * SR) this.done = true;
+        return sample * amp * Math.min(1, t / 12);
       },
     };
   }
@@ -201,8 +205,8 @@
     }
 
     // gainOut receives the linear gain applied to each sample (0..1).
-    process(inp, out, gainOut, p, n) {
-      this.reset();
+    process(inp, out, gainOut, p, n, reset = true) {
+      if (reset) this.reset();
       const thrOpen = dbToLin(p.threshold);
       const thrClose = dbToLin(p.threshold - GATE_HYSTERESIS_DB);
       const floor = dbToLin(p.range);
@@ -261,8 +265,8 @@
     }
 
     // grOut receives gain reduction in dB (0 or negative), makeup not included.
-    process(inp, out, grOut, p, n) {
-      this.reset();
+    process(inp, out, grOut, p, n, reset = true) {
+      if (reset) this.reset();
       const aC = timeCoef(p.attack);
       const rC = timeCoef(p.release);
       const makeup = dbToLin(p.makeup);
@@ -279,5 +283,29 @@
     }
   }
 
-  Object.assign(TL, { SR, dbToLin, linToDb, Source, NoiseGate, Compressor, compCurve });
-})((window.TL = window.TL || {}));
+  class Overdrive {
+    process(inp, out, unused, p, n) {
+      const drive = dbToLin(p.drive);
+      for (let i = 0; i < n; i++) {
+        const wet = Math.tanh(inp[i] * drive) / Math.tanh(drive);
+        out[i] = inp[i] * (1 - p.mix) + wet * p.mix;
+      }
+    }
+  }
+
+  class Delay {
+    reset() { this.buffer = new Float32Array(SR * 2); this.pos = 0; }
+    process(inp, out, unused, p, n, reset = true) {
+      if (reset) this.reset();
+      const lag = Math.round(p.time * SR / 1000);
+      for (let i = 0; i < n; i++) {
+        const echo = this.buffer[(this.pos - lag + this.buffer.length) % this.buffer.length];
+        this.buffer[this.pos] = inp[i] + echo * p.feedback;
+        out[i] = inp[i] * (1 - p.mix) + echo * p.mix;
+        this.pos = (this.pos + 1) % this.buffer.length;
+      }
+    }
+  }
+
+  Object.assign(TL, { SR, dbToLin, linToDb, Source, NoiseGate, Compressor, Overdrive, Delay, compCurve });
+})((globalThis.TL = globalThis.TL || {}));

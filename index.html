@@ -57,6 +57,14 @@
         <button class="play" id="play" aria-label="Pause">Pause</button>
       </div>
 
+      <div class="listen-bar">
+        <button class="listen-button" id="listen" aria-pressed="false">Listen</button>
+        <div class="segmented" id="monitor" aria-label="Listen to">
+          <button data-value="dry">Dry input</button><button data-value="wet" class="on">With effects</button>
+        </div>
+        <label class="volume">Volume <input id="volume" type="range" min="0" max="0.8" step="0.01" value="0.2" /></label>
+        <span id="audio-status" role="status">Synthesized guitar · tap Listen to hear the signal</span>
+      </div>
       <div class="scope-wrap">
         <canvas id="scope" class="scope"></canvas>
         <canvas id="lanes" class="lanes"></canvas>
@@ -70,6 +78,12 @@
       </ul>
     </section>
 
+    <section class="chain-editor" aria-labelledby="chain-title">
+      <h2 id="chain-title">Build your signal chain</h2>
+      <p>Drag the handles to reorder effects, or use the arrow buttons. Try delay before the gate to hear the echoes get cut short.</p>
+      <ol id="effect-order" aria-label="Effect order"></ol>
+      <p id="order-status" class="order-status" role="status" aria-live="polite"></p>
+    </section>
     <section class="effects">
       <article class="panel fx" id="fx-gate" data-fx="gate">
         <header class="fx-head">
@@ -121,6 +135,16 @@
           fast it reacts: a slow attack lets the start of each hit through. <b>Knee</b> eases the change in
           around the threshold, and <b>makeup</b> raises everything back up afterwards.
         </p>
+      </article>
+      <article class="panel fx" id="fx-drive" data-fx="drive">
+        <header class="fx-head"><div><h2>Overdrive</h2><p class="fx-sub">Adds grit and sustain by rounding off peaks.</p></div><label class="switch"><input type="checkbox" id="drive-on" checked aria-label="Enable overdrive" /><span></span></label></header>
+        <div class="params" id="drive-params"></div>
+        <p class="explain">Turn up <b>drive</b> to add harmonics. Put compression first for more even distortion, or put it after overdrive to tame the result.</p>
+      </article>
+      <article class="panel fx" id="fx-delay" data-fx="delay">
+        <header class="fx-head"><div><h2>Delay</h2><p class="fx-sub">Repeats the signal to create space and rhythm.</p></div><label class="switch"><input type="checkbox" id="delay-on" checked aria-label="Enable delay" /><span></span></label></header>
+        <div class="params" id="delay-params"></div>
+        <p class="explain"><b>Time</b> sets the gap between echoes; <b>feedback</b> makes them last longer. Place delay after overdrive for clean echoes of a gritty guitar, or before it to distort the repeats together.</p>
       </article>
     </section>
   </main>
