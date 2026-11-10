@@ -295,8 +295,6 @@
   const dropArea = document.querySelector('.drop-area');
   const settings = document.getElementById('effect-settings');
   const library = document.getElementById('effect-library');
-  const removeConfirm = document.getElementById('remove-confirm');
-  let pendingRemoval = null;
   const selected = () => state.chain.find(p => p.id === selectedId);
   function announce(text) { document.getElementById('order-status').textContent = text; }
   function changed() { state.dirty = true; renderOrder(); saveBoard(); }
@@ -341,21 +339,14 @@
     announce(pedalName(pedal) + ' added at position ' + state.chain.length);
     return pedal;
   }
-  function confirmRemoval(pedal) {
-    pendingRemoval = pedal.id;
-    document.getElementById('remove-message').textContent = 'Remove ' + pedalName(pedal) + ' from your signal chain?';
-    removeConfirm.showModal();
-  }
   function removePedal(id) {
     const pedal = state.chain.find(p => p.id === id);
     if (!pedal) return;
     state.chain = state.chain.filter(p => p.id !== id);
     selectedId = null;
     settings.close();
-    removeConfirm.close();
-    pendingRemoval = null;
     changed();
-    document.getElementById('add-effect').focus();
+    document.getElementById('add-effect').focus({ preventScroll: true });
     announce(pedalName(pedal) + ' removed');
   }
   document.getElementById('add-effect').onclick = () => library.showModal();
@@ -388,14 +379,8 @@
   document.getElementById('remove-pedal').onclick = () => {
     const pedal = selected();
     if (!pedal) return;
-    confirmRemoval(pedal);
+    removePedal(pedal.id);
   };
-  document.getElementById('cancel-remove').onclick = () => { removeConfirm.close(); pendingRemoval = null; };
-  document.getElementById('confirm-remove').onclick = () => removePedal(pendingRemoval);
-  removeConfirm.addEventListener('close', () => {
-    if (pendingRemoval && removeConfirm.returnValue !== 'remove') pendingRemoval = null;
-    removeConfirm.returnValue = '';
-  });
   document.getElementById('pedal-earlier').onclick = () => moveEffect(selectedId, state.chain.findIndex(p => p.id === selectedId) - 1);
   document.getElementById('pedal-later').onclick = () => moveEffect(selectedId, state.chain.findIndex(p => p.id === selectedId) + 1);
 
@@ -524,21 +509,47 @@
           moveEffect(id, state.chain.indexOf(pedal) + (earlier ? -1 : 1));
           handle.focus();
         };
+        // Dragging: a copy of the pedal follows the pointer. Outside the
+        // dashed board it turns red with an ✕, and letting go removes it.
+        let drag = null;
+        const outsideBoard = e => {
+          const r = dropArea.getBoundingClientRect();
+          return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+        };
         handle.onpointerdown = e => {
           if (e.button !== 0) return;
           handle.setPointerCapture(e.pointerId);
-          item.classList.add('dragging');
+          const r = item.getBoundingClientRect();
+          drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, width: r.width, ghost: null };
         };
         const clearDrag = () => {
+          drag?.ghost?.remove();
+          drag = null;
           item.classList.remove('dragging');
-          dropArea.classList.remove('drag-over');
+          dropArea.classList.remove('drag-over', 'drag-out');
           orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
         };
         handle.onpointermove = e => {
-          if (!handle.hasPointerCapture(e.pointerId)) return;
-          const hit = document.elementFromPoint(e.clientX, e.clientY);
-          const target = hit?.closest('[data-effect]');
-          dropArea.classList.toggle('drag-over', dropArea.contains(hit));
+          if (!drag || !handle.hasPointerCapture(e.pointerId)) return;
+          const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+          if (!drag.ghost) {
+            if (Math.hypot(dx, dy) < 4) return; // a tap or tiny wobble isn't a drag
+            const ghost = item.cloneNode(true);
+            ghost.classList.add('drag-ghost');
+            ghost.removeAttribute('data-effect');
+            ghost.setAttribute('aria-hidden', 'true');
+            ghost.insertAdjacentHTML('beforeend', '<span class="remove-mark">✕</span>');
+            Object.assign(ghost.style, { left: drag.left + 'px', top: drag.top + 'px', width: drag.width + 'px' });
+            document.body.appendChild(ghost);
+            drag.ghost = ghost;
+            item.classList.add('dragging');
+          }
+          drag.ghost.style.transform = `translate(${dx}px, ${dy}px)`;
+          const out = outsideBoard(e);
+          drag.ghost.classList.toggle('removing', out);
+          dropArea.classList.toggle('drag-over', !out);
+          dropArea.classList.toggle('drag-out', out);
+          const target = out ? null : document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-effect]');
           orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
           if (target && target !== item && orderList.contains(target)) target.classList.add('drop-target');
           // Allow long boards to scroll while holding a pedal near a screen edge.
@@ -546,13 +557,15 @@
           else if (e.clientY < 65) window.scrollBy(0, -12);
         };
         handle.onpointerup = e => {
-          if (!handle.hasPointerCapture(e.pointerId)) return;
-          const hit = document.elementFromPoint(e.clientX, e.clientY);
-          const target = hit?.closest('[data-effect]');
+          if (!drag || !handle.hasPointerCapture(e.pointerId)) return;
+          const moved = !!drag.ghost;
+          const out = outsideBoard(e);
+          const target = out ? null : document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-effect]');
           clearDrag();
-          if (target && target !== item && orderList.contains(target)) moveEffect(id, state.chain.findIndex(p => p.id === target.dataset.effect));
-          else if (!target && dropArea.contains(hit)) moveEffect(id, state.chain.length - 1);
-          else if (!target && !dropArea.contains(hit)) confirmRemoval(pedal);
+          if (!moved) return;
+          if (out) removePedal(id);
+          else if (target && target !== item && orderList.contains(target)) moveEffect(id, state.chain.findIndex(p => p.id === target.dataset.effect));
+          else if (!target) moveEffect(id, state.chain.length - 1);
         };
         handle.onpointercancel = clearDrag;
       }
