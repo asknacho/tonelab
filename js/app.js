@@ -129,7 +129,7 @@
       [[14, 6], [62, 6], [14, 134], [62, 134]].map(([x, y]) => `<circle class="art-line" cx="${x}" cy="${y}" r="1.4"/>`).join('') +
       knob(25, 36, 7, level(p, 'makeup')) + knob(51, 36, 7, level(p, 'ratio')) + stomp(38, 98) },
     drive: { inset: 3, jack: 66, led: [38, 19], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="8"/>${knob(19, 36, 7, level(p, 'drive'))}${knob(38, 31, 4.5, 0.5)}${knob(57, 36, 7, level(p, 'mix'))}<rect class="art-switch" x="10" y="82" width="56" height="52" rx="3"/>` },
-    fuzz: { inset: 1.5, jack: 70, led: [38, 47], draw: p => `<circle class="art-body" cx="38" cy="70" r="36.5"/>${knob(26, 46, 6, level(p, 'fuzz'))}${knob(50, 46, 6, level(p, 'level'))}${stomp(38, 95, 5)}` },
+    fuzz: { inset: 1.5, jack: 66, led: [38, 47], draw: p => `<circle class="art-body" cx="38" cy="70" r="36.5"/>${knob(26, 46, 6, level(p, 'fuzz'))}${knob(50, 46, 6, level(p, 'level'))}${stomp(38, 95, 5)}` },
     octave: { inset: 3, jack: 66, led: [64, 36], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="4"/>` +
       ['dry', 'sub', 'up'].map((key, i) => {
         const x = 22 + i * 16, y = 44 - level(p, key) * 16;
@@ -598,6 +598,26 @@
       const r = el.getBoundingClientRect();
       return { left: r.left - base.left, right: r.right - base.left, top: r.top - base.top, bottom: r.bottom - base.top, width: r.width, height: r.height };
     };
+    const endpoints = [...signalPath.querySelectorAll('.endpoint')];
+    const items = [...orderList.children];
+    const single = new Set(items.map(item => Math.round(item.offsetTop))).size <= 1;
+    signalPath.classList.toggle('single-row', single);
+    if (single) {
+      // One row: line Input and Output up with the jacks and run one straight
+      // cable behind the pedals.
+      const first = items[0] ? box(items[0]) : null;
+      const lineY = first ? first.top + ART[items[0].dataset.type].jack * first.width / ART_W : box(dropArea).top + box(dropArea).height / 2;
+      for (const endpoint of endpoints) {
+        const dot = box(endpoint.querySelector('i'));
+        const shift = lineY - (dot.top + dot.height / 2);
+        if (Math.abs(shift) > 0.5) endpoint.style.paddingTop = Math.max(0, parseFloat(getComputedStyle(endpoint).paddingTop) + shift) + 'px';
+      }
+      const a = box(endpoints[0].querySelector('i')), b = box(endpoints[1].querySelector('i'));
+      const y = a.top + a.height / 2;
+      cables.innerHTML = `<path d="M${a.right.toFixed(1)},${y.toFixed(1)} H${b.left.toFixed(1)}"/>`;
+      return;
+    }
+    for (const endpoint of endpoints) endpoint.style.paddingTop = '';
     const inDot = box(document.querySelector('.endpoint-input i'));
     const outDot = box(document.querySelector('.endpoint-output i'));
     const nodes = [{ out: inDot.right, y: inDot.top + inDot.height / 2, left: inDot.left, right: inDot.right, top: inDot.top, bottom: inDot.bottom }];
