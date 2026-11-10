@@ -74,6 +74,8 @@
     { key: 'time', label: 'Time', min: 60, max: 700, step: 1, value: 300, format: fmtMs, hint: 'Time between repeats.' },
     { key: 'feedback', label: 'Feedback', min: 0, max: 0.75, step: 0.01, value: 0.35, format: v => Math.round(v * 100) + '%', hint: 'How much of each echo feeds the next.' },
     { key: 'mix', label: 'Mix', min: 0, max: 0.8, step: 0.01, value: 0.3, format: v => Math.round(v * 100) + '%', hint: 'Balance between the signal and its echoes.' },
+    { key: 'character', label: 'Character', min: 0, max: 1, step: 0.01, value: 0, format: v => v < 0.03 ? 'Clean (digital)' : v > 0.97 ? 'Dark (analog)' : Math.round(v * 100) + '% darker',
+      hint: 'Clean, exact repeats (digital) to darker, grittier repeats that fade like an analog delay.' },
   ];
   const pct = v => Math.round(v * 100) + '%';
   const FUZZ_PARAMS = [
@@ -94,15 +96,75 @@
     { key: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, value: 0.5, format: pct, hint: 'Balance between your note and the harmony.' },
     { key: 'window', label: 'Window', min: 20, max: 120, step: 1, value: 50, format: fmtMs, hint: 'How much audio each voice replays. Short windows warble on low notes; long ones smear fast playing.' },
   ];
-  // `model` names the classic pedal whose outline each card borrows.
+  const fmtSigned = v => (v > 0 ? '+' : '') + fmt(v, 1) + ' dB';
+  const fmtHz = v => (v >= 1000 ? fmt(v / 1000, 1) + ' kHz' : v >= 10 ? fmt(v, 0) + ' Hz' : fmt(v, 1) + ' Hz');
+  const BOOST_PARAMS = [
+    { key: 'boost', label: 'Boost', min: 0, max: 20, step: 0.5, value: 10, format: v => '+' + fmt(v, 1) + ' dB', hint: 'Clean extra volume. Before a drive it means more distortion; after it, just louder.' },
+  ];
+  const DIST_PARAMS = [
+    { key: 'gain', label: 'Distortion', min: 0, max: 45, step: 0.5, value: 30, format: fmtDb, hint: 'How hard the signal hits the clipper. More gain, flatter tops.' },
+    { key: 'tone', label: 'Tone', min: 0, max: 1, step: 0.01, value: 0.5, format: v => Math.round(v * 100) + '%', hint: 'Dark to bright.' },
+    { key: 'level', label: 'Level', min: -30, max: 0, step: 0.5, value: -10, format: fmtDb, hint: 'Output volume.' },
+  ];
+  const EQ_PARAMS = [
+    { key: 'bass', label: 'Bass', min: -12, max: 12, step: 0.5, value: 0, format: fmtSigned, hint: 'Lows: body and thump.' },
+    { key: 'mid', label: 'Mids', min: -12, max: 12, step: 0.5, value: 0, format: fmtSigned, hint: 'The middle: what makes a guitar cut through a band.' },
+    { key: 'midFreq', label: 'Mid point', min: 250, max: 3000, value: 800, log: true, format: fmtHz, hint: 'Which part of the middle the Mids knob changes.' },
+    { key: 'treble', label: 'Treble', min: -12, max: 12, step: 0.5, value: 0, format: fmtSigned, hint: 'Highs: sparkle and bite.' },
+    { key: 'level', label: 'Level', min: -12, max: 12, step: 0.5, value: 0, format: fmtSigned, hint: 'Overall volume.' },
+  ];
+  const WAH_MODES = ['Held still', 'Follows your picking', 'Rocks by itself'];
+  const WAH_PARAMS = [
+    { key: 'mode', label: 'Mode', min: 0, max: 2, step: 1, value: 1, format: v => WAH_MODES[Math.round(v)],
+      hint: 'Held still: a parked (“cocked”) wah. Follows your picking: harder picks open it (an envelope filter, or auto-wah). Rocks by itself: an automatic sweep.' },
+    { key: 'position', label: 'Pedal position', min: 0, max: 1, step: 0.01, value: 0.5, format: v => (v < 0.34 ? 'Heel (dark)' : v > 0.66 ? 'Toe (bright)' : 'Middle') + ' · ' + Math.round(v * 100) + '%', hint: 'Where the pedal is held (Held still mode).' },
+    { key: 'sensitivity', label: 'Sensitivity', min: 0, max: 30, step: 1, value: 14, format: v => '+' + fmt(v, 0) + ' dB', hint: 'How far your picking opens it (Follows your picking mode).' },
+    { key: 'speed', label: 'Speed', min: 0.2, max: 6, value: 1.5, log: true, format: fmtHz, hint: 'How fast it rocks (Rocks by itself mode).' },
+    { key: 'resonance', label: 'Resonance', min: 2, max: 10, step: 0.1, value: 5, format: v => fmt(v, 1), hint: 'How sharp and vocal the peak is.' },
+  ];
+  const CHORUS_PARAMS = [
+    { key: 'rate', label: 'Speed', min: 0.1, max: 5, value: 0.8, log: true, format: fmtHz, hint: 'How fast the copy wobbles.' },
+    { key: 'depth', label: 'Depth', min: 0, max: 1, step: 0.01, value: 0.5, format: v => Math.round(v * 100) + '%', hint: 'How far its pitch wobbles.' },
+    { key: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, value: 0.6, format: v => Math.round(v * 100) + '%', hint: 'How much of the wobbling copy you hear.' },
+  ];
+  const PHASER_PARAMS = [
+    { key: 'rate', label: 'Speed', min: 0.1, max: 6, value: 0.5, log: true, format: fmtHz, hint: 'How fast it sweeps.' },
+    { key: 'depth', label: 'Depth', min: 0, max: 1, step: 0.01, value: 0.7, format: v => Math.round(v * 100) + '%', hint: 'How wide the sweep goes.' },
+    { key: 'feedback', label: 'Intensity', min: 0, max: 0.9, step: 0.01, value: 0.4, format: v => Math.round(v * 100) + '%', hint: 'A sharper, more dramatic swoosh.' },
+  ];
+  const TREM_PARAMS = [
+    { key: 'rate', label: 'Speed', min: 1, max: 12, step: 0.1, value: 5, format: fmtHz, hint: 'Pulses per second.' },
+    { key: 'depth', label: 'Depth', min: 0, max: 1, step: 0.01, value: 0.6, format: v => Math.round(v * 100) + '%', hint: 'How far the volume dips.' },
+    { key: 'shape', label: 'Shape', min: 0, max: 1, step: 0.01, value: 0.2, format: v => (v < 0.34 ? 'Smooth' : v > 0.66 ? 'Choppy' : 'In between') + ' · ' + Math.round(v * 100) + '%', hint: 'Smooth waves to hard, choppy on-off pulses.' },
+  ];
+  const SWELL_PARAMS = [
+    { key: 'rise', label: 'Fade-in time', min: 50, max: 2000, value: 350, log: true, format: fmtMs, hint: 'How long each note takes to fade in.' },
+    { key: 'sensitivity', label: 'Sensitivity', min: -60, max: -10, step: 1, value: -40, format: fmtDb, hint: 'How hard you need to pick to start a new swell.' },
+  ];
+  const REVERB_PARAMS = [
+    { key: 'decay', label: 'Decay', min: 0, max: 1, step: 0.01, value: 0.6, format: v => Math.round(v * 100) + '%', hint: 'How long the room rings.' },
+    { key: 'tone', label: 'Tone', min: 0, max: 1, step: 0.01, value: 0.5, format: v => Math.round(v * 100) + '%', hint: 'Dark to bright reflections.' },
+    { key: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, value: 0.35, format: v => Math.round(v * 100) + '%', hint: 'How much reverb you hear.' },
+  ];
+  // `model` names the classic pedal whose outline each card borrows. The
+  // order here is the order in the "Add an effect" list.
   const types = {
     gate: { name: 'Noise gate', short: 'Gate', model: 'ISP Decimator', specs: GATE_PARAMS, explanation: 'Silences the quiet parts. Attack opens the gate; hold and release preserve the tails. Try a gate after delay to cut off the echoes.' },
     comp: { name: 'Compressor', short: 'Comp', model: 'MXR Dyna Comp', specs: COMP_PARAMS, explanation: 'Controls peaks above the threshold. Two compressors can share the work: use the first for gentle leveling and the second to catch the remaining peaks.' },
+    boost: { name: 'Boost', short: 'Boost', model: 'Xotic EP Booster', specs: BOOST_PARAMS, explanation: 'Clean extra volume. In front of an overdrive it pushes it harder for more crunch; at the end of the board it just makes everything louder.' },
     drive: { name: 'Overdrive', short: 'Drive', model: 'Ibanez Tube Screamer', specs: DRIVE_PARAMS, explanation: 'Adds harmonics by rounding off peaks. Try compression before drive for a more even distortion, or after it to tame the result.' },
+    dist: { name: 'Distortion', short: 'Dist', model: 'ProCo RAT', specs: DIST_PARAMS, explanation: 'Clips the wave hard, so its tops go flat: heavier and more even than overdrive. Overdrive rounds the peaks, distortion flattens them, fuzz squares the whole wave off.' },
     fuzz: { name: 'Fuzz', short: 'Fuzz', model: 'Dallas Arbiter Fuzz Face', specs: FUZZ_PARAMS, explanation: 'Clips so hard the wave turns almost square, and the two halves clip unevenly for a sputtery edge. Compare it with overdrive, which only rounds the peaks.' },
+    eq: { name: 'EQ', short: 'EQ', model: 'Boss GE-7', specs: EQ_PARAMS, explanation: 'Turns bass, mids and treble up or down. Switch the view to Tone to see exactly what it changes.' },
+    wah: { name: 'Wah', short: 'Wah', model: 'Dunlop Cry Baby', specs: WAH_PARAMS, explanation: 'A peak in the sound that moves from dark (heel) to bright (toe), like a voice saying “wah”. It can be held still, follow your picking (an auto-wah), or rock by itself.' },
     octave: { name: 'Octave', short: 'Octave', model: 'Electro-Harmonix POG', specs: OCTAVE_PARAMS, explanation: 'Adds notes an octave below and above. It tracks single notes best; chords confuse it, much like an analog octave pedal. Watch the octave down turn the wave into wide square steps.' },
     harm: { name: 'Harmonizer', short: 'Harmony', model: 'DigiTech Whammy', specs: HARM_PARAMS, explanation: 'Adds pitch-shifted copies of your playing to build harmonies. Each voice replays the last few milliseconds faster (higher) or slower (lower). Put it before drive for a thicker sound, or after for clearer voices.' },
-    delay: { name: 'Delay', short: 'Delay', model: 'Boss DD-3', specs: DELAY_PARAMS, explanation: 'Time sets the spacing of echoes; feedback controls their decay. Stack two delays at different times for a more complex rhythm.' },
+    chorus: { name: 'Chorus', short: 'Chorus', model: 'Electro-Harmonix Small Clone', specs: CHORUS_PARAMS, explanation: 'Blends in a copy of your playing whose pitch wobbles slightly, like two guitars playing together. Subtle settings shimmer; extreme ones warble.' },
+    phaser: { name: 'Phaser', short: 'Phaser', model: 'MXR Phase 90', specs: PHASER_PARAMS, explanation: 'Cuts moving notches into the sound for a swirling “whoosh”. In the Tone view you can see the dips slide back and forth.' },
+    trem: { name: 'Tremolo', short: 'Trem', model: 'Boss TR-2', specs: TREM_PARAMS, explanation: 'Turns the volume up and down in a steady pulse. Watch the waveform throb.' },
+    swell: { name: 'Volume swell', short: 'Swell', model: 'Ernie Ball volume pedal', specs: SWELL_PARAMS, explanation: 'Fades every new note in, as if you rolled a volume pedal up after each pick. It hides the pick attack for soft, violin-like notes.' },
+    delay: { name: 'Delay', short: 'Delay', model: 'Boss DD-3', specs: DELAY_PARAMS, explanation: 'Time sets the spacing of echoes; feedback controls their decay. Character goes from clean digital repeats to darker analog-style ones.' },
+    reverb: { name: 'Reverb', short: 'Reverb', model: 'Electro-Harmonix Holy Grail', specs: REVERB_PARAMS, explanation: 'The sound of a room: thousands of tiny reflections that ring on after each note. Decay sets how big the room sounds.' },
   };
   let nextId = 0;
   const counts = Object.fromEntries(Object.keys(types).map(type => [type, 0]));
@@ -137,7 +199,21 @@
         return `<line class="art-line" x1="${x}" y1="25" x2="${x}" y2="46"/><rect class="art-knob" x="${x - 4.5}" y="${y - 2.5}" width="9" height="5" rx="1"/>`;
       }).join('') + stomp(38, 98) },
     harm: { inset: 1, jack: 66, led: [45, 33], draw: p => `<rect class="art-body" x="1" y="1" width="74" height="138" rx="10"/>${knob(22, 33, 8, level(p, 'voice1'))}<rect class="art-line" x="38" y="27" width="28" height="12" rx="2"/><rect class="art-switch" x="7" y="50" width="62" height="84" rx="7"/>${ridges([88, 94, 100, 106, 112], 15, 61)}` },
-    delay: { inset: 3, jack: 66, led: [38, 19], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="4"/>${knob(14, 36, 5.5, level(p, 'mix'))}${knob(30, 36, 5.5, level(p, 'feedback'))}${knob(46, 36, 5.5, level(p, 'time'))}${knob(62, 36, 5.5, 0.5)}<path class="art-switch" d="M10 80 H66 L70 86 V134 Q70 137 67 137 H9 Q6 137 6 134 V86 Z"/>${ridges([93, 98, 103, 108], 16, 60)}` },
+    delay: { inset: 3, jack: 66, led: [38, 19], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="4"/>${knob(14, 36, 5.5, level(p, 'mix'))}${knob(30, 36, 5.5, level(p, 'feedback'))}${knob(46, 36, 5.5, level(p, 'time'))}${knob(62, 36, 5.5, level(p, 'character'))}<path class="art-switch" d="M10 80 H66 L70 86 V134 Q70 137 67 137 H9 Q6 137 6 134 V86 Z"/>${ridges([93, 98, 103, 108], 16, 60)}` },
+    boost: { inset: 14, jack: 66, led: [54, 33], draw: p => `<rect class="art-body" x="14" y="24" width="48" height="115" rx="4"/>${knob(32, 36, 7, level(p, 'boost'))}${stomp(38, 108, 5)}` },
+    dist: { inset: 3, jack: 66, led: [62, 86], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="3"/><line class="art-line" x1="3" y1="46" x2="73" y2="46"/>${knob(19, 32, 7, level(p, 'gain'))}${knob(38, 32, 7, level(p, 'tone'))}${knob(57, 32, 7, level(p, 'level'))}${stomp(38, 100)}` },
+    eq: { inset: 3, jack: 66, led: [38, 14], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="4"/>` +
+      [100, 200, 400, 800, 1600, 3200, 6400].map((f, i) => {
+        const x = (12 + i * 8.67).toFixed(1), y = (35 - Math.max(-12, Math.min(12, TL.eqResponse(p.params, f))) / 12 * 9).toFixed(1);
+        return `<line class="art-line" x1="${x}" y1="24" x2="${x}" y2="46"/><rect class="art-knob" x="${x - 3}" y="${y - 2}" width="6" height="4" rx="1"/>`;
+      }).join('') + `<path class="art-switch" d="M10 80 H66 L70 86 V134 Q70 137 67 137 H9 Q6 137 6 134 V86 Z"/>${ridges([93, 98, 103, 108], 16, 60)}` },
+    wah: { inset: 3, jack: 66, led: [38, 14], draw: () => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="12"/><rect class="art-switch" x="9" y="24" width="58" height="108" rx="8"/>${ridges([86, 92, 98, 104, 110, 116], 17, 59)}` },
+    chorus: { inset: 6, jack: 66, led: [60, 86], draw: p => `<rect class="art-body" x="6" y="1" width="64" height="138" rx="5"/>${knob(28, 36, 8, level(p, 'rate'))}<rect class="art-line" x="50" y="29" width="7" height="14" rx="2"/>${stomp(38, 100)}` },
+    phaser: { inset: 9, jack: 66, led: [57, 46], draw: p => `<rect class="art-body" x="9" y="1" width="58" height="138" rx="3"/>` +
+      [[14, 6], [62, 6], [14, 134], [62, 134]].map(([x, y]) => `<circle class="art-line" cx="${x}" cy="${y}" r="1.4"/>`).join('') + `${knob(38, 36, 10, level(p, 'rate'))}${stomp(38, 100)}` },
+    trem: { inset: 3, jack: 66, led: [38, 19], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="4"/>${knob(19, 36, 6, level(p, 'rate'))}${knob(38, 36, 6, level(p, 'depth'))}${knob(57, 36, 6, level(p, 'shape'))}<path class="art-switch" d="M10 80 H66 L70 86 V134 Q70 137 67 137 H9 Q6 137 6 134 V86 Z"/>${ridges([93, 98, 103, 108], 16, 60)}` },
+    swell: { inset: 9, jack: 66, led: [38, 30], draw: () => `<path class="art-body" d="M17 1 H59 Q62 1 62.5 4 L73 134 Q73 139 68 139 H8 Q3 139 3 134 L13.5 4 Q14 1 17 1 Z"/>${ridges([38, 44, 88, 96, 104, 112, 120], 16, 60)}` },
+    reverb: { inset: 3, jack: 66, led: [62, 86], draw: p => `<rect class="art-body" x="3" y="1" width="70" height="138" rx="6"/>${knob(38, 37, 11, level(p, 'mix'))}<rect class="art-line" x="61" y="29" width="6" height="14" rx="2"/>${stomp(38, 100)}` },
   };
   function pedalArt(pedal) {
     const { inset, jack, draw } = ART[pedal.type];
@@ -149,7 +225,9 @@
     return { id: 'pedal-' + (++nextId), type, number: ++counts[type], enabled: true,
       params: params ? { ...params } : Object.fromEntries(types[type].specs.map(p => [p.key, p.value])) };
   }
-  const state = { playing: true, speed: 1, scale: 'db', chain: ['gate', 'comp', 'drive', 'delay'].map(type => createPedal(type)), dirty: true };
+  let savedView = 'level';
+  try { savedView = localStorage.getItem('tonelab-view') === 'tone' ? 'tone' : 'level'; } catch {}
+  const state = { view: savedView, playing: true, speed: 1, scale: 'db', chain: ['gate', 'comp', 'drive', 'delay'].map(type => createPedal(type)), dirty: true };
   const clone = value => JSON.parse(JSON.stringify(value));
   const PATTERNS = ['guitar', 'eighths'];
   const storageKey = 'tonelab-board-v1';
@@ -617,6 +695,129 @@
           chain: [['comp', { threshold: -30, ratio: 6, attack: 15, release: 400, knee: 6, makeup: 10 }], ['delay', { time: 520, feedback: 0.62, mix: 0.4 }]] },
       ],
     },
+    {
+      id: 'boost-drive', group: 'Techniques', title: 'Boost into overdrive', short: 'Boost + drive',
+      summary: 'Why guitarists put a clean boost in front of an overdrive: more crunch and sustain from the same pedal. It also shows why the order matters.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play notes or chords and listen to how hard the overdrive breaks up.',
+      chain: [
+        ['boost', { boost: 10 }, 'Sends a louder signal into the overdrive. It doesn’t distort by itself; it makes the next pedal work harder.'],
+        ['drive', { drive: 10, mix: 0.8 }, 'With the boost in front, it clips harder: thicker crunch and longer sustain.'],
+      ],
+      tip: 'Many players use a boost as a “solo switch”: step on it and the same overdrive gets more saturated.',
+      whatIfs: [
+        { id: 'boost-after', label: 'Boost after the overdrive', note: 'Same two pedals, other order. The overdrive now gets your normal signal and the boost only makes the result louder. With Match volume on you’ll hear that A is more distorted, not just louder.',
+          chain: [['drive', { drive: 10, mix: 0.8 }], ['boost', { boost: 10 }]] },
+        { id: 'no-boost', label: 'No boost', note: 'The overdrive on its own breaks up less: a lighter crunch.',
+          chain: [['drive', { drive: 10, mix: 0.8 }]] },
+      ],
+    },
+    {
+      id: 'metal', group: 'Techniques', title: 'Tight metal rhythm', short: 'Metal',
+      summary: 'High-gain distortion kept tight by a noise gate, with the mids scooped out for a huge, heavy sound.',
+      source: { kind: 'guitar', noise: -55 },
+      play: 'Play short, heavy notes with rests in between, and listen to the silence in the rests.',
+      chain: [
+        ['gate', { threshold: -45, attack: 0.5, hold: 20, release: 60, range: -80 }, 'First in line, it shuts off the hiss and hum between notes, so the rests are silent.'],
+        ['dist', { gain: 36, tone: 0.55, level: -12 }, 'Lots of gain, clipped hard. It turns every note into a wall of sound, and it would turn the hiss into a wall of noise too.'],
+        ['eq', { bass: 4, mid: -8, midFreq: 700, treble: 3, level: 0 }, 'Cuts the mids and lifts bass and treble: the “scooped” sound. Switch to the Tone view to see the dip in the middle.'],
+      ],
+      tip: 'Scooped mids sound huge on their own, but in a band they can make your guitar disappear. Try bringing the mids back up when playing with others.',
+      whatIfs: [
+        { id: 'no-gate', label: 'No noise gate', note: 'Without the gate, the distortion turns the hiss into loud noise between notes. Look at the gaps in the waveform.',
+          chain: [['dist', { gain: 36, tone: 0.55, level: -12 }], ['eq', { bass: 4, mid: -8, midFreq: 700, treble: 3, level: 0 }]] },
+        { id: 'mids-back', label: 'Mids put back', note: 'With the EQ flat, the mids come back: less “huge” on its own, but more solid and easier to hear in a band. Compare them in the Tone view.',
+          chain: [['gate', { threshold: -45, attack: 0.5, hold: 20, release: 60, range: -80 }], ['dist', { gain: 36, tone: 0.55, level: -12 }], ['eq', { bass: 0, mid: 0, midFreq: 700, treble: 0, level: 0 }]] },
+      ],
+    },
+    {
+      id: 'surf', group: 'Techniques', title: 'Surf tremolo and reverb', short: 'Surf',
+      summary: 'Pulsing volume into a bright, splashy reverb: the sound of 60s surf and twang.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Let notes and chords ring, and listen to them pulse.',
+      chain: [
+        ['trem', { rate: 6, depth: 0.7, shape: 0.3 }, 'Turns the volume up and down six times a second. Watch the waveform throb.'],
+        ['reverb', { decay: 0.75, tone: 0.75, mix: 0.45 }, 'A bright, splashy reverb that rings on after each note, a bit like an amp’s spring reverb. Coming after the tremolo, it softens the pulses slightly.'],
+      ],
+      tip: 'Set the tremolo speed to the song’s tempo so the pulses lock in with the band.',
+      whatIfs: [
+        { id: 'reverb-first', label: 'Reverb before the tremolo', note: 'Now the tremolo chops the reverb as well, so the pulses go deeper and the reverb tail throbs too. With the tremolo first, the reverb smooths the pulses a little.',
+          chain: [['reverb', { decay: 0.75, tone: 0.75, mix: 0.45 }], ['trem', { rate: 6, depth: 0.7, shape: 0.3 }]] },
+        { id: 'no-trem', label: 'No tremolo', note: 'Just the reverb: the ringing stays, the pulse is gone.',
+          chain: [['reverb', { decay: 0.75, tone: 0.75, mix: 0.45 }]] },
+      ],
+    },
+    {
+      id: 'ambient', group: 'Techniques', title: 'Ambient swells', short: 'Swells',
+      summary: 'Notes that fade in with no pick attack, into long echoes and a big reverb: the soft, violin-like pad of ambient guitar.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play slow single notes or chords and let them ring. The swell hides the pick.',
+      chain: [
+        ['swell', { rise: 400, sensitivity: -40 }, 'Fades every new note in, as if you rolled a volume pedal up by foot after each pick.'],
+        ['delay', { time: 450, feedback: 0.5, mix: 0.4, character: 0.6 }, 'Long echoes that overlap into a pad. The Character knob makes each repeat a little darker than the last.'],
+        ['reverb', { decay: 0.85, tone: 0.4, mix: 0.5 }, 'A big, dark room that smears everything into one long wash.'],
+      ],
+      tip: 'Turn Match volume on: swells are quieter than picked notes, and you want to compare the sound, not the level.',
+      whatIfs: [
+        { id: 'no-swell', label: 'No swell', note: 'Every note now starts with the click of the pick. Look at the start of each note: in A it ramps up, in B it jumps.',
+          chain: [['delay', { time: 450, feedback: 0.5, mix: 0.4, character: 0.6 }], ['reverb', { decay: 0.85, tone: 0.4, mix: 0.5 }]] },
+        { id: 'clean-echoes', label: 'Clean echoes', note: 'The same echoes with Character at zero: every repeat stays bright and exact instead of getting darker. Switch to the Tone view to see the extra treble.',
+          chain: [['swell', { rise: 400, sensitivity: -40 }], ['delay', { time: 450, feedback: 0.5, mix: 0.4, character: 0 }], ['reverb', { decay: 0.85, tone: 0.4, mix: 0.5 }]] },
+      ],
+    },
+    {
+      id: 'eighties', group: 'Techniques', title: 'Lush 80s clean', short: '80s clean',
+      summary: 'A shimmering clean sound: chorus for width, a short echo and a little reverb.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play clean chords or arpeggios and let them ring.',
+      chain: [
+        ['comp', { threshold: -24, ratio: 3, attack: 15, release: 200, knee: 6, makeup: 3 }, 'Keeps the clean notes even and helps them ring.'],
+        ['chorus', { rate: 0.8, depth: 0.5, mix: 0.6 }, 'Adds a slightly detuned, slowly wobbling copy of your playing, like two guitars at once. That’s the shimmer.'],
+        ['delay', { time: 380, feedback: 0.25, mix: 0.25 }, 'One or two soft echoes that add depth.'],
+        ['reverb', { decay: 0.5, tone: 0.6, mix: 0.25 }, 'A little room around the sound.'],
+      ],
+      tip: 'Chorus sounds best on clean sounds. In front of heavy distortion it can get wobbly and messy.',
+      whatIfs: [
+        { id: 'no-chorus', label: 'No chorus', note: 'Same echo and reverb without the chorus: a single, narrower guitar.',
+          chain: [['comp', { threshold: -24, ratio: 3, attack: 15, release: 200, knee: 6, makeup: 3 }], ['delay', { time: 380, feedback: 0.25, mix: 0.25 }], ['reverb', { decay: 0.5, tone: 0.6, mix: 0.25 }]] },
+        { id: 'fast-chorus', label: 'Fast, deep chorus', note: 'Turned up fast and deep, the chorus becomes a seasick warble. Subtle settings are what make it lush.',
+          chain: [['comp', { threshold: -24, ratio: 3, attack: 15, release: 200, knee: 6, makeup: 3 }], ['chorus', { rate: 4, depth: 1, mix: 0.6 }], ['delay', { time: 380, feedback: 0.25, mix: 0.25 }], ['reverb', { decay: 0.5, tone: 0.6, mix: 0.25 }]] },
+      ],
+    },
+    {
+      id: 'auto-wah', group: 'Techniques', title: 'Funky auto-wah', short: 'Auto-wah', view: 'tone',
+      summary: 'The quacky funk sound: an envelope filter (auto-wah) that opens each time you pick, so every note goes “wow”.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Pick short notes. Picking harder opens the wah wider.',
+      chain: [
+        ['comp', { threshold: -28, ratio: 4, attack: 8, release: 120, knee: 6, makeup: 6 }, 'Evens out your picking, so the wah opens about the same amount on every note.'],
+        ['wah', { mode: 1, position: 0.5, sensitivity: 16, speed: 1.5, resonance: 6 }, 'Follows your picking: each pick opens the filter and it closes as the note fades. That sweep is the “quack”. In the Tone view, watch the peak jump right on each pick.'],
+      ],
+      tip: 'For a classic rocking wah instead, set Mode to “Rocks by itself” and slow the speed down.',
+      whatIfs: [
+        { id: 'held', label: 'Wah held still', note: 'The same filter parked in one spot: a nasal, honky sound with no movement. Players call this a “cocked wah”.',
+          chain: [['comp', { threshold: -28, ratio: 4, attack: 8, release: 120, knee: 6, makeup: 6 }], ['wah', { mode: 0, position: 0.55, sensitivity: 16, speed: 1.5, resonance: 6 }]] },
+        { id: 'no-comp', label: 'No compressor', note: 'Without the compressor, loud picks open the wah wide and soft ones barely move it, so the quack comes and goes.',
+          chain: [['wah', { mode: 1, position: 0.5, sensitivity: 16, speed: 1.5, resonance: 6 }]] },
+      ],
+    },
+    {
+      id: 'phaser', group: 'Techniques', title: 'Slow phaser swirl', short: 'Phaser', view: 'tone',
+      summary: 'A slow, swirling sweep that makes a simple part move: a classic 70s texture.',
+      source: { kind: 'guitar', noise: -60 },
+      play: 'Play steady chords or a riff and listen for the slow whoosh.',
+      chain: [
+        ['drive', { drive: 8, mix: 0.5 }, 'A bit of grit gives the phaser more to sweep through.'],
+        ['phaser', { rate: 0.5, depth: 0.7, feedback: 0.4 }, 'Cuts moving notches into the sound. In the Tone view you can see the dips slide back and forth.'],
+      ],
+      tip: 'Slow speeds sound smooth and spacious; fast speeds sound bubbly and dramatic.',
+      whatIfs: [
+        { id: 'fast', label: 'Fast phaser', note: 'Sped up, the slow swirl becomes a bubbly, underwater warble.',
+          chain: [['drive', { drive: 8, mix: 0.5 }], ['phaser', { rate: 4, depth: 0.7, feedback: 0.4 }]] },
+        { id: 'no-phaser', label: 'No phaser', note: 'Just the drive: the same notes, standing still.',
+          chain: [['drive', { drive: 8, mix: 0.5 }]] },
+      ],
+    },
   ];
   const toneById = id => TONES.find(tone => tone.id === id);
 
@@ -629,6 +830,15 @@
     octave: 'Adds a note an octave below or above what you play.',
     harm: 'Adds harmony notes above or below what you play.',
     delay: 'Repeats what you play, like an echo.',
+    boost: 'Clean extra volume. Before a drive it means more crunch; after it, just louder.',
+    dist: 'Clips the wave flat for a heavy, even crunch.',
+    eq: 'Turns bass, mids and treble up or down.',
+    wah: 'A moving peak in the sound that says “wah”.',
+    chorus: 'Adds a slightly wobbling copy, like two guitars playing together.',
+    phaser: 'Sweeps moving notches through the sound for a swirling whoosh.',
+    trem: 'Pulses the volume up and down.',
+    swell: 'Fades each note in, hiding the pick attack.',
+    reverb: 'Adds the sound of a room ringing on after each note.',
   };
 
   // Your own sounds, kept on this device. A board you built is never lost:
@@ -783,6 +993,7 @@
     const tone = value.startsWith('tone:') && toneById(value.slice(5));
     if (tone?.whatIfs.length) fillSlot('B', 'whatif:' + tone.id + ':' + tone.whatIfs[0].id);
     if (activeBank !== 'A') switchBank('A');
+    if (tone?.view) setView(tone.view);
     changed();
     refreshSlots();
     const label = tone ? tone.title : heroSelect.selectedOptions[0].textContent;
@@ -936,6 +1147,10 @@
       }
       const { ctx, w, h } = fit(canvas);
       ctx.clearRect(0, 0, w, h);
+      if (state.view === 'tone') {
+        drawSpectrum(ctx, w, h, before, after, 'journey:' + id, false);
+        continue;
+      }
       const cols = Math.max(1, Math.min(220, Math.floor(w)));
       const step = w / cols;
       // Square-root scale: notes read as separate notes, while quiet echo
@@ -949,6 +1164,106 @@
   }
   onBoardChange = renderJourney;
   refreshSlots();
+
+  /* Loudness or Tone: what the scope and the step-by-step show. */
+  function setView(view) {
+    state.view = view;
+    try { localStorage.setItem('tonelab-view', view); } catch {}
+    document.querySelectorAll('.view-toggle button').forEach(button => {
+      button.classList.toggle('on', button.dataset.view === view);
+      button.setAttribute('aria-pressed', String(button.dataset.view === view));
+    });
+    document.body.classList.toggle('tone-view', view === 'tone');
+    document.getElementById('view-hint').textContent = view === 'tone'
+      ? 'Tone: bass on the left, treble on the right. Grey is before the pedal, black after.'
+      : 'Loudness over the last moments. Grey is before the pedal, black after.';
+    spectrumMemory.clear();
+    state.dirty = true;
+  }
+  document.querySelectorAll('.view-toggle').forEach(group => group.addEventListener('click', e => {
+    const button = e.target.closest('[data-view]');
+    if (button) setView(button.dataset.view);
+  }));
+
+  /* Tone view: how much bass, mids and treble there is (a spectrum),
+   * from the last ~85 ms of each signal, smoothed so it reads steadily. */
+  const FFT_N = 2048, SPEC_BINS = 140, F_LO = 60, F_HI = 10000, SPEC_LO = -90, SPEC_HI = -6;
+  const fftRe = new Float64Array(FFT_N), fftIm = new Float64Array(FFT_N);
+  const hann = Float64Array.from({ length: FFT_N }, (_, i) => 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (FFT_N - 1)));
+  const fftScale = 2 / hann.reduce((a, b) => a + b, 0);
+  const bitRev = new Uint32Array(FFT_N);
+  for (let i = 0, bits = Math.log2(FFT_N); i < FFT_N; i++) { let r = 0; for (let b = 0; b < bits; b++) r |= ((i >> b) & 1) << (bits - 1 - b); bitRev[i] = r; }
+  const cosT = Float64Array.from({ length: FFT_N / 2 }, (_, k) => Math.cos(2 * Math.PI * k / FFT_N));
+  const sinT = Float64Array.from({ length: FFT_N / 2 }, (_, k) => Math.sin(2 * Math.PI * k / FFT_N));
+  const binEdges = Float64Array.from({ length: SPEC_BINS + 1 }, (_, b) => F_LO * Math.pow(F_HI / F_LO, b / SPEC_BINS) / SR * FFT_N);
+  function fft() {
+    for (let i = 0; i < FFT_N; i++) {
+      const j = bitRev[i];
+      if (j > i) { [fftRe[i], fftRe[j]] = [fftRe[j], fftRe[i]]; [fftIm[i], fftIm[j]] = [fftIm[j], fftIm[i]]; }
+    }
+    for (let size = 2; size <= FFT_N; size *= 2) {
+      const half = size / 2, step = FFT_N / size;
+      for (let i = 0; i < FFT_N; i += size) {
+        for (let j = 0; j < half; j++) {
+          const c = cosT[j * step], sn = sinT[j * step], a = i + j, b = a + half;
+          const tr = fftRe[b] * c + fftIm[b] * sn, ti = fftIm[b] * c - fftRe[b] * sn;
+          fftRe[b] = fftRe[a] - tr; fftIm[b] = fftIm[a] - ti;
+          fftRe[a] += tr; fftIm[a] += ti;
+        }
+      }
+    }
+  }
+  function spectrum(buf) {
+    const start = N - FFT_N;
+    for (let i = 0; i < FFT_N; i++) { fftRe[i] = buf[start + i] * hann[i]; fftIm[i] = 0; }
+    fft();
+    const out = new Float32Array(SPEC_BINS);
+    for (let b = 0; b < SPEC_BINS; b++) {
+      const lo = Math.floor(binEdges[b]), hi = Math.max(lo + 1, Math.ceil(binEdges[b + 1]));
+      let m = 0;
+      for (let k = lo; k < hi; k++) m = Math.max(m, Math.hypot(fftRe[k], fftIm[k]));
+      out[b] = 20 * Math.log10(Math.max(m * fftScale, 1e-9));
+    }
+    return out;
+  }
+  const spectrumMemory = new Map();
+  function smoothedSpectrum(key, buf) {
+    const now = spectrum(buf), prev = spectrumMemory.get(key);
+    if (!prev) { spectrumMemory.set(key, now); return now; }
+    for (let b = 0; b < SPEC_BINS; b++) prev[b] = prev[b] * 0.65 + now[b] * 0.35;
+    return prev;
+  }
+  const BANDS = [['Bass', 60, 250], ['Mids', 250, 2000], ['Treble', 2000, 10000]];
+  function drawSpectrum(ctx, w, h, before, after, key, detailed) {
+    const xf = f => Math.log(f / F_LO) / Math.log(F_HI / F_LO) * w;
+    const top = detailed ? 20 : 13, bottom = detailed ? 18 : 2;
+    const y = db => h - bottom - Math.max(0, Math.min(1, (db - SPEC_LO) / (SPEC_HI - SPEC_LO))) * (h - top - bottom);
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 1;
+    for (const [name, f0, f1] of BANDS) {
+      if (f0 > F_LO) { ctx.beginPath(); ctx.moveTo(Math.round(xf(f0)) + 0.5, 0); ctx.lineTo(Math.round(xf(f0)) + 0.5, h); ctx.stroke(); }
+      ctx.font = (detailed ? '500 11px ' : '500 9.5px ') + C.mono;
+      ctx.fillStyle = C.ink3;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(name.toUpperCase(), (xf(f0) + xf(f1)) / 2, detailed ? 5 : 2);
+    }
+    if (detailed) for (const f of [100, 300, 1000, 3000, 10000]) label(ctx, f >= 1000 ? f / 1000 + 'k' : String(f), Math.min(w - 12, xf(f)), h - 4, C.ink3, 'center');
+    const area = (spec, fill) => {
+      ctx.beginPath();
+      ctx.moveTo(0, h - bottom);
+      for (let b = 0; b < SPEC_BINS; b++) ctx.lineTo((b + 0.5) / SPEC_BINS * w, y(spec[b]));
+      ctx.lineTo(w, h - bottom);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+    };
+    if (before) area(smoothedSpectrum(key + ':in', before), C.ghost);
+    ctx.globalAlpha = 0.85;
+    area(smoothedSpectrum(key + ':out', after), C.ink);
+    ctx.globalAlpha = 1;
+  }
+  setView(state.view);
 
   function reserveBoardHeight() {
     const card = orderList.firstElementChild;
@@ -1334,6 +1649,10 @@
   function drawScope() {
     const { ctx, w, h, dpr } = fit(scopeEl);
     ctx.clearRect(0, 0, w, h);
+    if (state.view === 'tone') {
+      drawSpectrum(ctx, w, h, scopeInput, scopeOutput, 'scope', true);
+      return;
+    }
     const mid = h / 2;
     const half = (h / 2) * 0.88;
     const y = (v) => mid - amp(v) * half;

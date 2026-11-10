@@ -34,7 +34,8 @@
     </section>
 
     <section class="journey" aria-labelledby="journey-title">
-      <header class="journey-head"><h2 id="journey-title">Step by step</h2><span id="journey-slot"></span></header>
+      <header class="journey-head"><h2 id="journey-title">Step by step</h2><div class="segmented view-toggle" role="group" aria-label="Show"><button data-view="level" class="on" aria-pressed="true">Loudness</button><button data-view="tone" aria-pressed="false">Tone</button></div></header>
+      <p class="journey-meta"><span id="journey-slot"></span> · <span id="view-hint"></span></p>
       <p id="journey-play" class="journey-play"></p>
       <ol id="journey-steps" class="journey-steps" aria-label="Your signal, pedal by pedal"></ol>
       <div id="whatif-box" class="whatif-box">
@@ -63,6 +64,7 @@
         <span id="audio-status" role="status">Synthesized guitar</span>
       </div>
       <div class="lab-tools">
+        <div class="segmented view-toggle" role="group" aria-label="Show"><button data-view="level" class="on" aria-pressed="true">Loudness</button><button data-view="tone" aria-pressed="false">Tone</button></div>
         <label>Inspect <select id="inspect-point"><option value="">Full chain</option></select></label>
         <button id="toggle-meters" aria-expanded="false">Show meters</button>
         <span id="scope-caption">Guitar input → full chain output</span>

@@ -4,15 +4,16 @@ See how audio effects change a waveform, live.
 
 Tonelab generates a test signal (guitar plucks, with an adjustable noise floor), runs it through an effect chain and draws the dry input (grey) and the processed output (ink) on top of each other.
 
-**Effects so far**
+**Effects** (16, each with its own settings and outline after a classic pedal of its kind)
 
-- **Noise gate**: threshold, attack, hold, release, range
-- **Compressor**: threshold, ratio, attack, release, knee, makeup
-- **Overdrive**: drive, dry/wet mix
-- **Fuzz**: fuzz, tone, level (hard asymmetric clipping that squares the wave)
-- **Octave**: dry, octave down (flip-flop divider), octave up (full-wave rectifier)
-- **Harmonizer**: two voices (±12 semitones), mix, window (delay-line pitch shifter that searches for the best-matching splice point)
-- **Delay**: time, feedback, dry/wet mix
+- **Dynamics:** noise gate (ISP Decimator), compressor (MXR Dyna Comp), boost (Xotic EP Booster), volume swell (Ernie Ball volume pedal, automatic)
+- **Gain:** overdrive (Ibanez Tube Screamer), distortion (ProCo RAT), fuzz (Dallas Arbiter Fuzz Face)
+- **Tone:** EQ with bass, mids, mid point and treble (Boss GE-7, sliders follow the curve), wah that is held still, follows your picking (auto-wah / envelope filter) or rocks by itself (Dunlop Cry Baby)
+- **Pitch:** octave (Electro-Harmonix POG), harmonizer (DigiTech Whammy)
+- **Modulation:** chorus (Electro-Harmonix Small Clone), phaser (MXR Phase 90), tremolo (Boss TR-2)
+- **Time:** delay with a Character knob from clean digital to dark analog-style repeats (Boss DD-3), reverb (Electro-Harmonix Holy Grail)
+
+**Loudness or Tone.** The scope and the step-by-step can show loudness over time, or tone: how much bass, mids and treble there is (a spectrum, bass on the left). Tone is the view for EQ, wah, phaser and chorus.
 
 Each pedal card is drawn as the outline of a classic pedal of its kind (Decimator, Dyna Comp, Tube Screamer, Fuzz Face, POG, Whammy, DD-3), and its knobs and faders follow the current settings. A cable runs from Input through every pedal in processing order to Output, wrapping with the rows. The page behind a settings sheet or dialog stays still while it's open.
 
@@ -26,7 +27,7 @@ The gate and compressor settings show transfer curves (input level → output le
 
 ## I want to sound like…
 
-The page starts with **I want to sound like…**: pick a famous sound (The Edge, Hendrix, Gilmour) or a technique (Endless, clean echo) and it's built on the board in A. Its first **What if…** goes into B: the same sound with one change, such as the echo on the beat, the compressor before the gate, or the fuzz before the octave.
+The page starts with **I want to sound like…**: pick a famous sound (The Edge, Hendrix, Gilmour) or a technique (clean echo, boost into overdrive, tight metal rhythm, surf tremolo and reverb, ambient swells, lush 80s clean, funky auto-wah, slow phaser swirl) and it's built on the board in A. Its first **What if…** goes into B: the same sound with one change, such as the echo on the beat, the compressor before the gate, or the fuzz before the octave.
 
 - **A and B** each have their own picker: what-ifs, *Same as A/B*, any sound, or your own. *Match volume* keeps the comparison fair.
 - **Step by step** shows your guitar, then each pedal in order with what it does in plain words, and the signal after it, drawn live from the same chain you hear. Pedals that differ from the other slot are marked, and a box explains what B changes.
