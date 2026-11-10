@@ -13,7 +13,6 @@
   const PRE = PRE_SECONDS * SR;
   const N = VIEW + PRE;
   const LEVEL_WINDOW = Math.round(0.03 * SR); // window for the "current level" dot
-  const JOURNEY_VIEW = Math.round(1.5 * SR);  // the step-by-step waveforms show the last 1.5 s
 
   const css = getComputedStyle(document.documentElement);
   const color = (name) => css.getPropertyValue(name).trim();
@@ -71,6 +70,8 @@
   const inspectByBank = { A: '', B: '' };
   let rebuildOrder = false;
   let metersOpen = false;
+  // Audio state, declared early: the chain strip and inspector read it.
+  let audioContext, audioNode, listening = false, monitor = 'wet';
   let matchVolume = true;
   let saveTimer;
   let storageAvailable = true;
@@ -243,7 +244,21 @@
     speed.value = tempo;
     speed.disabled = free;
     speedOut.textContent = free ? 'not used' : tempo + ' BPM';
+    const label = patternSelect.selectedOptions[0]?.textContent || 'Free picking';
+    document.getElementById('dock-playing-text').textContent = free ? label : label + ' · ' + tempo;
   }
+  // The player's settings (pattern, speed, volume) open above the dock.
+  const dockPanel = document.getElementById('dock-panel');
+  const dockToggles = [document.getElementById('dock-playing'), document.getElementById('dock-volume')];
+  function setDockPanel(open) {
+    dockPanel.hidden = !open;
+    dockToggles.forEach(b => b.setAttribute('aria-expanded', String(open)));
+  }
+  dockToggles.forEach(b => b.onclick = () => setDockPanel(dockPanel.hidden));
+  document.addEventListener('click', e => {
+    if (!dockPanel.hidden && !e.target.closest('.player-dock')) setDockPanel(false);
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !dockPanel.hidden) setDockPanel(false); });
   patternSelect.onchange = () => {
     source.setKind(patternSelect.value);
     // Start at the pattern's own tempo; Speed changes it from there.
@@ -301,7 +316,7 @@
     const [pedal] = state.chain.splice(from, 1);
     state.chain.splice(to, 0, pedal);
     edited();
-    if (settings.open) syncMoveButtons();
+    if (!settings.hidden) syncMoveButtons();
     announce(pedalName(pedal) + ' moved to position ' + (to + 1));
   }
   function syncMoveButtons() {
@@ -309,9 +324,41 @@
     document.getElementById('pedal-earlier').disabled = index <= 0;
     document.getElementById('pedal-later').disabled = index === state.chain.length - 1;
   }
+  // Editing happens inline, under the chain and the scope, so the live
+  // waveform stays in view while you turn the knobs.
+  function closeSettings() {
+    settings.hidden = true;
+    selectedId = null;
+    document.body.classList.remove('editing');
+    renderStrip();
+  }
+  function showPedalNotes(pedal) {
+    document.getElementById('pedal-note').textContent = noteFor(pedal, state.chain);
+    const other = otherBank(activeBank);
+    const diff = differences(state.chain, banks[other], other).byPedal.get(pedal.id);
+    const diffEl = document.getElementById('pedal-diff');
+    diffEl.textContent = diff || '';
+    diffEl.hidden = !diff;
+  }
+  let savedTimer;
+  function flashSaved() {
+    const el = document.getElementById('pedal-saved');
+    el.textContent = '✓ Saved';
+    clearTimeout(savedTimer);
+    savedTimer = setTimeout(() => { el.textContent = ''; }, 1600);
+  }
   function openSettings(pedal) {
+    const wasOpen = !settings.hidden && selectedId === pedal.id;
     selectedId = pedal.id;
     state.dirty = true;
+    // Selecting a pedal points the scope at it: grey going in, black coming out.
+    if (inspectId !== pedal.id) {
+      inspectId = pedal.id;
+      inspectByBank[activeBank] = pedal.id;
+      resetScopeHistory();
+      refreshInspect();
+      if (listening) sendAudioState();
+    }
     document.getElementById('settings-title').textContent = pedalName(pedal);
     document.getElementById('settings-state').textContent = pedal.enabled ? 'Enabled' : 'Bypassed';
     settings.dataset.type = pedal.type;
@@ -338,6 +385,8 @@
         const art = orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-art');
         if (art) art.innerHTML = pedalArt(pedal);
         markEdited();
+        showPedalNotes(pedal);
+        flashSaved();
       });
     };
     showAll.onchange = () => { pedal.advanced = showAll.checked; saveBoard(); renderControls(); };
@@ -345,8 +394,12 @@
     document.getElementById('pedal-curve-wrap').hidden = !['gate', 'comp'].includes(pedal.type);
     document.getElementById('effect-explanation').textContent = types[pedal.type].explanation;
     trails.gate.length = trails.comp.length = 0;
+    showPedalNotes(pedal);
     syncMoveButtons();
-    if (!settings.open) settings.showModal();
+    settings.hidden = false;
+    document.body.classList.add('editing');
+    renderStrip();
+    if (!wasOpen) requestAnimationFrame(() => settings.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
   }
   function addPedal(type, params, model) {
     const pedal = createPedal(type, params, model);
@@ -359,8 +412,7 @@
     const index = state.chain.findIndex(p => p.id === id);
     if (index < 0) return;
     const [pedal] = state.chain.splice(index, 1);
-    selectedId = null;
-    settings.close();
+    closeSettings();
     edited();
     document.getElementById('add-effect').focus({ preventScroll: true });
     announce(pedalName(pedal) + ' removed');
@@ -416,7 +468,12 @@
     };
     document.getElementById('effect-choices').appendChild(button);
   }
-  for (const dialog of [settings, library]) {
+  settings.querySelector('.sheet-close').onclick = () => {
+    const id = selectedId;
+    closeSettings();
+    journeyList.querySelector('[data-edit="' + id + '"]')?.focus({ preventScroll: true });
+  };
+  for (const dialog of [library]) {
     dialog.querySelector('.sheet-close').onclick = () => dialog.close();
     dialog.addEventListener('click', e => { if (e.target === dialog) {
       const r = dialog.getBoundingClientRect();
@@ -439,37 +496,73 @@
   document.getElementById('pedal-earlier').onclick = () => moveEffect(selectedId, state.chain.findIndex(p => p.id === selectedId) - 1);
   document.getElementById('pedal-later').onclick = () => moveEffect(selectedId, state.chain.findIndex(p => p.id === selectedId) + 1);
 
-  const inspectSelect = document.getElementById('inspect-point');
   function refreshInspect() {
     if (inspectId && !state.chain.some(p => p.id === inspectId)) {
       inspectId = '';
       resetScopeHistory();
     }
-    inspectSelect.replaceChildren(new Option('Full chain', ''));
-    state.chain.forEach(pedal => inspectSelect.add(new Option(pedalName(pedal), pedal.id)));
-    inspectSelect.value = inspectId;
     const pedal = state.chain.find(p => p.id === inspectId);
-    document.querySelector('#monitor [data-value="dry"]').textContent = pedal ? 'Before pedal' : 'Dry input';
-    document.querySelector('#monitor [data-value="wet"]').textContent = pedal ? 'After pedal' : 'With effects';
-    document.getElementById('scope-caption').textContent = pedal ? pedalName(pedal) + ' · input → output' : 'Guitar input → full chain output';
+    document.querySelector('#monitor [data-value="dry"]').textContent = pedal ? 'Before' : 'Dry guitar';
+    document.querySelector('#monitor [data-value="wet"]').textContent = pedal ? 'After' : 'With pedals';
+    const name = pedal && kindName(pedal).toLowerCase();
+    document.getElementById('scope-caption').textContent = !pedal
+      ? (monitor === 'dry' || !state.chain.length ? 'Your guitar' : 'What you hear')
+      : (monitor === 'dry' ? 'Before the ' : 'After the ') + name;
+    renderStrip();
     document.querySelector('.sw-in').parentElement.lastChild.textContent = pedal ? 'Pedal input' : 'Guitar input';
     document.querySelector('.sw-out').parentElement.lastChild.textContent = pedal ? 'Pedal output' : 'Chain output';
     state.dirty = true;
   }
-  inspectSelect.onchange = () => {
-    inspectId = inspectSelect.value;
-    resetScopeHistory();
-    refreshInspect();
-  };
-  document.getElementById('inspect-pedal').onclick = () => {
-    inspectId = selectedId;
-    resetScopeHistory();
-    refreshInspect();
-    settings.close();
-    // The page scroll is restored when the dialog closes; scroll after that.
-    demo.open = true;
-    requestAnimationFrame(() => scopeEl.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-  };
+  document.getElementById('inspect-pedal').onclick = () => { if (selectedId) listenTo(selectedId, 'wet'); };
+
+  /* The chain strip: In, each pedal, Out, with a listening point (dot)
+   * between them. Dot k is the signal after k pedals. */
+  const strip = document.getElementById('chain-strip');
+  function dotPoint(k) {
+    const chain = state.chain;
+    if (k === 0) return { pedal: '', monitor: 'dry', label: 'Your guitar' };
+    if (k === chain.length) return { pedal: '', monitor: 'wet', label: 'What you hear' };
+    return { pedal: chain[k - 1].id, monitor: 'wet', label: 'After the ' + kindName(chain[k - 1]).toLowerCase() };
+  }
+  function activeDot() {
+    const chain = state.chain;
+    const index = chain.findIndex(p => p.id === inspectId);
+    if (index < 0) return monitor === 'dry' ? 0 : chain.length;
+    return monitor === 'dry' ? index : index + 1;
+  }
+  function renderStrip() {
+    const chain = state.chain;
+    const on = activeDot();
+    const dot = k => {
+      const point = dotPoint(k);
+      return `<li class="strip-node"><button type="button" class="strip-dot${k === on ? ' on' : ''}" data-dot="${k}" aria-pressed="${k === on}" aria-label="Listen here: ${point.label}"><i></i></button></li>`;
+    };
+    const items = ['<li class="strip-end">In</li>', dot(0)];
+    chain.forEach((pedal, i) => {
+      items.push(`<li class="strip-pedal${pedal.enabled ? '' : ' off'}${pedal.id === selectedId && !settings.hidden ? ' selected' : ''}" data-type="${pedal.type}">` +
+        `<button type="button" data-strip-edit="${pedal.id}" aria-label="Tweak ${pedalName(pedal)}">${artSvg(pedal, 'strip-art')}<span>${kindName(pedal)}</span></button></li>`);
+      if (i < chain.length - 1) items.push(dot(i + 1));
+    });
+    if (chain.length) items.push(dot(chain.length));
+    items.push('<li class="strip-end">Out</li>');
+    strip.innerHTML = items.join('');
+    // Keep the selected pedal (or the listening point) in view on narrow screens.
+    const focus = strip.querySelector('.strip-pedal.selected') || strip.querySelector('.strip-dot.on');
+    if (focus && strip.scrollWidth > strip.clientWidth) {
+      const box = focus.getBoundingClientRect(), outer = strip.getBoundingClientRect();
+      if (box.left < outer.left || box.right > outer.right) strip.scrollLeft += box.left - outer.left - (outer.width - box.width) / 2;
+    }
+  }
+  strip.addEventListener('click', e => {
+    const dotButton = e.target.closest('[data-dot]');
+    if (dotButton) {
+      const point = dotPoint(Number(dotButton.dataset.dot));
+      listenTo(point.pedal, point.monitor);
+      return;
+    }
+    const edit = e.target.closest('[data-strip-edit]');
+    if (edit) openSettings(state.chain.find(p => p.id === edit.dataset.stripEdit));
+  });
   document.getElementById('toggle-meters').onclick = e => {
     metersOpen = !metersOpen;
     e.target.setAttribute('aria-expanded', String(metersOpen));
@@ -477,20 +570,21 @@
     state.dirty = true;
   };
   function syncBanks() {
-    document.querySelectorAll('#compare-bank button').forEach(button => {
+    document.querySelectorAll('#compare-bank [data-bank], #dock-bank [data-bank]').forEach(button => {
       button.classList.toggle('on', button.dataset.bank === activeBank);
       button.setAttribute('aria-pressed', String(button.dataset.bank === activeBank));
     });
     document.getElementById('copy-bank').textContent = activeBank === 'A' ? 'Copy A to B' : 'Copy B to A';
   }
   document.getElementById('compare-bank').onclick = e => switchBank(e.target.closest('[data-bank]')?.dataset.bank);
+  document.getElementById('dock-bank').onclick = e => switchBank(e.target.closest('[data-bank]')?.dataset.bank);
   function switchBank(bank) {
     if (!bank || bank === activeBank) return;
     banks[activeBank] = clone(state.chain);
     activeBank = bank;
     state.chain = clone(banks[activeBank]);
     rebuildOrder = true;
-    selectedId = null;
+    if (!settings.hidden) closeSettings();
     inspectId = inspectByBank[bank];
     selectScopeHistory();
     changed();
@@ -1353,11 +1447,8 @@
       : '';
     document.getElementById('journey-play').textContent = ((tone || lessonTone())?.play || 'Your guitar, before any pedals.') + playsNote;
     const items = [];
-    // Each step has a Play button: it plays the signal at that point in the chain.
-    const wave = (stage, label, big, listen) => `<li class="journey-wave${big ? ' journey-out' : ''}"><div class="journey-wave-top"><span class="journey-wave-label">${label}</span>` +
-      `<button type="button" class="journey-listen" data-pedal="${listen.pedal}" data-monitor="${listen.monitor}" aria-label="Play: ${label}">▶ Play</button></div>` +
-      `<canvas data-stage="${stage}" aria-label="${label} waveform" role="img"></canvas></li>`;
-    items.push(wave('input', 'Your guitar', chain.length === 0, { pedal: '', monitor: 'dry' }));
+    // Each step has a Hear button: it plays, and shows on the scope, the
+    // signal right after that pedal.
     chain.forEach((pedal, i) => {
       const info = { name: kindName(pedal) };
       const chips = '<span class="chip-model">' + modelOf(pedal).name + '</span>' + controlsFor(pedal).slice(0, 3).map(c => `<span>${c.label} ${controlValue(pedal, c)}</span>`).join('');
@@ -1365,10 +1456,8 @@
       items.push(`<li class="journey-step${pedal.enabled ? '' : ' off'}${diff ? ' differs' : ''}" data-type="${pedal.type}">` +
         artSvg(pedal, 'journey-art') +
         `<div><button class="journey-name" data-edit="${pedal.id}">${i + 1} · ${info.name}</button><div class="journey-chips">${chips}</div>` +
-        `<p class="journey-note"></p>${diff ? `<p class="journey-diff">${diff}</p>` : ''}</div></li>`);
-      const last = i === chain.length - 1;
-      items.push(wave(pedal.id, last ? 'What you hear' : 'After the ' + info.name.toLowerCase(), last,
-        last ? { pedal: '', monitor: 'wet' } : { pedal: pedal.id, monitor: 'wet' }));
+        `<p class="journey-note"></p>${diff ? `<p class="journey-diff">${diff}</p>` : ''}` +
+        `<button type="button" class="journey-listen" data-pedal="${pedal.id}" data-monitor="wet" aria-label="Hear after the ${info.name.toLowerCase()}">▶ Hear after this</button></div></li>`);
     });
     journeyList.innerHTML = items.join('');
     // Notes are plain text: set them as text, not markup.
@@ -1377,6 +1466,11 @@
       button.onclick = () => openSettings(state.chain.find(p => p.id === button.dataset.edit));
     });
     if (!chain.length) journeyList.insertAdjacentHTML('beforeend', '<li class="journey-empty">No pedals yet: you hear your guitar just as it is. Pick a sound above or add pedals below.</li>');
+    renderStrip();
+    if (!settings.hidden) {
+      const open = selected();
+      if (open) showPedalNotes(open); else closeSettings();
+    }
 
     // What B changes: the what-if's explanation, or a plain list of differences.
     const box = document.getElementById('whatif-box');
@@ -1406,7 +1500,6 @@
   // pedal's output (wet), "your guitar" means the dry input, and an empty
   // pedal id means the whole chain. The audio starts if it isn't already.
   async function listenTo(pedal, monitorChoice) {
-    demo.open = true;
     inspectId = pedal;
     inspectByBank[activeBank] = pedal;
     monitor = monitorChoice;
@@ -1424,37 +1517,6 @@
     const button = e.target.closest('.journey-listen');
     if (button) listenTo(button.dataset.pedal, button.dataset.monitor);
   });
-  function drawJourney() {
-    const box = journeyList.getBoundingClientRect();
-    if (box.bottom < 0 || box.top > innerHeight) return; // off screen
-    const chain = visualChains[activeBank];
-    for (const canvas of journeyList.querySelectorAll('canvas')) {
-      const id = canvas.dataset.stage;
-      let before = null, after = input;
-      if (id !== 'input') {
-        const entry = chain.instances.get(id);
-        const pedal = state.chain.find(p => p.id === id);
-        if (!entry || !pedal || !entry.input) continue;
-        before = entry.input;
-        after = pedal.enabled ? entry.out : entry.input;
-      }
-      const { ctx, w, h } = fit(canvas);
-      ctx.clearRect(0, 0, w, h);
-      if (state.view === 'tone') {
-        drawSpectrum(ctx, w, h, before, after, 'journey:' + id, false);
-        continue;
-      }
-      const cols = Math.max(1, Math.min(220, Math.floor(w)));
-      const step = w / cols;
-      // Square-root scale: notes read as separate notes, while quiet echo
-      // tails and hiss still show.
-      const y = v => h / 2 - Math.sign(v) * Math.sqrt(Math.abs(v)) * (h / 2) * 0.9;
-      // The last 1.5 s, zoomed in so single notes and echoes are visible.
-      const from = N - JOURNEY_VIEW, length = JOURNEY_VIEW - ENV_HALF;
-      if (before) fillWave(ctx, columns(before, cols, from, length), cols, step, y, C.ghost);
-      fillWave(ctx, columns(after, cols, from, length), cols, step, y, C.ink);
-    }
-  }
   onBoardChange = renderJourney;
   refreshSlots();
 
@@ -1922,11 +1984,6 @@
   }
 
   const scopeEl = document.getElementById('scope');
-  // The demo folds away; remember whether it was open.
-  try { if (localStorage.getItem('tonelab-demo') === 'closed') demo.open = false; } catch {}
-  demo.addEventListener('toggle', () => {
-    try { localStorage.setItem('tonelab-demo', demo.open ? 'open' : 'closed'); } catch {}
-  });
   const lanesEl = document.getElementById('lanes');
 
   function timeLines(ctx, w, h, withLabels) {
@@ -1962,7 +2019,7 @@
     const marks =
       state.scale === 'lin'
         ? [0.25, 0.5, 0.75, 1].map((v) => [v, fmt(v, 2)])
-        : [0, -12, -24, -36, -48, -60].map((d) => [dbToLin(d), fmt(d, 0) + ' dB']);
+        : (h < 160 ? [0, -24] : [0, -12, -24, -36, -48, -60]).map((d) => [dbToLin(d), fmt(d, 0) + ' dB']);
     ctx.strokeStyle = C.grid;
     for (const [v, text] of marks) {
       for (const s of [1, -1]) {
@@ -2149,7 +2206,7 @@
   const readEl = document.getElementById('pedal-readout');
   function drawCurves() {
     const pedal = selected();
-    if (!settings.open || !pedal || !['gate', 'comp'].includes(pedal.type)) return;
+    if (settings.hidden || !pedal || !['gate', 'comp'].includes(pedal.type)) return;
     const entry = visualChain.instances.get(pedal.id);
     if (!entry) return;
     const p = pedal.params;
@@ -2164,7 +2221,6 @@
   }
 
   // Audio runs off the main thread. Its source samples also drive the scope.
-  let audioContext, audioNode, listening = false, monitor = 'wet';
   let audioStarting = false;
   const listen = document.getElementById('listen');
   const audioStatus = document.getElementById('audio-status');
@@ -2173,7 +2229,7 @@
     audioNode?.port.postMessage({ type: 'settings', state: { playing: state.playing, speed: state.speed, chain: state.chain }, kind: source.kind, tempo: source.tempo,
       noiseDb: source.noiseDb, banks, activeBank, inspectId, inspectByBank, matchVolume, monitor, volume: Number(document.getElementById('volume').value) });
   }
-  segmented('monitor', v => { monitor = v; sendAudioState(); });
+  segmented('monitor', v => { monitor = v; resetScopeHistory(); refreshInspect(); sendAudioState(); });
   document.getElementById('volume').oninput = sendAudioState;
   listen.onclick = async () => {
     if (audioStarting) return;
@@ -2214,14 +2270,16 @@
         sendAudioState();
         await audioContext.resume();
       }
-      listen.textContent = listening ? 'Stop listening' : 'Listen';
+      listen.setAttribute('aria-label', listening ? 'Pause' : 'Play');
       listen.setAttribute('aria-pressed', String(listening));
-      audioStatus.textContent = listening ? 'Listening · switch between dry input and effects' : 'Synthesized guitar';
+      listen.classList.toggle('playing', listening);
+      audioStatus.textContent = listening ? 'Listening · tap a dot on the chain to hear that point' : 'Synthesized guitar';
     } catch (error) {
       listening = false;
       if (audioContext) await audioContext.close().catch(() => {});
       audioContext = audioNode = null;
-      audioStatus.textContent = 'Audio could not start. Tap Listen to try again in Safari or Chrome.';
+      audioStatus.textContent = 'Audio could not start. Tap Play to try again in Safari or Chrome.';
+      dockPanel.hidden = false;
     } finally { audioStarting = false; listen.disabled = false; }
   };
 
@@ -2250,7 +2308,6 @@
       state.dirty = false;
     }
     drawScope();
-    drawJourney();
     drawLanes();
     drawCurves();
     requestAnimationFrame(frame);

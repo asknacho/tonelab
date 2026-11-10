@@ -17,9 +17,9 @@ Tonelab generates a test signal (guitar plucks, with an adjustable noise floor),
 
 Each pedal card is drawn as the outline of a classic pedal of its kind (Decimator, Dyna Comp, Tube Screamer, Fuzz Face, POG, Whammy, DD-3), and its knobs and faders follow the current settings. A cable runs from Input through every pedal in processing order to Output, wrapping with the rows. The page behind a settings sheet or dialog stays still while it's open.
 
-Tap **Listen** to hear the synthesized source, then compare **Dry input** with **With effects**. Guitar uses a plucked-string model, rather than a recorded sample. Audio starts only after a user gesture and has a volume control. The internal 24 kHz signal is resampled for playback.
+The player docked at the bottom of the screen has **Play**, what's **Playing** (pattern, speed and volume), and an **A/B** switch. It stays put while you scroll. Compare **Dry guitar** with **With pedals**, or **Before** and **After** a single pedal. Guitar uses a plucked-string model, rather than a recorded sample. Audio starts only after a user gesture and has a volume control. The internal 24 kHz signal is resampled for playback.
 
-Use **Add effect** to build any combination, including repeated effects. Every pedal has its own settings, processor state, and on/off control. Tap a pedal to bypass it; **Edit** opens its settings sheet, where you can duplicate it, remove it, or move it earlier/later.
+Use **Add effect** to build any combination, including repeated effects. Every pedal has its own settings, processor state, and on/off control. Tap a pedal to bypass it; **Edit** opens its settings inline, under the chain and the live scope, where you can duplicate it, remove it, or move it earlier/later.
 
 Drag the handles to change processing order on desktop or mobile, or use the arrow keys while a handle is focused. The pedal follows your pointer; drag it outside the dashed board and it turns red with an ✕, and letting go removes it. An Undo bar (or Ctrl/⌘+Z) puts the last removed pedal back for 8 seconds. Compact pedals wrap onto additional rows as the board grows; position numbers show the processing order. Input and Output stay outside the dashed board. Removing every pedal gives a clean dry signal.
 
@@ -31,7 +31,8 @@ The page starts with **I want to sound like…**: pick a famous sound (The Edge,
 
 - **Finding a sound.** The box is searchable: type part of a name (accents are ignored) and use the arrow keys and Enter, or tap an item. Songs and techniques are both searched.
 - **A and B** each have their own picker: what-ifs, *Same as A/B*, any sound, or your own. *Match volume* keeps the comparison fair.
-- **Step by step** shows your guitar, then each pedal in order with what it does in plain words, and the signal after it, drawn live from the same chain you hear. Pedals that differ from the other slot are marked, and a box explains what B changes.
+- **Your signal** is one workspace. A chain strip runs In → each pedal → Out, with a dot between pedals: tap a dot to hear and see the signal at that point on the one live scope (Loudness or Tone). Tap a pedal to tweak it in an inline editor that keeps the chain and a smaller scope pinned above it, so you watch the waveform change as you turn the knobs. Edits save as you go, and status messages (like Undo) appear at the top of the screen, never over the controls.
+- **Step by step** explains each pedal in order in plain words, with a **Hear after this** button. Pedals that differ from the other slot are marked, and a box explains what B changes.
 - **The lab and pedalboard** below work as before. Changing a loaded sound marks it *(edited)*; **Save as my sound** keeps it under *My sounds*. A board you built is never lost: before a sound replaces it, it's kept as *My last board*. Loading a sound can also be undone.
 
 Sounds live in the `TONES` list in `js/app.js`: each has the playing pattern and noise floor, a short "how to play it", each pedal as `[type, settings, what it does]`, a tip, and its what-ifs (each with a chain and an explanation). The what-ifs were checked against Tonelab's own effects (for example, compressor-before-gate really does leave the gate open on hiss).
@@ -46,7 +47,7 @@ Each built-in sound plays a pattern in the style of its feel, at a typical tempo
 
 ## Pedal models
 
-Each effect supports its full set of controls (`js/dsp.js`), and each classic pedal is a *model* that shows only some of them, under that pedal's own names (`js/pedals.js`). Pick a model in the settings sheet; the card outline changes to match. **Show all controls** reveals the rest for any model. Switch controls (Mode, Clipping, Voicing and so on) appear as tappable options.
+Each effect supports its full set of controls (`js/dsp.js`), and each classic pedal is a *model* that shows only some of them, under that pedal's own names (`js/pedals.js`). Pick a model in the pedal editor; the card outline changes to match. **Show all controls** reveals the rest for any model. Switch controls (Mode, Clipping, Voicing and so on) appear as tappable options.
 
 Every control defaults to the effect's original behaviour, so boards and sounds saved before models existed still sound the same. The Looper (a utility, not an effect) isn't included.
 
