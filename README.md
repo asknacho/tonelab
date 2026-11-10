@@ -2,7 +2,7 @@
 
 See how audio effects change a waveform, live.
 
-Tonelab generates a test signal (guitar plucks, a drum loop or a speech-like voice, with an adjustable noise floor), runs it through an effect chain and draws the dry input (grey) and the processed output (ink) on top of each other.
+Tonelab generates a test signal (guitar plucks, with an adjustable noise floor), runs it through an effect chain and draws the dry input (grey) and the processed output (ink) on top of each other.
 
 **Effects so far**
 
@@ -33,4 +33,4 @@ python3 -m http.server 8000
 - `js/app.js`: controls, effect chain and canvas drawing
 - `js/audio-worklet.js`: continuous audio rendering off the main thread
 
-Space toggles pause.
+The waveform uses a fixed decibel scale and normal playback speed.

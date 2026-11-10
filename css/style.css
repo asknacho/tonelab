@@ -57,36 +57,6 @@ h1 {
 
 .lede { margin: 0; color: var(--ink-2); max-width: 52ch; }
 
-.chain {
-  list-style: none;
-  display: flex;
-  align-items: center;
-  margin: 0;
-  padding: 0;
-  font: 500 12px/1 var(--mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink-2);
-}
-.chain li {
-  padding: 7px 10px;
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  background: var(--card);
-}
-.chain li + li { margin-left: 22px; position: relative; }
-.chain li + li::before {
-  content: '';
-  position: absolute;
-  left: -18px;
-  top: 50%;
-  width: 14px;
-  border-top: 1px solid var(--ink-3);
-}
-.chain .chain-gate { color: var(--gate); border-color: var(--gate); }
-.chain .chain-comp { color: var(--comp); border-color: var(--comp); }
-.chain .off { color: var(--ink-3); border-color: var(--rule); text-decoration: line-through; }
-
 .panel {
   background: var(--card);
   border: 1px solid var(--rule);
@@ -307,7 +277,6 @@ canvas { display: block; width: 100%; }
 @media (max-width: 560px) {
   .masthead, main, .foot { padding-left: 16px; padding-right: 16px; }
   h1 { font-size: 36px; }
-  .chain { flex-wrap: wrap; row-gap: 8px; }
   .scope { height: 240px; }
   .fx-body { grid-template-columns: minmax(0, 1fr); }
   .curve { max-width: 260px; }
@@ -343,3 +312,26 @@ canvas { display: block; width: 100%; }
   #effect-order { display: grid; grid-template-columns: 1fr; }
   #effect-order li > span { flex: 1; }
 }
+
+.chain-editor {
+  border: 2px dashed var(--ghost);
+  border-radius: 0;
+  padding: 24px;
+  min-height: 220px;
+  background: rgba(251, 249, 244, 0.5);
+}
+.chain-editor h2 { font-size: 23px; }
+.chain-editor > p { font-size: 14px; }
+#effect-order { margin: 22px 0 0; }
+#effect-order li.off > span { opacity: 0.5; text-decoration: line-through; }
+.listen-bar { padding-top: 4px; gap: 12px 18px; }
+.noise-control { min-width: 150px; max-width: 190px; }
+#audio-status { flex-basis: 100%; }
+@media (max-width: 560px) {
+  .chain-editor { padding: 18px; min-height: 320px; }
+  .listen-bar { gap: 14px 12px; }
+  .volume, .noise-control { flex: 1; }
+  .noise-control { max-width: none; }
+}
+
+.chain-editor.drag-over { border-color: var(--gate); background: var(--gate-soft); }

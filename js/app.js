@@ -145,10 +145,6 @@
     });
   }
 
-  segmented('source', (v) => source.setKind(v));
-  segmented('scale', (v) => (state.scale = v));
-  segmented('speed', (v) => (state.speed = Number(v)));
-
   const noise = document.getElementById('noise');
   const noiseOut = document.getElementById('noise-out');
   noise.addEventListener('input', () => {
@@ -157,28 +153,12 @@
     noiseOut.textContent = fmtDb(source.noiseDb);
   });
 
-  const playBtn = document.getElementById('play');
-  function setPlaying(on) {
-    state.playing = on;
-    playBtn.textContent = on ? 'Pause' : 'Play';
-    playBtn.setAttribute('aria-label', on ? 'Pause' : 'Play');
-    state.dirty = true;
-  }
-  playBtn.addEventListener('click', () => setPlaying(!state.playing));
-  document.addEventListener('keydown', (e) => {
-    if (e.code !== 'Space') return;
-    const tag = e.target.tagName;
-    if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-    e.preventDefault();
-    setPlaying(!state.playing);
-  });
-
   function bindSwitch(id, key, fx) {
     const input = document.getElementById(id);
     const sync = () => {
       state[key] = input.checked;
       document.getElementById('fx-' + fx).classList.toggle('off', !input.checked);
-      document.querySelector('.chain [data-fx="' + fx + '"]').classList.toggle('off', !input.checked);
+      document.querySelector('[data-effect="' + fx + '"]')?.classList.toggle('off', !input.checked);
       document.querySelector('.lg-' + fx)?.classList.toggle('hidden', !input.checked);
       state.dirty = true;
     };
@@ -187,16 +167,12 @@
   }
   bindSwitch('gate-on', 'gateOn', 'gate');
   bindSwitch('comp-on', 'compOn', 'comp');
-  for (const id of ['drive', 'delay']) {
-    const chip = document.createElement('li');
-    chip.dataset.fx = id;
-    chip.textContent = id === 'drive' ? 'Overdrive' : 'Delay';
-    document.querySelector('.chain').insertBefore(chip, document.querySelector('.chain li:last-child'));
-    bindSwitch(id + '-on', id + 'On', id);
-  }
+  bindSwitch('drive-on', 'driveOn', 'drive');
+  bindSwitch('delay-on', 'delayOn', 'delay');
 
   const names = { gate: 'Noise gate', comp: 'Compressor', drive: 'Overdrive', delay: 'Delay' };
   const orderList = document.getElementById('effect-order');
+  const dropArea = document.querySelector('.chain-editor');
   function moveEffect(id, to) {
     const from = state.order.indexOf(id);
     to = Math.max(0, Math.min(state.order.length - 1, to));
@@ -213,6 +189,7 @@
       if (!item) {
         item = document.createElement('li');
         item.dataset.effect = id;
+        item.classList.toggle('off', !state[id + 'On']);
         item.innerHTML = `<button class="drag-handle" aria-label="Drag ${names[id]} or use left and right arrow keys">⠿</button><span>${names[id]}</span><button class="move-before" aria-label="Move ${names[id]} earlier">←</button><button class="move-after" aria-label="Move ${names[id]} later">→</button>`;
         item.querySelector('.move-before').onclick = () => moveEffect(id, state.order.indexOf(id) - 1);
         item.querySelector('.move-after').onclick = () => moveEffect(id, state.order.indexOf(id) + 1);
@@ -230,17 +207,24 @@
         };
         handle.onpointermove = e => {
           if (!handle.hasPointerCapture(e.pointerId)) return;
-          const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-effect]');
+          const hit = document.elementFromPoint(e.clientX, e.clientY);
+          const target = hit?.closest('[data-effect]');
+          dropArea.classList.toggle('drag-over', dropArea.contains(hit));
           orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
           if (target && target !== item) target.classList.add('drop-target');
         };
         handle.onpointerup = e => {
-          const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-effect]');
+          if (!handle.hasPointerCapture(e.pointerId)) return;
+          const hit = document.elementFromPoint(e.clientX, e.clientY);
+          const target = hit?.closest('[data-effect]');
           if (target && target !== item) moveEffect(id, state.order.indexOf(target.dataset.effect));
+          else if (!target && dropArea.contains(hit)) moveEffect(id, state.order.length - 1);
+          dropArea.classList.remove('drag-over');
           item.classList.remove('dragging');
           orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
         };
         handle.onpointercancel = () => {
+          dropArea.classList.remove('drag-over');
           item.classList.remove('dragging');
           orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
         };
@@ -249,8 +233,7 @@
       item.querySelector('.move-after').disabled = index === state.order.length - 1;
       orderList.appendChild(item);
       document.querySelector('.effects').appendChild(document.getElementById('fx-' + id));
-      const chain = document.querySelector('.chain');
-      chain.insertBefore(chain.querySelector('[data-fx="' + id + '"]'), chain.lastElementChild);
+
     });
   }
   renderOrder();
@@ -677,7 +660,7 @@
       }
       listen.textContent = listening ? 'Stop listening' : 'Listen';
       listen.setAttribute('aria-pressed', String(listening));
-      audioStatus.textContent = listening ? 'Listening · switch between dry input and effects' : 'Sound off · tap Listen to hear the signal';
+      audioStatus.textContent = listening ? 'Listening · switch between dry input and effects' : 'Synthesized guitar';
     } catch (error) {
       listening = false;
       if (audioContext) await audioContext.close().catch(() => {});

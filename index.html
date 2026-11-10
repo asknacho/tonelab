@@ -16,54 +16,21 @@
       <h1>Tonelab</h1>
       <p class="lede">See what audio effects do to a signal. The grey shape is the dry input; the ink is what comes out.</p>
     </div>
-    <ol class="chain" aria-label="Signal chain">
-      <li>Source</li>
-      <li class="chain-gate" data-fx="gate">Noise gate</li>
-      <li class="chain-comp" data-fx="comp">Compressor</li>
-      <li>Output</li>
-    </ol>
   </header>
 
   <main>
     <section class="panel scope-panel">
-      <div class="toolbar">
-        <div class="field">
-          <span class="field-label">Source</span>
-          <div class="segmented" id="source" role="radiogroup">
-            <button data-value="guitar" class="on">Guitar</button>
-            <button data-value="drums">Drums</button>
-            <button data-value="voice">Voice</button>
-          </div>
-        </div>
-        <label class="field">
-          <span class="field-label">Noise floor <output id="noise-out">−48 dB</output></span>
-          <input type="range" id="noise" min="-80" max="-20" step="1" value="-48" />
-        </label>
-        <div class="field">
-          <span class="field-label">Scale</span>
-          <div class="segmented" id="scale" role="radiogroup">
-            <button data-value="db" class="on">Decibels</button>
-            <button data-value="lin">Linear</button>
-          </div>
-        </div>
-        <div class="field">
-          <span class="field-label">Speed</span>
-          <div class="segmented" id="speed" role="radiogroup">
-            <button data-value="0.25">¼×</button>
-            <button data-value="0.5">½×</button>
-            <button data-value="1" class="on">1×</button>
-          </div>
-        </div>
-        <button class="play" id="play" aria-label="Pause">Pause</button>
-      </div>
-
       <div class="listen-bar">
         <button class="listen-button" id="listen" aria-pressed="false">Listen</button>
         <div class="segmented" id="monitor" aria-label="Listen to">
           <button data-value="dry">Dry input</button><button data-value="wet" class="on">With effects</button>
         </div>
         <label class="volume">Volume <input id="volume" type="range" min="0" max="0.8" step="0.01" value="0.2" /></label>
-        <span id="audio-status" role="status">Synthesized guitar · tap Listen to hear the signal</span>
+        <label class="field noise-control">
+          <span class="field-label">Noise floor <output id="noise-out">−48 dB</output></span>
+          <input type="range" id="noise" min="-80" max="-20" step="1" value="-48" />
+        </label>
+        <span id="audio-status" role="status">Synthesized guitar</span>
       </div>
       <div class="scope-wrap">
         <canvas id="scope" class="scope"></canvas>
@@ -79,8 +46,8 @@
     </section>
 
     <section class="chain-editor" aria-labelledby="chain-title">
-      <h2 id="chain-title">Build your signal chain</h2>
-      <p>Drag the handles to reorder effects, or use the arrow buttons. Try delay before the gate to hear the echoes get cut short.</p>
+      <h2 id="chain-title">Effect chain</h2>
+      <p>Drag and drop effects here to change their order.</p>
       <ol id="effect-order" aria-label="Effect order"></ol>
       <p id="order-status" class="order-status" role="status" aria-live="polite"></p>
     </section>
