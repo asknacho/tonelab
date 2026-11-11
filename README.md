@@ -41,7 +41,9 @@ The **Playing** selector switches the synthesized guitar between free picking an
 
 ## What the guitar plays
 
-Choose **Bring your own…** under **Your sound** in the pattern selector to open a local audio file. Recordings are decoded and mixed to mono at the pedal engine's sample rate entirely in the browser, then loop through the same A/B effects and live graph. Play/Pause works as usual; tempo and synthetic noise are disabled so the recording keeps its original speed and background noise. Switching presets keeps your recording active. Choose a built-in pattern to return to the demo, or **Bring your own…** again to replace the file.
+Use the **Bring your own recording** audio-file icon beside the pattern selector to open a local audio file. Recordings are decoded and mixed to mono at the pedal engine's sample rate entirely in the browser, then loop through the same A/B effects and live graph. Play/Pause works as usual; tempo and synthetic noise are disabled so the recording keeps its original speed and background noise. Switching presets keeps your recording active. Choose a built-in pattern to return to the demo, or the audio-file button again to replace the file.
+
+On iPhone and iPad, export a Voice Memo with **Share → Save to Files**, then select it with the audio-file button. Safari does not support receiving recordings directly from the Voice Memos share sheet.
 
 The recording is held only in memory. Reloading clears it, and saved sounds and shared links contain pedal settings, never the audio or its filename. Supported formats depend on the browser decoder; try WAV, MP3, or M4A. Files are limited to 50 MB and 10 minutes.
 

@@ -240,9 +240,7 @@
   }));
   const recordingGroup = document.createElement('optgroup');
   recordingGroup.label = 'Your sound';
-  const bringYourOwn = new Option('Bring your own…', 'bring-your-own');
-  recordingGroup.append(bringYourOwn);
-  patternSelect.append(recordingGroup);
+  const bringYourOwn = document.getElementById('bring-your-own');
   const recordingFile = document.getElementById('recording-file');
   let recordingLoad = 0;
   const sendRecording = () => {
@@ -250,12 +248,15 @@
     const samples = localRecording.samples.slice();
     audioNode.port.postMessage({ type: 'recording', samples }, [samples.buffer]);
   };
+  bringYourOwn.onclick = () => recordingFile.click();
   recordingFile.addEventListener('cancel', syncPattern);
   recordingFile.onchange = async () => {
     const file = recordingFile.files[0];
     if (!file) { syncPattern(); return; }
     const load = ++recordingLoad;
-    bringYourOwn.textContent = 'Opening recording…';
+    bringYourOwn.disabled = true;
+    bringYourOwn.setAttribute('aria-busy', 'true');
+    bringYourOwn.title = 'Opening recording…';
     try {
       if (file.size > 50 * 1024 * 1024) throw new Error('Choose a recording smaller than 50 MB.');
       const OfflineContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
@@ -275,6 +276,7 @@
       let option = recordingGroup.querySelector('[value="recording"]');
       if (!option) { option = new Option('', 'recording'); recordingGroup.prepend(option); }
       option.textContent = 'Your recording · ' + file.name;
+      if (!recordingGroup.isConnected) patternSelect.append(recordingGroup);
       input.fill(0);
       source.generate(input, 0, N);
       source.recordingPosition = 0;
@@ -291,7 +293,12 @@
       syncPattern();
       window.alert(error.message?.startsWith('Choose a recording') ? error.message : 'This audio file could not be opened. Try a WAV, MP3, or M4A recording.');
     } finally {
-      if (load === recordingLoad) { bringYourOwn.textContent = 'Bring your own…'; recordingFile.value = ''; }
+      if (load === recordingLoad) {
+        bringYourOwn.disabled = false;
+        bringYourOwn.removeAttribute('aria-busy');
+        bringYourOwn.title = 'Bring your own recording';
+        recordingFile.value = '';
+      }
     }
   };
   // Free picking has no tempo; every other pattern follows the Speed slider.
@@ -363,13 +370,10 @@
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') activePlayerControl?.close(); });
   patternSelect.onchange = () => {
-    if (patternSelect.value === 'bring-your-own') {
-      syncPattern();
-      recordingFile.click();
-      return;
-    }
     recordingLoad++;
-    bringYourOwn.textContent = 'Bring your own…';
+    bringYourOwn.disabled = false;
+    bringYourOwn.removeAttribute('aria-busy');
+    bringYourOwn.title = 'Bring your own recording';
     source.setKind(patternSelect.value);
     if (source.kind === 'recording') {
       input.fill(0);

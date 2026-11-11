@@ -952,3 +952,15 @@ button.icon-button, .dock-bar #copy-bank.icon-button, .undo-toast.home button.ic
 #inspect-pedal.icon-button { display: inline-flex; width: 44px; }
 .guide-navigation { justify-content: space-between; }
 .sheet-actions .icon-button { flex: none; }
+
+.dock-source { flex: 1 1 190px; min-width: 0; display: flex; align-items: center; }
+.dock-source .dock-pattern { flex: 1 1 0; min-width: 0; }
+#bring-your-own { margin-right: 4px; border: 0; background: transparent; color: var(--ink); }
+@media (min-width: 1024px) {
+  .dock-source { flex: 1 1 0; }
+}
+@media (max-width: 700px) {
+  .dock-source { flex: 1 1 calc(100% - 190px); }
+  .dock-source .dock-pattern { padding-inline: 8px 2px; }
+  #bring-your-own { margin-right: 0; }
+}
