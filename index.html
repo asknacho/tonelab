@@ -57,9 +57,10 @@
       <p class="chain-hint visually-hidden">Select a pedal to edit · use On/Off to bypass · drag to reorder</p>
       <div class="signal-path">
         <svg id="cables" class="cables" aria-hidden="true"></svg>
-        <span class="endpoint endpoint-input">Input <i aria-hidden="true"></i></span>
+        <button type="button" class="endpoint endpoint-input" aria-label="Listen to dry guitar" title="Listen to dry guitar" aria-pressed="false">Input <i aria-hidden="true"></i></button>
         <div class="drop-area" aria-label="Effect drop area"><ol id="effect-order" aria-label="Effects, processed in numbered order"></ol><p id="empty-chain" hidden></p></div>
-        <span class="endpoint endpoint-output"><i aria-hidden="true"></i>Output</span>
+        <button type="button" class="endpoint endpoint-output" aria-label="Listen to full chain output" title="Listen to full chain output" aria-pressed="true"><i aria-hidden="true"></i>Output</button>
+        <div class="listening-points" role="group" aria-label="Listen between pedals"></div>
       </div>
       <details class="board-noise"><summary>Input noise</summary><label class="field noise-control"><span class="field-label">Simulated noise <output id="noise-out">−48 dB</output></span><input type="range" id="noise" aria-label="Simulated input noise" min="-80" max="-20" step="1" value="-48" /><span class="noise-hint">Add background hiss to try the noise gate.</span></label></details>
       <p id="order-status" class="order-status visually-hidden" role="status" aria-live="polite"></p>
