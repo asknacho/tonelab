@@ -55,7 +55,7 @@ Each built-in sound plays a pattern in the style of its feel, at a typical tempo
 
 ## Pedal models
 
-Each effect supports its full set of controls (`js/dsp.js`), and each classic pedal is a *model* that shows only some of them, under that pedal's own names (`js/pedals.js`). Pick a model in the pedal editor; the card outline changes to match. **Show all controls** reveals the rest for any model. Switch controls (Mode, Clipping, Voicing and so on) appear as tappable options.
+Each effect supports its full set of controls (`js/dsp.js`), and each classic pedal is a *model* that shows only some of them, under that pedal's own names (`js/pedals.js`). Pick a model directly above the controls in the pedal editor on every screen size; the card outline changes to match. **More pedal settings** reveals the rest for any model, without a second disclosure. Switch controls (Mode, Clipping, Voicing and so on) appear as tappable options.
 
 Every control defaults to the effect's original behaviour, so boards and sounds saved before models existed still sound the same. The Looper (a utility, not an effect) isn't included.
 
@@ -84,3 +84,12 @@ node --test tests/dsp.test.cjs
 ```
 
 Checks cover independent duplicate compressors, bypass and empty chains, processor cleanup, streamed audio continuity, effect ordering, octave and harmonizer pitch accuracy, and fuzz clipping.
+
+
+## UX review updates
+
+The player compares **Dry / A / B**. **Analyse** expands the waveform tools and intermediate listening points; the waveform stays above the pedalboard and pauses with playback. Peak, RMS and headroom readouts describe the selected signal before the listening volume control.
+
+Save opens an inline name form, New board uses an in-app confirmation, and loading a sound remains reversible with Undo. Share opens a dialog with Copy feedback and a compressed, self-contained URL; legacy board links still open. Audio files stay local.
+
+The four-step Quick start follows the main loop. Effects are grouped by chain stage. Phone and tablet editors remain inline and include a selected-pedal preview. See `DESIGN_DECISIONS.md` for the accepted responsive behavior and review proposals still open.

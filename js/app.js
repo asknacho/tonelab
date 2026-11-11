@@ -2,7 +2,7 @@
  * Tonelab UI: builds the controls, runs the signal through the effect chain
  * every frame and draws the scope, the gain lanes and the transfer curves.
  */
-(function (TL) {
+(async function (TL) {
   'use strict';
 
   const { SR, dbToLin, linToDb, Source, EffectChain, compCurve } = TL;
@@ -57,7 +57,7 @@
 
   let savedView = 'level';
   try { savedView = localStorage.getItem('tonelab-view') === 'tone' ? 'tone' : 'level'; } catch {}
-  const state = { view: savedView, playing: true, speed: 1, scale: 'db', chain: ['gate', 'comp', 'drive', 'delay'].map(type => createPedal(type)), dirty: true };
+  const state = { view: savedView, playing: false, speed: 1, scale: 'db', chain: ['gate', 'comp', 'drive', 'delay'].map(type => createPedal(type)), dirty: true };
   const clone = value => JSON.parse(JSON.stringify(value));
   const PATTERNS = Object.keys(TL.PATTERNS);
   const storageKey = 'tonelab-board-v1';
@@ -114,10 +114,13 @@
     const saved = localStorage.getItem(storageKey);
     if (saved) restoreBoard(JSON.parse(saved));
   } catch { storageAvailable = false; }
-  if (location.hash.startsWith('#board=')) {
+  if (/^#boardz?=/.test(location.hash)) {
     try {
-      const encoded = location.hash.slice(7).replace(/-/g, '+').replace(/_/g, '/');
-      restoreBoard(JSON.parse(atob(encoded)));
+      const compressed = location.hash.startsWith('#boardz=');
+      const encoded = location.hash.slice(compressed ? 8 : 7).replace(/-/g, '+').replace(/_/g, '/');
+      const raw = atob(encoded);
+      const json = compressed ? await new Response(new Blob([Uint8Array.from(raw, c => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('deflate'))).text() : (() => { try { return decodeURIComponent(escape(raw)); } catch { return raw; } })();
+      restoreBoard(JSON.parse(json));
       restoreMessage = 'Shared pedalboard loaded';
       history.replaceState(null, '', location.pathname + location.search);
     } catch { restoreMessage = 'This shared link is invalid. Your saved board was kept.'; }
@@ -163,7 +166,7 @@
         row.className = 'param param-switch';
         row.innerHTML = '<span class="param-top"><span class="param-name"></span></span><div class="segmented switch-options" role="group"></div><span class="param-hint"></span>';
         row.querySelector('.param-name').textContent = c.label;
-        row.querySelector('.param-hint').textContent = spec.hint || '';
+        row.querySelector('.param-hint').textContent = pedal.type === 'reverb' && c.key === 'mode' ? c.options.map(([, name]) => ({ Room: 'Room is small and close', Hall: 'Hall is spacious', Plate: 'Plate is bright and dense', Spring: 'Spring has a bouncy tail', Shimmer: 'Shimmer rings an octave up' }[name] || name)).join('; ') + '.' : spec.hint || '';
         const group = row.querySelector('.switch-options');
         group.setAttribute('aria-label', c.label);
         const sync = () => {
@@ -278,6 +281,7 @@
   };
   async function loadRecording(file) {
     const load = ++recordingLoad;
+    document.getElementById('recording-error').hidden = true;
     bringYourOwn.disabled = true;
     bringYourOwn.setAttribute('aria-disabled', 'true');
     bringYourOwn.setAttribute('aria-busy', 'true');
@@ -316,7 +320,9 @@
     } catch (error) {
       if (load !== recordingLoad) return;
       syncPattern();
-      window.alert(error.message?.startsWith('Choose a recording') ? error.message : 'This audio file could not be opened. Try a WAV, MP3, or M4A recording.');
+      const errorBox = document.getElementById('recording-error');
+      errorBox.querySelector('span').textContent = error.message?.startsWith('Choose a recording') ? error.message : 'This audio file could not be opened. Try a WAV, MP3, or M4A recording.';
+      errorBox.hidden = false;
     } finally {
       if (load === recordingLoad) {
         bringYourOwn.disabled = false;
@@ -335,7 +341,7 @@
     speed.value = tempo;
     speed.disabled = free;
     speedOut.textContent = free ? 'not used' : tempo + ' BPM';
-    document.getElementById('dock-playing-text').textContent = free ? '--' : tempo + ' BPM';
+    document.getElementById('dock-playing-text').textContent = free ? (source.kind === 'recording' ? 'Original' : 'Free time') : tempo + ' BPM';
     const tempoButton = document.getElementById('dock-playing');
     tempoButton.disabled = free;
     tempoButton.title = free ? (source.kind === 'recording' ? 'Recording plays at its original speed' : 'No tempo for free picking') : 'Adjust tempo';
@@ -450,7 +456,7 @@
   const dropArea = document.querySelector('.drop-area');
   const settings = document.getElementById('effect-settings');
   const library = document.getElementById('effect-library');
-  const mobileEditor = matchMedia('(max-width: 700px), (max-width: 1023px) and (max-height: 500px)');
+  const mobileEditor = matchMedia('(max-width: 1023px)');
   const guideDialog = document.getElementById('pedal-guide-dialog');
   const guideContent = document.getElementById('inspector-guide');
   let guideSelected = false;
@@ -467,12 +473,11 @@
     document.getElementById('inspector-controls').hidden = false;
     document.getElementById('tab-controls').setAttribute('aria-pressed', 'true');
     document.getElementById('tab-guide').setAttribute('aria-pressed', 'false');
+    document.getElementById('inspector-controls').before(modelRow);
     if (mobileEditor.matches) {
-      moreSettings.querySelector('summary').after(modelRow);
       moreSettings.append(pedalNote, pedalDiff);
       document.getElementById('mobile-guide-content').append(guideContent);
     } else {
-      document.getElementById('inspector-controls').before(modelRow);
       document.getElementById('inspect-pedal').before(pedalNote, pedalDiff);
       settings.append(guideContent);
     }
@@ -556,7 +561,6 @@
       document.getElementById('guide-settings').open = false;
     }
     selectedId = pedal.id;
-    state.dirty = true;
     // Editing a pedal leaves the explicitly chosen listening point unchanged.
     document.getElementById('settings-title').textContent = pedalName(pedal);
     document.getElementById('settings-state').textContent = pedal.enabled ? 'Enabled' : 'Bypassed';
@@ -572,26 +576,26 @@
       openSettings(pedal);
       announce(pedalName(pedal) + ' is now a ' + modelOf(pedal).name);
     };
-    const showAll = document.getElementById('show-all');
-    const hidden = types[pedal.type].specs.length - modelOf(pedal).controls.length;
-    showAll.checked = !!pedal.advanced;
-    document.getElementById('show-all-label').textContent = 'Show all controls (' + hidden + ' more)';
-    showAll.parentElement.hidden = hidden <= 0;
+    pedal.advanced = moreSettings.open;
     const container = document.getElementById('pedal-params');
     const renderControls = () => {
       container.replaceChildren();
       buildControls(container, pedal, () => {
         const art = orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-art');
         if (art) art.innerHTML = pedalArt(pedal);
+        document.getElementById('selected-pedal-preview').innerHTML = artSvg(pedal, 'editor-pedal-art');
         markEdited();
         showPedalNotes(pedal);
         flashSaved();
       });
     };
-    showAll.onchange = () => { pedal.advanced = showAll.checked; saveBoard(); renderControls(); };
+    moreSettings.ontoggle = () => {
+      pedal.advanced = moreSettings.open;
+      renderControls();
+    };
     renderControls();
     document.getElementById('pedal-curve-wrap').hidden = !['gate', 'comp'].includes(pedal.type);
-    document.getElementById('effect-explanation').textContent = types[pedal.type].explanation;
+    document.getElementById('selected-pedal-preview').innerHTML = artSvg(pedal, 'editor-pedal-art');
     trails.gate.length = trails.comp.length = 0;
     showPedalNotes(pedal);
     syncMoveButtons();
@@ -615,7 +619,7 @@
         const top = settings.getBoundingClientRect().top;
         const available = window.innerHeight - document.querySelector('.player-dock').getBoundingClientRect().height;
         if (mobileEditor.matches) {
-          if (top > available - 180) window.scrollBy({ top: top - Math.max(16, available - 240), behavior: 'smooth' });
+          if (top < 0 || top > available - 240) settings.scrollIntoView({ block: 'start', behavior: 'smooth' });
         } else {
           const playerHeight = document.querySelector('.player-dock').getBoundingClientRect().height;
           if (top < playerHeight + 12 || top > window.innerHeight - 180) {
@@ -668,14 +672,12 @@
     undoAction = null;
     document.getElementById('undo-text').textContent = '';
   }
-  // Normally at the top of the screen; while a pedal is open for editing it
-  // sits inline in the editor, so it never covers the pinned chain or scope.
-  const undoHome = undoToast.parentElement;
-  // Its home is the status line under the header; when that is scrolled out
-  // of view it floats at the top of the screen instead.
+  // Keep notifications outside workspace layout and stacking contexts.
+  const undoHome = document.body;
   function placeUndo() {
     if (undoToast.parentElement !== undoHome) undoHome.appendChild(undoToast);
-    undoToast.classList.add('inline', 'home');
+    undoToast.classList.remove('inline', 'home');
+    undoToast.classList.add('floating');
   }
   addEventListener('scroll', () => { if (!undoToast.hidden) placeUndo(); }, { passive: true });
   function offerUndo(text, restore) {
@@ -701,17 +703,27 @@
   });
   document.querySelector('.board-add-tile')?.addEventListener('click', () => library.showModal());
   document.getElementById('strip-add').onclick = () => library.showModal();
-  for (const [type, info] of Object.entries(types)) {
+  const effectGroups = [['Dynamics', ['gate', 'comp']], ['Drive', ['boost', 'drive', 'dist', 'fuzz']], ['Pitch', ['octave', 'harm']], ['Filter', ['eq', 'wah']], ['Modulation', ['chorus', 'phaser', 'trem']], ['Time', ['swell', 'delay', 'reverb']]];
+  for (const [name, effectTypes] of effectGroups) {
+    const section = document.createElement('section');
+    section.className = 'effect-group';
+    const heading = document.createElement('h3');
+    heading.textContent = name;
+    section.append(heading);
+    document.getElementById('effect-choices').append(section);
+    for (const type of effectTypes) {
+    const info = types[type];
     const button = document.createElement('button');
     button.dataset.type = type;
     const preview = { type, model: info.models[0].id, params: P.modelDefaults(type, info.models[0].id) };
-    button.innerHTML = artSvg(preview, 'choice-art') + '<strong>' + info.name + '</strong><span class="choice-text">' + info.explanation.split('.')[0] + '.</span><span class="choice-model">' + info.models.map(m => m.name).join(' · ') + '</span><span class="choice-add" aria-hidden="true">+</span>';
+    button.innerHTML = artSvg(preview, 'choice-art') + '<strong>' + (type === 'chorus' ? 'Chorus / flanger' : info.name) + '</strong><span class="choice-text">' + info.explanation.split('.')[0] + '.</span><span class="choice-model">' + info.models.map(m => m.name).join(' · ') + '</span><span class="choice-add" aria-hidden="true">+</span>';
     button.onclick = () => {
       const pedal = addPedal(type);
       library.close();
       openSettings(pedal);
     };
-    document.getElementById('effect-choices').appendChild(button);
+    section.appendChild(button);
+  }
   }
   settings.querySelector('.sheet-close').onclick = () => dismissSettings();
   function dismissSettings(restoreFocus = true) {
@@ -733,6 +745,7 @@
     const rect = player.getBoundingClientRect();
     const style = document.documentElement.style;
     style.setProperty('--player-height', rect.height + 'px');
+    style.setProperty('--player-bottom', Math.max(12, rect.bottom + 12) + 'px');
     style.setProperty('--quick-start-bottom', Math.max(0, innerHeight - rect.top + 12) + 'px');
     style.setProperty('--quick-start-available', Math.max(0, rect.top - 32) + 'px');
   };
@@ -782,15 +795,16 @@
     renderStrip();
     document.querySelector('.sw-in').parentElement.lastChild.textContent = pedal ? 'Pedal input' : 'Guitar input';
     document.querySelector('.sw-out').parentElement.lastChild.textContent = pedal ? 'Pedal output' : 'Chain output';
-    document.querySelector('.sw-in').parentElement.hidden = monitor !== 'dry';
+    document.querySelector('.sw-in').parentElement.hidden = false;
     document.querySelector('.sw-out').parentElement.hidden = monitor === 'dry';
-    document.querySelector('.sw-in').style.background = C.ink;
+    document.querySelector('.sw-in').style.background = C.ink3;
     document.querySelectorAll('#monitor button').forEach(button => {
       const on = button.dataset.value === monitor;
       button.classList.toggle('on', on);
       button.setAttribute('aria-pressed', String(on));
     });
     syncListeningPoints();
+    syncBanks();
     state.dirty = true;
   }
   document.getElementById('inspect-pedal').onclick = () => { if (selectedId) listenTo(selectedId, 'wet'); };
@@ -854,18 +868,12 @@
   const scopePreferences = { compact: false, roomy: true };
   function setScopeExpanded(expanded) {
     document.querySelector('.scope-disclosure').classList.toggle('scope-expanded', expanded);
+    document.body.classList.toggle('analysing', expanded);
     const button = document.getElementById('expand-scope');
     button.setAttribute('aria-expanded', String(expanded));
     button.setAttribute('aria-label', expanded ? 'Collapse waveform' : 'Expand waveform');
     button.title = expanded ? 'Collapse waveform' : 'Expand waveform';
-    button.textContent = expanded ? '⤡' : '⤢';
-    if (!expanded) {
-      monitor = 'wet';
-      setView('level');
-      refreshInspect();
-      updateAuditionButtons();
-      sendAudioState();
-    }
+    button.textContent = expanded ? 'Analyse −' : 'Analyse +';
     state.dirty = true;
   }
   document.getElementById('expand-scope').onclick = () => {
@@ -882,15 +890,29 @@
   };
   function syncBanks() {
     document.querySelectorAll('#compare-bank [data-bank], #dock-bank [data-bank]').forEach(button => {
-      button.classList.toggle('on', button.dataset.bank === activeBank);
-      button.setAttribute('aria-pressed', String(button.dataset.bank === activeBank));
+      button.classList.toggle('on', button.dataset.bank === activeBank && (button.closest('#compare-bank') || monitor !== 'dry' || inspectId));
+      button.setAttribute('aria-pressed', String(button.dataset.bank === activeBank && (button.closest('#compare-bank') || monitor !== 'dry' || inspectId)));
     });
+    const dry = document.querySelector('#dock-bank [data-dry]');
+    dry.classList.toggle('on', monitor === 'dry' && !inspectId);
+    dry.setAttribute('aria-pressed', String(monitor === 'dry' && !inspectId));
+    document.getElementById('copy-bank-label').textContent = activeBank === 'A' ? 'A → B' : 'B → A';
     const copy = document.getElementById('copy-bank');
     copy.title = activeBank === 'A' ? 'Copy A to B' : 'Copy B to A';
     copy.setAttribute('aria-label', copy.title);
   }
   document.getElementById('compare-bank').onclick = e => switchBank(e.target.closest('[data-bank]')?.dataset.bank);
-  document.getElementById('dock-bank').onclick = e => switchBank(e.target.closest('[data-bank]')?.dataset.bank);
+  document.getElementById('dock-bank').onclick = e => {
+    const button = e.target.closest('button');
+    if (!button) return;
+    if (button.dataset.bank) switchBank(button.dataset.bank);
+    inspectId = '';
+    inspectByBank[activeBank] = '';
+    monitor = button.hasAttribute('data-dry') ? 'dry' : 'wet';
+    refreshInspect();
+    updateAuditionButtons();
+    sendAudioState();
+  };
   function switchBank(bank) {
     if (!bank || bank === activeBank) return;
     const selectedIndex = settings.hidden ? -1 : state.chain.findIndex(p => p.id === selectedId);
@@ -927,26 +949,34 @@
     saveBoard();
   };
   document.getElementById('share-board').onclick = async () => {
-    const encoded = btoa(JSON.stringify(snapshot())).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const json = JSON.stringify(snapshot());
+    let raw = unescape(encodeURIComponent(json)), key = 'board';
+    if (typeof CompressionStream !== 'undefined') {
+      const compressed = await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer();
+      raw = String.fromCharCode(...new Uint8Array(compressed));
+      key = 'boardz';
+    }
     const url = new URL(location.href);
-    url.hash = 'board=' + encoded;
+    url.hash = key + '=' + btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    document.getElementById('share-link').value = url.href;
+    document.getElementById('share-copy-status').textContent = '';
+    document.getElementById('copy-share-link').textContent = 'Copy link';
+    document.getElementById('share-dialog').showModal();
+  };
+  document.getElementById('copy-share-link').onclick = async () => {
+    const field = document.getElementById('share-link');
     try {
-      if (navigator.share && matchMedia('(pointer: coarse)').matches) {
-        await navigator.share({ title: 'ToneLab board', url: url.href });
-        announce('Board shared');
-        return;
-      }
-      await navigator.clipboard.writeText(url.href);
-      announce('Share link copied, including A and B');
-    } catch (error) {
-      if (error?.name === 'AbortError') return;
-      const field = document.getElementById('share-link');
-      field.value = url.href;
-      document.getElementById('share-dialog').showModal();
+      await navigator.clipboard.writeText(field.value);
+      document.getElementById('copy-share-link').textContent = 'Copied';
+      document.getElementById('share-copy-status').textContent = 'Link copied, including A and B';
+    } catch {
+      field.focus();
       field.select();
+      document.getElementById('share-copy-status').textContent = 'Select and copy the link above.';
     }
   };
   document.querySelector('#share-dialog .sheet-close').onclick = () => document.getElementById('share-dialog').close();
+  document.querySelector('#recording-error button').onclick = () => { document.getElementById('recording-error').hidden = true; };
   syncBanks();
 
   /* -------------------------------------------------------------- tones */
@@ -1565,8 +1595,11 @@
     document.getElementById('board-slot').textContent = 'Editing ' + activeBank + ': ' + slotLabel(slots[activeBank]);
     renderJourney();
   }
-  document.getElementById('new-board').onclick = () => {
-    if (!window.confirm('Start from scratch? Your current A and B setups will be lost. Saved sounds will be kept.')) return;
+  const newBoardDialog = document.getElementById('new-board-dialog');
+  document.getElementById('new-board').onclick = () => newBoardDialog.showModal();
+  document.getElementById('cancel-new-board').onclick = newBoardDialog.querySelector('.sheet-close').onclick = () => newBoardDialog.close();
+  document.getElementById('confirm-new-board').onclick = () => {
+    newBoardDialog.close();
     const before = boardState();
     applyBoard({ ...before, A: [], B: [], slots: { A: { kind: 'custom' }, B: { kind: 'custom' } }, active: 'A' });
     closeSettings();
@@ -1578,11 +1611,6 @@
   heroSelect.onchange = () => {
     const value = heroSelect.value;
     if (!value) return;
-    const hasBoardWork = ['A', 'B'].some(bank => slots[bank].kind === 'custom' || slots[bank].edited);
-    if (hasBoardWork && !window.confirm('Loading this sound replaces both A and B, including your current pedal settings. You can undo the change afterward. Continue?')) {
-      refreshSlots();
-      return;
-    }
     const before = boardState();
     fillSlot('A', value);
     const tone = value.startsWith('tone:') && toneById(value.slice(5));
@@ -1641,7 +1669,15 @@
         li.setAttribute('role', 'option');
         li.setAttribute('aria-selected', 'false');
         li.dataset.value = item.value;
-        li.textContent = item.label;
+        const title = document.createElement('span');
+        title.textContent = item.label;
+        li.append(title);
+        const tone = item.value.startsWith('tone:') && toneById(item.value.slice(5));
+        if (tone) {
+          const tag = document.createElement('small');
+          tag.textContent = [...new Set(tone.chain.map(([type]) => types[type.split(':')[0]].short))].slice(0, 3).join(' · ');
+          li.append(tag);
+        }
         li.onmousedown = e => { e.preventDefault(); choose(item.value); };
         list.appendChild(li);
       });
@@ -1652,9 +1688,10 @@
         empty.textContent = 'No sound matches “' + query.trim() + '”. Try another word.';
         list.appendChild(empty);
       }
-      setActive(shown.length ? 0 : -1, false);
+      const current = shown.findIndex(item => item.value === heroSelect.value);
+      setActive(shown.length ? (current >= 0 ? current : 0) : -1, false);
     }
-    function show() { if (!open) { open = true; list.hidden = false; search.setAttribute('aria-expanded', 'true'); } }
+    function show() { if (!open) { open = true; list.hidden = false; search.setAttribute('aria-expanded', 'true'); setActive(active, true); } }
     function hide() {
       open = false;
       list.hidden = true;
@@ -1702,16 +1739,29 @@
     if (select.value === 'current') return;
     pickSound(bank, select.value, select.selectedOptions[0].textContent);
   };
+  const saveForm = document.getElementById('save-sound-form');
+  const soundName = document.getElementById('sound-name');
+  const closeSave = () => { saveForm.hidden = true; document.getElementById('save-tone').focus({ preventScroll: true }); };
   document.getElementById('save-tone').onclick = () => {
-    const suggestion = slots[activeBank].kind === 'custom' ? 'My sound ' + (myTones.filter(t => t.id !== 'my-last-board').length + 1) : slotLabel(slots[activeBank]).replace(' (edited)', '') + ' (mine)';
-    const name = window.prompt('Name this sound', suggestion);
-    if (!name || !name.trim()) return;
-    const entry = { id: 'mine-' + Date.now().toString(36), name: name.trim().slice(0, 60), spec: specOf(state.chain) };
+    soundName.value = slots[activeBank].kind === 'custom' ? 'My sound ' + (myTones.filter(t => t.id !== 'my-last-board').length + 1) : slotLabel(slots[activeBank]).replace(' (edited)', '') + ' (mine)';
+    saveForm.hidden = false;
+    soundName.focus();
+    soundName.select();
+  };
+  document.getElementById('cancel-save').onclick = closeSave;
+  soundName.addEventListener('input', () => soundName.setCustomValidity(''));
+  saveForm.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeSave(); } });
+  saveForm.onsubmit = e => {
+    e.preventDefault();
+    const name = soundName.value.trim();
+    if (!name) { soundName.setCustomValidity('Enter a name for your sound.'); soundName.reportValidity(); return; }
+    const entry = { id: 'mine-' + Date.now().toString(36), name: name.slice(0, 60), spec: specOf(state.chain) };
     myTones = [entry, ...myTones];
     saveMyTones();
     slots[activeBank] = { kind: 'mine', mine: entry.id };
     saveBoard();
     refreshSlots();
+    closeSave();
     announce('Saved as “' + entry.name + '” in My sounds');
   };
 
@@ -1962,14 +2012,10 @@
     if (button) listenTo(button.dataset.pedal, button.dataset.monitor);
   });
   const quickStartSteps = [
-    { target: '#tone-combo', title: 'Pick a sound to explore', copy: 'Choose a familiar tone above. ToneLab builds the pedals for you, so you can start listening right away.' },
-    { target: '#listen', title: 'Press Play and listen', copy: 'Turn up system volume and switch off mute. On iPhone, Silent mode must be off (side switch or Action button), or playback may be silent.' },
-    { target: '#pattern', title: 'Try a different playing pattern', copy: 'Choose single notes, strums, or picking. The same pedals can sound different with a new pattern.' },
-    { target: '#monitor', title: 'Compare dry and effected', copy: 'Switch between the clean input and the full effect chain to hear what changed.' },
-    { target: '#dock-bank', title: 'Switch between A and B', copy: 'A and B hold separate pedalboards. Tap each side to compare two versions of your sound.' },
-    { target: '#effect-order li .pedal-toggle', title: 'Open a pedal', copy: 'Choose a pedal to see its controls and learn what each one changes.' },
-    { target: '#pedal-params input, #pedal-params button', title: 'Change a control and listen', copy: 'Move a control to shape the sound. The tour will take you to the pedal guide next.' },
-    { target: '#tab-guide', title: 'See how to make the effect', copy: 'Open Guide for this pedal’s settings, a listening explanation, and a practical tip.' }
+    { target: '#tone-combo', title: 'Pick a sound', copy: 'Choose a song or technique. A gets the original sound; B gets a variation to explore.' },
+    { target: '#listen', title: 'Press Play', copy: 'Listen to the demo guitar, then try another pattern or upload your own recording.' },
+    { target: '#dock-bank', title: 'Compare Dry, A and B', copy: 'Dry is your guitar without pedals. A and B let you compare two versions at matched volume.' },
+    { target: '#effect-order li .pedal-toggle', title: 'Make it yours', copy: 'Open a pedal and change a control. Guide explains what to listen for and how to play it.' }
   ];
   const quickStartTour = document.getElementById('quick-start-tour');
   let quickStartIndex = 0;
@@ -1979,46 +2025,57 @@
     if (quickStartIndex >= quickStartSteps.length) closeQuickStart();
     else renderQuickStart();
   }
+  function positionQuickStart() {
+    if (quickStartTour.hidden) return;
+    const target = document.querySelector('.quick-start-target');
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const card = quickStartTour.getBoundingClientRect();
+    const player = document.querySelector('.player-dock').getBoundingClientRect();
+    const maxBottom = innerWidth <= 700 ? player.top - 12 : innerHeight - 12;
+    const minTop = innerWidth > 700 && rect.top > player.bottom ? Math.max(12, player.bottom + 12) : 12;
+    const below = rect.bottom + 12;
+    const above = rect.top - card.height - 12;
+    const top = below + card.height <= maxBottom ? below : above >= minTop ? above : Math.max(minTop, maxBottom - card.height);
+    quickStartTour.style.top = Math.max(12, top) + 'px';
+    quickStartTour.style.left = Math.max(12, Math.min(innerWidth - card.width - 12, rect.left)) + 'px';
+  }
   function renderQuickStart() {
     document.querySelectorAll('.quick-start-target').forEach(el => el.classList.remove('quick-start-target'));
     if (quickStartTour.hidden) return;
     sizePlayer();
-    document.body.classList.toggle('quick-start-controls-step', quickStartIndex >= 6);
     const step = quickStartSteps[quickStartIndex];
-    if (step.target === '#monitor') setScopeExpanded(true);
-    if (quickStartIndex === 6 && selected() && !document.getElementById('inspector-guide').hidden) showGuide(false);
     document.getElementById('quick-start-count').textContent = (quickStartIndex + 1) + ' of ' + quickStartSteps.length;
     document.getElementById('quick-start-title').textContent = step.title;
-    document.getElementById('quick-start-copy').textContent = step.copy;
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    document.getElementById('quick-start-copy').textContent = step.copy + (quickStartIndex === 1 && ios ? ' On iPhone, turn Silent mode off if you cannot hear playback.' : '');
     document.getElementById('quick-start-progress-fill').style.width = ((quickStartIndex + 1) / quickStartSteps.length * 100) + '%';
     document.getElementById('quick-start-back').disabled = quickStartIndex === 0;
-    document.getElementById('quick-start-next').innerHTML = quickStartIndex === quickStartSteps.length - 1 ? 'Finish <span aria-hidden="true">✓</span>' : 'Next step <span aria-hidden="true">→</span>';
-    const targetSelector = step.target === '#tab-guide' && mobileEditor.matches ? '#mobile-pedal-guide' : step.target;
-    const target = document.querySelector(targetSelector) || (quickStartIndex === 5 ? document.getElementById('strip-add') : null);
-    if (target) target.classList.add('quick-start-target');
+    document.getElementById('quick-start-next').textContent = quickStartIndex === quickStartSteps.length - 1 ? 'Finish ✓' : 'Next step →';
+    const target = document.querySelector(step.target) || document.querySelector('.board-add-tile');
+    if (target) {
+      target.classList.add('quick-start-target');
+      const rect = target.getBoundingClientRect();
+      const bottom = innerWidth <= 700 ? document.querySelector('.player-dock').getBoundingClientRect().top : innerHeight;
+      if (rect.top < 0 || rect.bottom > bottom) target.scrollIntoView({ block: 'center', inline: 'nearest' });
+      positionQuickStart();
+    }
   }
   function closeQuickStart() {
     quickStartTour.hidden = true;
-    document.body.classList.remove('quick-start-controls-step');
     document.querySelectorAll('.quick-start-target').forEach(el => el.classList.remove('quick-start-target'));
   }
   document.getElementById('open-quick-start').onclick = () => { quickStartIndex = 0; quickStartTour.hidden = false; renderQuickStart(); };
   document.getElementById('close-quick-start').onclick = closeQuickStart;
   document.getElementById('quick-start-back').onclick = () => { quickStartIndex = Math.max(0, quickStartIndex - 1); renderQuickStart(); };
-  document.getElementById('quick-start-skip').onclick = () => { quickStartIndex += 1; if (quickStartIndex >= quickStartSteps.length) closeQuickStart(); else renderQuickStart(); };
-  document.getElementById('quick-start-next').onclick = () => { quickStartIndex += 1; if (quickStartIndex >= quickStartSteps.length) closeQuickStart(); else renderQuickStart(); };
+  const nextQuickStart = () => { quickStartIndex += 1; if (quickStartIndex >= quickStartSteps.length) closeQuickStart(); else renderQuickStart(); };
+  document.getElementById('quick-start-skip').onclick = nextQuickStart;
+  document.getElementById('quick-start-next').onclick = nextQuickStart;
   document.getElementById('listen').addEventListener('click', () => advanceQuickStart(1));
-  patternSelect.addEventListener('change', () => advanceQuickStart(2));
-  document.getElementById('monitor').addEventListener('click', e => { if (e.target.closest('button')) advanceQuickStart(3); });
-  document.getElementById('dock-bank').addEventListener('click', e => {
-    const bank = e.target.closest('[data-bank]')?.dataset.bank;
-    if (bank && bank !== activeBank) advanceQuickStart(4);
-  }, true);
-  document.addEventListener('input', e => { if (quickStartIndex === 6 && e.target.closest('#pedal-params input')) advanceQuickStart(6); });
-  document.getElementById('pedal-params').addEventListener('click', e => { if (quickStartIndex === 6 && e.target.closest('button')) advanceQuickStart(6); });
-  document.getElementById('tab-guide').addEventListener('click', () => advanceQuickStart(7));
-  document.getElementById('mobile-pedal-guide').addEventListener('click', () => advanceQuickStart(7));
+  document.getElementById('dock-bank').addEventListener('click', e => { if (e.target.closest('button')) advanceQuickStart(2); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !quickStartTour.hidden) closeQuickStart(); });
+  addEventListener('resize', positionQuickStart);
+  addEventListener('scroll', positionQuickStart, { passive: true });
   onBoardChange = () => { renderJourney(); renderQuickStart(); };
   refreshSlots();
 
@@ -2147,7 +2204,7 @@
         item.dataset.effect = id;
         item.dataset.type = pedal.type;
         item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder">⠿</button>';
-        item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal, true); advanceQuickStart(5); };
+        item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal, true); advanceQuickStart(3); };
         item.querySelector('.pedal-edit').onclick = () => {
           pedal.enabled = !pedal.enabled;
           edited();
@@ -2259,7 +2316,7 @@
       bypass.textContent = pedal.enabled ? 'On' : 'Off';
       bypass.setAttribute('aria-label', (pedal.enabled ? 'Bypass ' : 'Enable ') + pedalName(pedal));
       bypass.setAttribute('aria-pressed', String(pedal.enabled));
-      item.querySelector('.pedal-status').textContent = pedal.enabled ? 'On' : 'Off';
+      item.querySelector('.pedal-status').textContent = '';
       // Keep DOM nodes in place during playback and editing to preserve focus.
       if (orderList.querySelectorAll('[data-effect]')[index] !== item) {
         const nextEffect = orderList.querySelectorAll('[data-effect]')[index];
@@ -2591,9 +2648,23 @@
     }
   }
 
+  function updateSignalMetrics() {
+    const samples = monitor === 'dry' ? scopeInput : scopeOutput;
+    let peak = 0, energy = 0;
+    for (let i = PRE; i < samples.length; i++) { peak = Math.max(peak, Math.abs(samples[i])); energy += samples[i] * samples[i]; }
+    const peakDb = linToDb(peak);
+    const rmsDb = linToDb(Math.sqrt(energy / VIEW));
+    document.getElementById('signal-peak').textContent = 'Peak ' + fmtDb(peakDb);
+    document.getElementById('signal-rms').textContent = 'RMS ' + fmtDb(rmsDb);
+    const headroom = document.getElementById('signal-headroom');
+    headroom.textContent = peak >= 1 ? 'Clipping · lower output' : peak > 0 ? fmt(Math.max(0, -peakDb), 1) + ' dB headroom' : 'No signal';
+    headroom.classList.toggle('clipping', peak >= 1);
+  }
+
   function drawScope() {
     const { ctx, w, h, dpr } = fit(scopeEl);
     ctx.clearRect(0, 0, w, h);
+    updateSignalMetrics();
     if (state.view === 'tone') {
       drawSpectrum(ctx, w, h, scopeInput, scopeOutput, 'scope', true);
       return;
@@ -2629,7 +2700,11 @@
     // Waveforms
     const cols = Math.max(1, Math.floor(w * dpr));
     const step = w / cols;
-    fillWave(ctx, columns(monitor === 'dry' ? scopeInput : scopeOutput, cols), cols, step, y, C.ink);
+    ctx.globalAlpha = 0.16;
+    fillWave(ctx, columns(scopeInput, cols), cols, step, y, C.ink3);
+    ctx.globalAlpha = 0.42;
+    fillWave(ctx, columns(monitor === 'dry' ? scopeInput : scopeOutput, cols), cols, step, y, C.gate);
+    ctx.globalAlpha = 1;
 
     // Thresholds
     const thresholds = [];
@@ -2860,6 +2935,7 @@
         sendAudioState();
         await audioContext.resume();
       }
+      state.playing = listening;
       listen.setAttribute('aria-label', listening ? 'Pause' : 'Play');
       listen.setAttribute('aria-pressed', String(listening));
       listen.classList.toggle('playing', listening);
@@ -2867,7 +2943,7 @@
       if (!listening) audition = null;
       updateAuditionButtons();
     } catch (error) {
-      listening = false;
+      listening = state.playing = false;
       if (audioContext) await audioContext.close().catch(() => {});
       audioContext = audioNode = null;
       audioStatus.textContent = 'Audio could not start. Tap Play to try again in Safari or Chrome.';
