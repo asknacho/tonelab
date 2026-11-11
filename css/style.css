@@ -863,6 +863,11 @@ body.quick-start-controls-step .quick-start-tour { right: auto; left: max(24px, 
   .workspace-side { height: calc(100dvh - 310px); min-height: 440px; }
 }
 
+@media screen and (min-width: 1024px) {
+  .scope-disclosure { height: min(520px, 58dvh); max-height: 520px; align-self: start; }
+  .scope-disclosure .scope-card { min-height: 0; }
+}
+
 .chain-title-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin-right: auto; }
 .chain-title-actions h2 { margin-right: 0; flex-basis: auto; }
 .chain-editor .comparison-bar { gap: 8px 16px; margin: 10px 0 16px; }
