@@ -72,6 +72,7 @@
   let metersOpen = false;
   // Audio state, declared early: the chain strip and inspector read it.
   let audioContext, audioNode, listening = false, monitor = 'wet';
+  let audition = null;
   let matchVolume = true;
   let saveTimer;
   let storageAvailable = true;
@@ -244,21 +245,57 @@
     speed.value = tempo;
     speed.disabled = free;
     speedOut.textContent = free ? 'not used' : tempo + ' BPM';
-    const label = patternSelect.selectedOptions[0]?.textContent || 'Free picking';
-    document.getElementById('dock-playing-text').textContent = free ? label : label + ' · ' + tempo;
+    document.getElementById('dock-playing-text').textContent = free ? 'Free tempo' : tempo + ' BPM';
   }
-  // The player's settings (pattern, speed, volume) open above the dock.
-  const dockPanel = document.getElementById('dock-panel');
-  const dockToggles = [document.getElementById('dock-playing'), document.getElementById('dock-volume')];
-  function setDockPanel(open) {
-    dockPanel.hidden = !open;
-    dockToggles.forEach(b => b.setAttribute('aria-expanded', String(open)));
+  // Temporary controls stay within the player bar and share the same behavior.
+  let activePlayerControl = null;
+  function inlinePlayerControl(buttonId, fieldId, sliderId) {
+    const button = document.getElementById(buttonId);
+    const field = document.getElementById(fieldId);
+    const slider = document.getElementById(sliderId);
+    let timer, dragging = false;
+    const close = () => {
+      clearTimeout(timer);
+      field.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+      if (activePlayerControl?.close === close) {
+        activePlayerControl = null;
+        button.closest('.player-dock').classList.remove('adjusting-player');
+      }
+      if (document.activeElement === slider) button.focus({ preventScroll: true });
+    };
+    const finish = () => {
+      clearTimeout(timer);
+      if (!dragging) timer = setTimeout(close, 1500);
+    };
+    button.onclick = () => {
+      if (!field.hidden) { close(); return; }
+      activePlayerControl?.close();
+      activePlayerControl = { button, field, close };
+      field.hidden = false;
+      button.setAttribute('aria-expanded', 'true');
+      button.closest('.player-dock').classList.add('adjusting-player');
+      slider.focus({ preventScroll: true });
+    };
+    slider.addEventListener('pointerdown', () => { dragging = true; clearTimeout(timer); });
+    slider.addEventListener('input', finish);
+    for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+      slider.addEventListener(event, () => { dragging = false; finish(); });
+    }
+    slider.addEventListener('keydown', () => clearTimeout(timer));
+    slider.addEventListener('keyup', finish);
   }
-  dockToggles.forEach(b => b.onclick = () => setDockPanel(dockPanel.hidden));
+  inlinePlayerControl('dock-volume', 'inline-volume', 'volume');
+  inlinePlayerControl('dock-playing', 'inline-tempo', 'speed');
   document.addEventListener('click', e => {
-    if (!dockPanel.hidden && !e.target.closest('.player-dock')) setDockPanel(false);
+    const control = activePlayerControl;
+    if (control && !control.field.contains(e.target) && !control.button.contains(e.target)) control.close();
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !dockPanel.hidden) setDockPanel(false); });
+  document.addEventListener('focusin', e => {
+    const control = activePlayerControl;
+    if (control && !control.field.contains(e.target) && !control.button.contains(e.target)) control.close();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') activePlayerControl?.close(); });
   patternSelect.onchange = () => {
     source.setKind(patternSelect.value);
     // Start at the pattern's own tempo; Speed changes it from there.
@@ -327,19 +364,31 @@
   // Editing happens inline, under the chain and the scope, so the live
   // waveform stays in view while you turn the knobs.
   function closeSettings() {
-    settings.hidden = true;
+    settings.hidden = false;
+    const empty = state.chain.length === 0;
+    document.getElementById('inspector-empty').hidden = !empty;
+    document.getElementById('inspector-controls').hidden = true;
+    document.getElementById('inspector-guide').hidden = true;
+    settings.querySelector('.sheet-head').hidden = empty;
+    settings.querySelector('.inspector-tabs').hidden = empty;
+    settings.querySelector('.model-row').hidden = empty;
+    document.getElementById('settings-title').textContent = '';
+    document.getElementById('settings-state').textContent = '';
     selectedId = null;
+    orderList.querySelectorAll('.selected-pedal').forEach(item => { item.classList.remove('selected-pedal'); item.querySelector('.pedal-toggle').setAttribute('aria-pressed', 'false'); });
     document.body.classList.remove('editing');
     renderStrip();
     if (!undoToast.hidden) placeUndo();
   }
   function showPedalNotes(pedal) {
+    document.getElementById('settings-state').textContent = pedal.enabled ? 'Enabled' : 'Bypassed';
     document.getElementById('pedal-note').textContent = noteFor(pedal, state.chain);
     const other = otherBank(activeBank);
     const diff = differences(state.chain, banks[other], other).byPedal.get(pedal.id);
     const diffEl = document.getElementById('pedal-diff');
-    diffEl.textContent = diff || '';
+    diffEl.textContent = diff ? 'A/B difference · ' + diff : '';
     diffEl.hidden = !diff;
+    updateGuide(pedal);
   }
   let savedTimer;
   function flashSaved() {
@@ -398,10 +447,22 @@
     showPedalNotes(pedal);
     syncMoveButtons();
     settings.hidden = false;
+    document.getElementById('inspector-empty').hidden = true;
+    settings.querySelector('.sheet-head').hidden = false;
+    settings.querySelector('.inspector-tabs').hidden = false;
+    settings.querySelector('.model-row').hidden = false;
+    document.getElementById('inspector-controls').hidden = false;
+    document.getElementById('inspector-guide').hidden = true;
+    document.getElementById('tab-controls').setAttribute('aria-pressed', 'true');
+    document.getElementById('tab-guide').setAttribute('aria-pressed', 'false');
     document.body.classList.add('editing');
     renderStrip();
+    orderList.querySelectorAll('[data-effect]').forEach(item => {
+      const isSelected = item.dataset.effect === pedal.id;
+      item.classList.toggle('selected-pedal', isSelected);
+      item.querySelector('.pedal-toggle').setAttribute('aria-pressed', String(isSelected));
+    });
     if (!undoToast.hidden) placeUndo();
-    if (!wasOpen) requestAnimationFrame(() => settings.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
   }
   function addPedal(type, params, model) {
     const pedal = createPedal(type, params, model);
@@ -414,9 +475,15 @@
     const index = state.chain.findIndex(p => p.id === id);
     if (index < 0) return;
     const [pedal] = state.chain.splice(index, 1);
-    closeSettings();
     edited();
-    document.getElementById('add-effect').focus({ preventScroll: true });
+    if (state.chain.length) {
+      const nextPedal = state.chain[Math.min(index, state.chain.length - 1)];
+      openSettings(nextPedal);
+      orderList.querySelector('[data-effect="' + nextPedal.id + '"] .pedal-toggle')?.focus({ preventScroll: true });
+    } else {
+      closeSettings();
+      orderList.querySelector('.board-add-tile')?.focus({ preventScroll: true });
+    }
     announce(pedalName(pedal) + ' removed');
     const bank = activeBank;
     offerUndo(pedalName(pedal) + ' removed', () => {
@@ -424,6 +491,7 @@
       if (activeBank !== bank) document.querySelector('#compare-bank [data-bank="' + bank + '"]').click();
       state.chain.splice(Math.min(index, state.chain.length), 0, pedal);
       edited();
+      openSettings(pedal);
       announce(pedalName(pedal) + ' restored at position ' + (state.chain.indexOf(pedal) + 1));
       orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-toggle')?.focus({ preventScroll: true });
     });
@@ -444,15 +512,10 @@
   // Its home is the status line under the header; when that is scrolled out
   // of view it floats at the top of the screen instead.
   function placeUndo() {
-    const inline = !settings.hidden;
-    const target = inline ? settings.querySelector('.inspector-status') : undoHome;
-    if (undoToast.parentElement !== target) target.appendChild(undoToast);
-    const box = undoHome.getBoundingClientRect();
-    const home = !inline && box.top >= 0 && box.top < innerHeight - 60;
-    undoToast.classList.toggle('inline', inline || home);
-    undoToast.classList.toggle('home', home);
+    if (undoToast.parentElement !== undoHome) undoHome.appendChild(undoToast);
+    undoToast.classList.add('inline', 'home');
   }
-  addEventListener('scroll', () => { if (!undoToast.hidden && settings.hidden) placeUndo(); }, { passive: true });
+  addEventListener('scroll', () => { if (!undoToast.hidden) placeUndo(); }, { passive: true });
   function offerUndo(text, restore) {
     placeUndo();
     undoAction = restore;
@@ -473,7 +536,7 @@
     e.preventDefault();
     undo();
   });
-  document.getElementById('add-effect').onclick = () => library.showModal();
+  document.querySelector('.board-add-tile')?.addEventListener('click', () => library.showModal());
   document.getElementById('strip-add').onclick = () => library.showModal();
   for (const [type, info] of Object.entries(types)) {
     const button = document.createElement('button');
@@ -483,14 +546,17 @@
     button.onclick = () => {
       const pedal = addPedal(type);
       library.close();
-      orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-toggle').focus();
+      openSettings(pedal);
     };
     document.getElementById('effect-choices').appendChild(button);
   }
   settings.querySelector('.sheet-close').onclick = () => {
     const id = selectedId;
-    closeSettings();
-    journeyList.querySelector('[data-edit="' + id + '"]')?.focus({ preventScroll: true });
+    if (state.chain.length > 1 && id) {
+      const index = state.chain.findIndex(p => p.id === id);
+      openSettings(state.chain[index >= 0 ? index : 0]);
+    } else if (state.chain.length) openSettings(state.chain[0]);
+    else closeSettings();
   };
   for (const dialog of [library]) {
     dialog.querySelector('.sheet-close').onclick = () => dialog.close();
@@ -530,6 +596,9 @@
     renderStrip();
     document.querySelector('.sw-in').parentElement.lastChild.textContent = pedal ? 'Pedal input' : 'Guitar input';
     document.querySelector('.sw-out').parentElement.lastChild.textContent = pedal ? 'Pedal output' : 'Chain output';
+    document.querySelector('.sw-in').parentElement.hidden = monitor !== 'dry';
+    document.querySelector('.sw-out').parentElement.hidden = monitor === 'dry';
+    document.querySelector('.sw-in').style.background = C.ink;
     state.dirty = true;
   }
   document.getElementById('inspect-pedal').onclick = () => { if (selectedId) listenTo(selectedId, 'wet'); };
@@ -600,6 +669,8 @@
   document.getElementById('dock-bank').onclick = e => switchBank(e.target.closest('[data-bank]')?.dataset.bank);
   function switchBank(bank) {
     if (!bank || bank === activeBank) return;
+    const selectedIndex = settings.hidden ? -1 : state.chain.findIndex(p => p.id === selectedId);
+    const guideOpen = !document.getElementById('inspector-guide').hidden;
     banks[activeBank] = clone(state.chain);
     activeBank = bank;
     state.chain = clone(banks[activeBank]);
@@ -610,6 +681,10 @@
     changed();
     syncBanks();
     refreshSlots();
+    if (selectedIndex >= 0 && state.chain.length) {
+      openSettings(state.chain[Math.min(selectedIndex, state.chain.length - 1)]);
+      showGuide(guideOpen);
+    }
     announce(activeBank + ' selected');
   }
   document.getElementById('copy-bank').onclick = () => {
@@ -632,9 +707,15 @@
     const url = new URL(location.href);
     url.hash = 'board=' + encoded;
     try {
+      if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+        await navigator.share({ title: 'ToneLab board', url: url.href });
+        announce('Board shared');
+        return;
+      }
       await navigator.clipboard.writeText(url.href);
       announce('Share link copied, including A and B');
-    } catch {
+    } catch (error) {
+      if (error?.name === 'AbortError') return;
       const field = document.getElementById('share-link');
       field.value = url.href;
       document.getElementById('share-dialog').showModal();
@@ -1260,9 +1341,24 @@
     document.getElementById('board-slot').textContent = 'Editing ' + activeBank + ': ' + slotLabel(slots[activeBank]);
     renderJourney();
   }
+  document.getElementById('new-board').onclick = () => {
+    if (!window.confirm('Start from scratch? Your current A and B setups will be lost. Saved sounds will be kept.')) return;
+    const before = boardState();
+    applyBoard({ ...before, A: [], B: [], slots: { A: { kind: 'custom' }, B: { kind: 'custom' } }, active: 'A' });
+    closeSettings();
+    resetScopeHistory();
+    scopeHistory.B.input.fill(0);
+    scopeHistory.B.output.fill(0);
+    offerUndo('New pedalboard started', () => applyBoard(before));
+  };
   heroSelect.onchange = () => {
     const value = heroSelect.value;
     if (!value) return;
+    const hasBoardWork = ['A', 'B'].some(bank => slots[bank].kind === 'custom' || slots[bank].edited);
+    if (hasBoardWork && !window.confirm('Loading this sound replaces both A and B, including your current pedal settings. You can undo the change afterward. Continue?')) {
+      refreshSlots();
+      return;
+    }
     const before = boardState();
     fillSlot('A', value);
     const tone = value.startsWith('tone:') && toneById(value.slice(5));
@@ -1271,6 +1367,8 @@
     if (tone?.view) setView(tone.view);
     changed();
     refreshSlots();
+    if (state.chain.length) openSettings(state.chain[0]);
+    else closeSettings();
     const label = tone ? tone.title : heroSelect.selectedOptions[0].textContent;
     announce(label + ' loaded');
     offerUndo(label + ' loaded', () => applyBoard(before));
@@ -1508,18 +1606,30 @@
       title.textContent = 'A and B are the same';
       text.textContent = 'Pick a “What if…” for B to hear what one change does.';
     }
+    const dockWhatIf = document.getElementById('dock-whatif');
+    dockWhatIf.textContent = whatIfBank ? whatIfBank + ': ' + whatIfOf(slots[whatIfBank]).label : (byPedal.size || missing.length ? 'A and B differ' : 'A and B are the same');
+    dockWhatIf.title = text.textContent;
     document.getElementById('journey-tip').textContent = (tone || lessonTone())?.tip || '';
     document.getElementById('journey-tip').hidden = !(tone || lessonTone())?.tip;
+    if (selected() && !settings.hidden) updateGuide(selected());
     box.querySelectorAll('[data-hear]').forEach(button => button.classList.toggle('on', button.dataset.hear === activeBank));
   }
   document.querySelectorAll('#whatif-box [data-hear]').forEach(button => button.onclick = () => {
-    switchBank(button.dataset.hear);
-    if (!listening) listen.click();
+    const bank = button.dataset.hear;
+    if (bank !== activeBank) switchBank(bank);
+    listenTo('', 'wet', bank);
   });
   // Play the signal at one point in the chain: "after a pedal" means that
   // pedal's output (wet), "your guitar" means the dry input, and an empty
   // pedal id means the whole chain. The audio starts if it isn't already.
-  async function listenTo(pedal, monitorChoice) {
+  async function listenTo(pedal, monitorChoice, bank = activeBank) {
+    if (listening && audition?.bank === bank && audition.pedal === pedal && audition.monitor === monitorChoice) {
+      audition = null;
+      listen.click();
+      updateAuditionButtons();
+      return;
+    }
+    audition = { bank, pedal, monitor: monitorChoice };
     inspectId = pedal;
     inspectByBank[activeBank] = pedal;
     monitor = monitorChoice;
@@ -1530,9 +1640,70 @@
     });
     resetScopeHistory();
     refreshInspect();
+    if (bank !== activeBank) switchBank(bank);
     if (listening) sendAudioState();
     else listen.click();
+    updateAuditionButtons();
   }
+  function updateAuditionButtons() {
+    const active = listening && audition;
+    const inspect = document.getElementById('inspect-pedal');
+    inspect.textContent = active?.pedal === selectedId ? '■ Stop listening' : '▶ Hear this pedal';
+    document.getElementById('guide-listen').textContent = active?.pedal === selectedId ? '■ Stop listening' : '▶ Hear after this';
+    journeyList.querySelectorAll('.journey-listen').forEach(button => {
+      const playing = active?.pedal === button.dataset.pedal && active?.monitor === button.dataset.monitor;
+      button.textContent = playing ? '■ Stop' : '▶ Hear after this';
+      button.setAttribute('aria-pressed', String(!!playing));
+    });
+    document.querySelectorAll('#whatif-box [data-hear]').forEach(button => {
+      const playing = active?.bank === button.dataset.hear && active.pedal === '' && active.monitor === 'wet';
+      button.textContent = (playing ? '■ Stop ' : '▶ Hear ') + button.dataset.hear;
+      button.setAttribute('aria-pressed', String(!!playing));
+    });
+  }
+  function updateGuide(pedal) {
+    const index = state.chain.findIndex(p => p.id === pedal.id);
+    if (index < 0) return;
+    document.getElementById('guide-position').textContent = (index + 1) + ' of ' + state.chain.length + ' · ' + pedalName(pedal);
+    document.getElementById('guide-note').textContent = noteFor(pedal, state.chain);
+    document.getElementById('guide-values').textContent = modelOf(pedal).name + ' · ' + controlsFor(pedal).map(c => c.label + ' ' + controlValue(pedal, c)).join(' · ');
+    document.getElementById('guide-diff').textContent = differences(state.chain, banks[otherBank(activeBank)], otherBank(activeBank)).byPedal.get(pedal.id) || '';
+    document.getElementById('guide-intro').textContent = document.getElementById('journey-play').textContent;
+    document.getElementById('guide-tip').textContent = document.getElementById('journey-tip').textContent;
+    document.getElementById('guide-prev').disabled = index === 0;
+    document.getElementById('guide-next').disabled = index === state.chain.length - 1;
+  }
+  function showGuide(show) {
+    document.getElementById('inspector-guide').hidden = !show;
+    document.getElementById('inspector-controls').hidden = show;
+    document.getElementById('tab-guide').setAttribute('aria-pressed', String(show));
+    document.getElementById('tab-controls').setAttribute('aria-pressed', String(!show));
+    if (selected()) updateGuide(selected());
+  }
+  document.getElementById('tab-guide').onclick = () => showGuide(true);
+  document.getElementById('tab-controls').onclick = () => showGuide(false);
+  document.getElementById('start-guide').onclick = () => {
+    if (!state.chain.length) { announce('Add an effect to start the guide.'); return; }
+    openSettings(state.chain[0]);
+    showGuide(true);
+  };
+  document.getElementById('guide-prev').onclick = () => {
+    const index = state.chain.findIndex(p => p.id === selectedId);
+    if (index > 0) openSettings(state.chain[index - 1]);
+  };
+  document.getElementById('guide-next').onclick = () => {
+    const index = state.chain.findIndex(p => p.id === selectedId);
+    if (index >= 0 && index < state.chain.length - 1) openSettings(state.chain[index + 1]);
+  };
+  document.getElementById('guide-listen').onclick = () => { if (selected()) listenTo(selectedId, 'wet'); };
+  document.getElementById('print-guide').onclick = () => {
+    const printGuide = document.querySelector('.full-guide');
+    printGuide.hidden = false;
+    printGuide.open = true;
+    document.body.classList.add('printing-guide');
+    window.print();
+  };
+  window.addEventListener('afterprint', () => { document.body.classList.remove('printing-guide'); document.querySelector('.full-guide').hidden = true; });
   journeyList.addEventListener('click', e => {
     const button = e.target.closest('.journey-listen');
     if (button) listenTo(button.dataset.pedal, button.dataset.monitor);
@@ -1633,9 +1804,9 @@
       ctx.fillStyle = fill;
       ctx.fill();
     };
-    if (before) area(smoothedSpectrum(key + ':in', before), C.ghost);
     ctx.globalAlpha = 0.85;
-    area(smoothedSpectrum(key + ':out', after), C.ink);
+    const dry = monitor === 'dry';
+    area(smoothedSpectrum(key + (dry ? ':in' : ':out'), dry ? before : after), C.ink);
     ctx.globalAlpha = 1;
   }
   setView(state.view);
@@ -1655,7 +1826,7 @@
     const previousList = rebuildOrder ? orderList : null;
     if (previousList) orderList = previousList.cloneNode(false);
     rebuildOrder = false;
-    for (const item of [...orderList.children]) if (!state.chain.some(p => p.id === item.dataset.effect)) item.remove();
+    for (const item of orderList.querySelectorAll('[data-effect]')) if (!state.chain.some(p => p.id === item.dataset.effect)) item.remove();
     state.chain.forEach((pedal, index) => {
       const id = pedal.id;
       let item = orderList.querySelector('[data-effect="' + id + '"]');
@@ -1664,8 +1835,8 @@
         item.dataset.effect = id;
         item.dataset.type = pedal.type;
         item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder">⠿</button>';
-        item.querySelector('.pedal-edit').onclick = () => openSettings(pedal);
-        item.querySelector('.pedal-toggle').onclick = () => {
+        item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal); showGuide(false); };
+        item.querySelector('.pedal-edit').onclick = () => {
           pedal.enabled = !pedal.enabled;
           edited();
           announce(pedalName(pedal) + (pedal.enabled ? ' enabled' : ' bypassed'));
@@ -1687,6 +1858,10 @@
         };
         handle.onpointerdown = e => {
           if (e.button !== 0) return;
+          e.preventDefault();
+          handle.focus({ preventScroll: true });
+          window.getSelection()?.removeAllRanges();
+          document.body.classList.add('pedal-drag-active');
           handle.setPointerCapture(e.pointerId);
           const r = item.getBoundingClientRect();
           drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, width: r.width, ghost: null };
@@ -1694,6 +1869,7 @@
         const clearDrag = () => {
           drag?.ghost?.remove();
           drag = null;
+          document.body.classList.remove('pedal-drag-active');
           item.classList.remove('dragging');
           dropArea.classList.remove('drag-over', 'drag-out');
           orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
@@ -1733,25 +1909,52 @@
           clearDrag();
           if (!moved) return;
           if (out) removePedal(id);
-          else if (target && target !== item && orderList.contains(target)) moveEffect(id, state.chain.findIndex(p => p.id === target.dataset.effect));
+          else if (target && target !== item && orderList.contains(target)) {
+            moveEffect(id, state.chain.findIndex(p => p.id === target.dataset.effect));
+          }
           else if (!target) moveEffect(id, state.chain.length - 1);
         };
         handle.onpointercancel = clearDrag;
+        handle.onlostpointercapture = clearDrag;
       }
       item.classList.toggle('off', !pedal.enabled);
+      item.classList.toggle('selected-pedal', !settings.hidden && pedal.id === selectedId);
       item.querySelector('.pedal-art').innerHTML = pedalArt(pedal);
       item.querySelector('.pedal-position').textContent = index + 1;
       item.querySelector('.pedal-name').textContent = shortName(pedal) + ' ' + pedal.number;
       item.dataset.shape = modelOf(pedal).shape;
       const toggle = item.querySelector('.pedal-toggle');
-      toggle.setAttribute('aria-label', pedalName(pedal));
-      toggle.setAttribute('aria-pressed', String(pedal.enabled));
+      toggle.setAttribute('aria-label', 'Edit ' + pedalName(pedal));
+      toggle.setAttribute('aria-pressed', String(!settings.hidden && pedal.id === selectedId));
+      const bypass = item.querySelector('.pedal-edit');
+      bypass.textContent = pedal.enabled ? 'On' : 'Off';
+      bypass.setAttribute('aria-label', (pedal.enabled ? 'Bypass ' : 'Enable ') + pedalName(pedal));
+      bypass.setAttribute('aria-pressed', String(pedal.enabled));
       item.querySelector('.pedal-status').textContent = pedal.enabled ? 'On' : 'Off';
       // Keep DOM nodes in place during playback and editing to preserve focus.
-      if (orderList.children[index] !== item) orderList.insertBefore(item, orderList.children[index] || null);
+      if (orderList.querySelectorAll('[data-effect]')[index] !== item) {
+        const nextEffect = orderList.querySelectorAll('[data-effect]')[index];
+        if (nextEffect && nextEffect !== item) orderList.insertBefore(item, nextEffect);
+        else orderList.appendChild(item);
+      }
     });
+    let addTile = orderList.querySelector('.board-add-slot');
+    if (!addTile) {
+      const kinds = Object.keys(types);
+      const type = kinds[Math.floor(Math.random() * kinds.length)];
+      const info = types[type];
+      const preview = { type, model: info.models[0].id, params: P.modelDefaults(type, info.models[0].id) };
+      addTile = document.createElement('li');
+      addTile.className = 'board-add-slot';
+      addTile.innerHTML = artSvg(preview, 'pedal-art') + '<button type="button" class="board-add-tile"><span class="add-tile-plus">+</span><span class="add-tile-label"></span></button>';
+      addTile.querySelector('.add-tile-label').textContent = state.chain.length ? 'Add next pedal' : 'Add a pedal here';
+      addTile.querySelector('button').onclick = () => library.showModal();
+    }
+    addTile.querySelector('.add-tile-label').textContent = state.chain.length ? 'Add next pedal' : 'Add a pedal here';
+    orderList.appendChild(addTile);
     if (previousList) previousList.replaceWith(orderList);
-    document.getElementById('empty-chain').hidden = state.chain.length > 0;
+    document.getElementById('empty-chain').hidden = true;
+    if (!settings.hidden && !selectedId) document.getElementById('inspector-empty').hidden = state.chain.length > 0;
     reserveBoardHeight();
     drawCables();
     refreshInspect();
@@ -1782,7 +1985,7 @@
       return { left: r.left - base.left, right: r.right - base.left, top: r.top - base.top, bottom: r.bottom - base.top, width: r.width, height: r.height };
     };
     const endpoints = [...signalPath.querySelectorAll('.endpoint')];
-    const items = [...orderList.children];
+    const items = [...orderList.querySelectorAll('[data-effect]')];
     const single = new Set(items.map(item => Math.round(item.offsetTop))).size <= 1;
     signalPath.classList.toggle('single-row', single);
     if (single) {
@@ -1804,7 +2007,7 @@
     const inDot = box(document.querySelector('.endpoint-input i'));
     const outDot = box(document.querySelector('.endpoint-output i'));
     const nodes = [{ out: inDot.right, y: inDot.top + inDot.height / 2, left: inDot.left, right: inDot.right, top: inDot.top, bottom: inDot.bottom }];
-    for (const item of orderList.children) {
+    for (const item of orderList.querySelectorAll('[data-effect]')) {
       const b = box(item);
       const art = P.SHAPES[item.dataset.shape] || P.SHAPES.box;
       const scale = b.width / ART_W;
@@ -2060,8 +2263,7 @@
     // Waveforms
     const cols = Math.max(1, Math.floor(w * dpr));
     const step = w / cols;
-    fillWave(ctx, columns(scopeInput, cols), cols, step, y, C.ghost);
-    fillWave(ctx, columns(scopeOutput, cols), cols, step, y, C.ink);
+    fillWave(ctx, columns(monitor === 'dry' ? scopeInput : scopeOutput, cols), cols, step, y, C.ink);
 
     // Thresholds
     const thresholds = [];
@@ -2249,7 +2451,7 @@
     audioNode?.port.postMessage({ type: 'settings', state: { playing: state.playing, speed: state.speed, chain: state.chain }, kind: source.kind, tempo: source.tempo,
       noiseDb: source.noiseDb, banks, activeBank, inspectId, inspectByBank, matchVolume, monitor, volume: Number(document.getElementById('volume').value) });
   }
-  segmented('monitor', v => { monitor = v; resetScopeHistory(); refreshInspect(); sendAudioState(); });
+  segmented('monitor', v => { monitor = v; refreshInspect(); sendAudioState(); });
   document.getElementById('volume').oninput = sendAudioState;
   listen.onclick = async () => {
     if (audioStarting) return;
@@ -2294,6 +2496,8 @@
       listen.setAttribute('aria-pressed', String(listening));
       listen.classList.toggle('playing', listening);
       audioStatus.textContent = listening ? 'Listening · tap a dot on the chain to hear that point' : 'Synthesized guitar';
+      if (!listening) audition = null;
+      updateAuditionButtons();
     } catch (error) {
       listening = false;
       if (audioContext) await audioContext.close().catch(() => {});
@@ -2333,6 +2537,8 @@
     requestAnimationFrame(frame);
   }
 
+  if (state.chain.length) openSettings(state.chain[0]);
+  else closeSettings();
   document.getElementById('save-status').textContent = restoreMessage || (storageAvailable ? 'Autosave enabled' : 'Local saving unavailable · use Share');
   saveBoard();
   requestAnimationFrame(frame);
