@@ -1089,3 +1089,41 @@ button.endpoint:hover { color: var(--gate); }
 /* Quick start stays beside volume in the player's always-visible first row. */
 .player-dock #open-quick-start { order: 0; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; min-width: 40px; height: 44px; min-height: 44px; padding: 0; margin: 0 4px; border: 0; background: transparent; }
 .player-dock #open-quick-start:hover { color: var(--gate); background: var(--grid); }
+
+/* Heading, quick comparison, then the pedals. */
+.journey.workspace > .chain-heading { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; margin: 0 0 12px; }
+.journey.workspace > .chain-heading .chain-title-actions, .journey.workspace > .chain-heading .board-actions { flex-wrap: nowrap; gap: 6px; }
+.journey.workspace > .chain-heading h2 { white-space: nowrap; flex-basis: auto; margin: 0; }
+.journey.workspace > .scope-disclosure:not(.scope-expanded) .lab-tools > #monitor { display: flex; grid-column: 1; grid-row: 1; justify-self: start; }
+.journey.workspace > .scope-disclosure:not(.scope-expanded) .scope-wrap { grid-column: 1 / -1; grid-row: 2; height: 55px; }
+.journey.workspace > .scope-disclosure:not(.scope-expanded) .scope-card { padding: 4px 8px; gap: 4px; }
+.journey.workspace > .scope-disclosure:not(.scope-expanded) #monitor button { min-height: 32px; padding: 4px 10px; font-size: 12px; }
+.dock-secondary { display: contents; }
+@media screen and (min-width: 1024px) {
+  .journey.workspace { grid-template-rows: auto auto auto; }
+  .journey.workspace > .chain-heading { grid-column: 1 / -1; grid-row: 1; }
+  .journey.workspace > .scope-disclosure { grid-row: 2; }
+  .workspace-top, .workspace-side { grid-row: 3; }
+}
+@media (max-width: 700px) {
+  .journey.workspace > .chain-heading h2 { font-size: clamp(16px, 4.6vw, 22px); }
+  .dock-bar { display: grid; grid-template-columns: 48px minmax(0, 1fr) 80px 40px; gap: 6px 4px; }
+  .player-dock #listen { grid-column: 1; grid-row: 1; width: 48px; height: 44px; }
+  .dock-source { display: contents; }
+  .dock-source .dock-pattern { grid-column: 2; grid-row: 1; padding: 0 4px; }
+  .dock-pattern select { font-size: 13px; text-overflow: ellipsis; }
+  #dock-playing { grid-column: 3; grid-row: 1; padding: 0 4px; font-size: 12px; }
+  .player-dock #open-quick-start { grid-column: 4; grid-row: 1; width: 40px; margin: 0; }
+  .dock-break, .dock-compare-label { display: none; }
+  .dock-secondary { grid-column: 1 / -1; grid-row: 2; display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .dock-secondary > * { order: 0; }
+  .dock-secondary .dock-whatif { display: block; flex: 1; min-width: 0; margin-left: 0; padding-left: 4px; font-size: 11px; }
+  .dock-secondary #bring-your-own { order: 0; margin: 0; padding-inline: 6px; font-size: 11px; }
+  .dock-secondary #bring-your-own small { font-size: 9px; }
+  .dock-secondary #dock-volume { order: 0; flex: none; width: 40px; margin-left: auto; }
+  .dock-secondary:has(#inline-volume:not([hidden])) { flex-wrap: wrap; }
+  .dock-bar #inline-tempo { grid-column: 1 / -1; grid-row: 3; margin: 0; }
+}
+@media (max-width: 700px) {
+  .dock-secondary #copy-bank { order: 0; }
+}

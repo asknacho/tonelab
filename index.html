@@ -34,19 +34,23 @@
       <button class="listen-button" id="listen" aria-pressed="false" aria-label="Play"><svg class="i-play" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"></path></svg><svg class="i-pause" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"></path></svg></button>
       <div class="dock-source">
         <label class="dock-pattern"><span class="visually-hidden">Playing pattern</span><select id="pattern"><option value="guitar">Free picking</option></select></label>
-        <button id="bring-your-own" class="audio-import" type="button" title="Import audio: .mp3, .wav, .m4a, .aac, .ogg, .flac" aria-describedby="recording-help"><span>Import audio</span><small>.mp3, .wav, …</small></button>
+
         <span id="recording-help" class="visually-hidden">Open a local audio file. For iOS Voice Memos, share the recording, save it to Files, then choose it here. Audio stays on your device.</span>
       </div>
       <button id="dock-playing" class="dock-tempo" aria-expanded="false" aria-controls="inline-tempo"><span aria-hidden="true">♪</span> <span id="dock-playing-text">126 BPM</span></button>
       <label id="inline-tempo" class="field inline-player-control" hidden><span class="field-label">Tempo <output id="speed-out">126 BPM</output></span><input type="range" id="speed" min="40" max="220" step="1" value="126" /></label>
       <span class="dock-compare-label">A / B</span><span class="dock-break" aria-hidden="true"></span>
+      <button type="button" id="open-quick-start" class="quick-start-launch" aria-label="Quick start" title="Quick start"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 2-2.5 3.5M12 17h.01"/></svg></button>
+      <div class="dock-secondary">
       <div id="dock-bank" class="dock-bank" role="group" aria-label="Compare A and B"><button data-bank="A" aria-pressed="true" class="on">A</button><button data-bank="B" aria-pressed="false">B</button></div>
       <button id="copy-bank" class="dock-copy icon-button" type="button" aria-label="Copy A to B" title="Copy A to B"><svg class="action-icon" aria-hidden="true"><use href="#icon-copy"/></svg></button>
       <span id="dock-whatif" class="dock-whatif"></span>
       <input id="match-volume" type="checkbox" checked hidden aria-label="Match volume" />
-      <button type="button" id="open-quick-start" class="quick-start-launch" aria-label="Quick start" title="Quick start"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 2-2.5 3.5M12 17h.01"/></svg></button>
+
+      <button id="bring-your-own" class="audio-import" type="button" title="Import audio: .mp3, .wav, .m4a, .aac, .ogg, .flac" aria-describedby="recording-help"><span>Import audio</span><small>.mp3, .wav, …</small></button>
       <label id="inline-volume" class="field volume-control inline-player-control" hidden><span class="field-label">Volume</span><input id="volume" type="range" min="0" max="0.8" step="0.01" value="0.2" /></label>
       <button id="dock-volume" class="dock-icon" aria-label="Adjust volume" aria-expanded="false" aria-controls="inline-volume"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"></path><path d="M16 9a4 4 0 010 6"></path></svg></button>
+      </div>
     </div>
   </nav>
 
@@ -57,6 +61,7 @@
 
     <section class="journey workspace" aria-labelledby="journey-title">
       <h2 id="journey-title" class="visually-hidden">Your signal</h2>
+      <header class="chain-heading"><div class="chain-title-actions"><h2 id="chain-title">Your pedalboard</h2><button id="save-tone" class="board-button icon-button" aria-label="Save as my sound" title="Save as my sound"><svg class="action-icon" aria-hidden="true"><use href="#icon-save"/></svg></button></div><div class="board-actions"><button type="button" id="start-guide" class="board-button icon-button" aria-label="Pedal-by-pedal guide" title="Pedal-by-pedal guide"><svg class="action-icon" aria-hidden="true"><use href="#icon-book"/></svg></button><button id="share-board" class="board-button icon-button" aria-label="Share pedalboard" title="Share pedalboard"><svg class="action-icon" aria-hidden="true"><use href="#icon-share"/></svg></button></div></header>
         <section class="scope-disclosure" aria-label="Compare sound with and without effects">
         <div class="chain-strip-wrap">
           <ol id="chain-strip" class="chain-strip" aria-label="Signal chain: tap a pedal to tweak it, a dot to listen there"></ol>
@@ -87,7 +92,7 @@
 
       <div class="workspace-top">
     <section class="chain-editor" aria-labelledby="chain-title">
-      <header class="chain-heading"><div class="chain-title-actions"><h2 id="chain-title">Your pedalboard</h2><button id="save-tone" class="board-button icon-button" aria-label="Save as my sound" title="Save as my sound"><svg class="action-icon" aria-hidden="true"><use href="#icon-save"/></svg></button></div><div class="board-actions"><button type="button" id="start-guide" class="board-button icon-button" aria-label="Pedal-by-pedal guide" title="Pedal-by-pedal guide"><svg class="action-icon" aria-hidden="true"><use href="#icon-book"/></svg></button><button id="share-board" class="board-button icon-button" aria-label="Share pedalboard" title="Share pedalboard"><svg class="action-icon" aria-hidden="true"><use href="#icon-share"/></svg></button></div></header>
+
       <div id="undo-toast" class="undo-toast" role="status" hidden><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"></path></svg><span id="undo-text"></span><button id="undo-button" class="icon-button" aria-label="Undo last change" title="Undo last change"><svg class="action-icon" aria-hidden="true"><use href="#icon-undo"/></svg></button></div>
       <div class="comparison-bar" hidden><span id="board-slot" class="board-slot"></span><span id="save-status" class="visually-hidden" role="status"></span></div>
       <p class="chain-hint visually-hidden">Select a pedal to edit · use On/Off to bypass · drag to reorder</p>
