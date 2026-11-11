@@ -765,13 +765,23 @@
     const edit = e.target.closest('[data-strip-edit]');
     if (edit) openSettings(state.chain.find(p => p.id === edit.dataset.stripEdit));
   });
-  document.getElementById('expand-scope').onclick = e => {
-    const expanded = document.querySelector('.scope-disclosure').classList.toggle('scope-expanded');
-    e.currentTarget.setAttribute('aria-expanded', String(expanded));
-    e.currentTarget.setAttribute('aria-label', expanded ? 'Collapse waveform' : 'Expand waveform');
-    e.currentTarget.textContent = expanded ? 'Collapse' : 'Expand';
+  function setScopeExpanded(expanded) {
+    document.querySelector('.scope-disclosure').classList.toggle('scope-expanded', expanded);
+    const button = document.getElementById('expand-scope');
+    button.setAttribute('aria-expanded', String(expanded));
+    button.setAttribute('aria-label', expanded ? 'Collapse waveform' : 'Expand waveform');
+    button.title = expanded ? 'Collapse waveform' : 'Expand waveform';
+    button.textContent = expanded ? '⤡' : '⤢';
+    if (!expanded) {
+      monitor = 'wet';
+      setView('level');
+      refreshInspect();
+      updateAuditionButtons();
+      sendAudioState();
+    }
     state.dirty = true;
-  };
+  }
+  document.getElementById('expand-scope').onclick = () => setScopeExpanded(!document.querySelector('.scope-disclosure').classList.contains('scope-expanded'));
   document.getElementById('toggle-meters').onclick = e => {
     metersOpen = !metersOpen;
     e.target.setAttribute('aria-expanded', String(metersOpen));
@@ -1860,6 +1870,7 @@
     if (quickStartTour.hidden) return;
     document.body.classList.toggle('quick-start-controls-step', quickStartIndex >= 6);
     const step = quickStartSteps[quickStartIndex];
+    if (step.target === '#monitor') setScopeExpanded(true);
     if (quickStartIndex === 6 && selected() && !document.getElementById('inspector-guide').hidden) showGuide(false);
     document.getElementById('quick-start-count').textContent = (quickStartIndex + 1) + ' of ' + quickStartSteps.length;
     document.getElementById('quick-start-title').textContent = step.title;
@@ -1896,6 +1907,7 @@
 
   /* Loudness or Tone: what the scope and the step-by-step show. */
   function setView(view) {
+    if (!document.querySelector('.scope-disclosure').classList.contains('scope-expanded')) view = 'level';
     state.view = view;
     try { localStorage.setItem('tonelab-view', view); } catch {}
     document.querySelectorAll('.view-toggle button').forEach(button => {

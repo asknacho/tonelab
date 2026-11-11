@@ -1057,3 +1057,16 @@ button.endpoint:hover { color: var(--gate); }
   .workspace-top { grid-column: 1; grid-row: 2; }
   .workspace-side { grid-column: 2; grid-row: 2; }
 }
+
+/* A single signal strip by default; comparison controls appear on expansion. */
+.journey.workspace > .scope-disclosure { margin-bottom: 12px; }
+.journey.workspace > .scope-disclosure .scope-card { display: grid; grid-template-columns: minmax(0, 1fr) 36px; gap: 6px; padding: 4px 6px; }
+.journey.workspace > .scope-disclosure:not(.scope-expanded) .lab-tools { display: contents; }
+.journey.workspace > .scope-disclosure:not(.scope-expanded) .lab-tools > :not(.scope-expand) { display: none; }
+.journey.workspace > .scope-disclosure .scope-wrap { grid-column: 1; grid-row: 1; height: 35px; max-height: none; border: 0; }
+.journey.workspace > .scope-disclosure .scope-expand { grid-column: 2; grid-row: 1; align-self: center; justify-self: stretch; width: 36px; min-height: 36px; padding: 0; font-size: 21px; }
+.journey.workspace > .scope-disclosure .legend, .journey.workspace > .scope-disclosure .journey-meta { display: none; }
+.journey.workspace > .scope-disclosure.scope-expanded .scope-card { grid-template-columns: minmax(0, 1fr); padding: 8px 12px; }
+.journey.workspace > .scope-disclosure.scope-expanded .lab-tools { grid-column: 1; grid-row: 1; display: flex; flex-wrap: wrap; padding: 0; gap: 6px; }
+.journey.workspace > .scope-disclosure.scope-expanded .scope-expand { margin-left: auto; }
+.journey.workspace > .scope-disclosure.scope-expanded .scope-wrap { grid-column: 1; grid-row: 2; height: 180px; }
