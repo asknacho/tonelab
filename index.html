@@ -22,6 +22,7 @@
     <span class="site-credit">Made with love by <a href="https://asknacho.to" target="_blank" rel="noopener noreferrer">asknacho.to</a></span>
   </header>
   <nav class="player-dock" aria-label="Player">
+    <input id="recording-file" type="file" accept="audio/*,.wav,.mp3,.m4a,.aac,.ogg,.flac" hidden />
     <span id="audio-status" class="visually-hidden" role="status">Synthesized guitar</span>
     <div class="dock-bar">
       <button class="listen-button" id="listen" aria-pressed="false" aria-label="Play"><svg class="i-play" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"></path></svg><svg class="i-pause" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"></path></svg></button>
