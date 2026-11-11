@@ -1827,7 +1827,38 @@
     const button = e.target.closest('.journey-listen');
     if (button) listenTo(button.dataset.pedal, button.dataset.monitor);
   });
-  onBoardChange = renderJourney;
+  const quickStartSteps = [
+    { target: '#tone-combo', title: 'Pick a sound to explore', copy: 'Choose a familiar tone above. ToneLab builds the pedals for you, so you can start listening right away.' },
+    { target: '#listen', title: 'Press Play and listen', copy: 'Hear the guitar pass through the pedals. The sound and waveform update together.' },
+    { target: '#monitor', title: 'Compare dry and effected', copy: 'Switch between the clean input and the full effect chain to hear what changed.' },
+    { target: '#effect-order li', title: 'Turn a control and hear it change', copy: 'Tap a pedal and move one knob. Use Hear before and Hear after to compare the result.' }
+  ];
+  const quickStartTour = document.getElementById('quick-start-tour');
+  let quickStartIndex = 0;
+  function renderQuickStart() {
+    document.querySelectorAll('.quick-start-target').forEach(el => el.classList.remove('quick-start-target'));
+    if (quickStartTour.hidden) return;
+    const step = quickStartSteps[quickStartIndex];
+    document.getElementById('quick-start-count').textContent = (quickStartIndex + 1) + ' of ' + quickStartSteps.length;
+    document.getElementById('quick-start-title').textContent = step.title;
+    document.getElementById('quick-start-copy').textContent = step.copy;
+    document.getElementById('quick-start-progress-fill').style.width = ((quickStartIndex + 1) / quickStartSteps.length * 100) + '%';
+    document.getElementById('quick-start-back').disabled = quickStartIndex === 0;
+    document.getElementById('quick-start-next').innerHTML = quickStartIndex === quickStartSteps.length - 1 ? 'Finish <span aria-hidden="true">✓</span>' : 'Next step <span aria-hidden="true">→</span>';
+    const target = document.querySelector(step.target) || (quickStartIndex === 3 ? document.getElementById('strip-add') : null);
+    if (target) target.classList.add('quick-start-target');
+  }
+  function closeQuickStart() {
+    quickStartTour.hidden = true;
+    document.querySelectorAll('.quick-start-target').forEach(el => el.classList.remove('quick-start-target'));
+  }
+  document.getElementById('open-quick-start').onclick = () => { quickStartIndex = 0; quickStartTour.hidden = false; renderQuickStart(); };
+  document.getElementById('close-quick-start').onclick = closeQuickStart;
+  document.getElementById('quick-start-back').onclick = () => { quickStartIndex = Math.max(0, quickStartIndex - 1); renderQuickStart(); };
+  document.getElementById('quick-start-skip').onclick = () => { quickStartIndex += 1; if (quickStartIndex >= quickStartSteps.length) closeQuickStart(); else renderQuickStart(); };
+  document.getElementById('quick-start-next').onclick = () => { quickStartIndex += 1; if (quickStartIndex >= quickStartSteps.length) closeQuickStart(); else renderQuickStart(); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !quickStartTour.hidden) closeQuickStart(); });
+  onBoardChange = () => { renderJourney(); renderQuickStart(); };
   refreshSlots();
 
   /* Loudness or Tone: what the scope and the step-by-step show. */

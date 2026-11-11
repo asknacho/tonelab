@@ -58,7 +58,7 @@
       <h2 id="journey-title" class="visually-hidden">Your signal</h2>
       <div class="workspace-top">
     <section class="chain-editor" aria-labelledby="chain-title">
-      <header class="chain-heading"><div class="chain-title-actions"><h2 id="chain-title">Your pedalboard</h2><button id="save-tone" class="board-button icon-button" aria-label="Save as my sound" title="Save as my sound"><svg class="action-icon" aria-hidden="true"><use href="#icon-save"/></svg></button></div><div class="board-actions"><div id="undo-toast" class="undo-toast" role="status" hidden><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"></path></svg><span id="undo-text"></span><button id="undo-button" class="icon-button" aria-label="Undo last change" title="Undo last change"><svg class="action-icon" aria-hidden="true"><use href="#icon-undo"/></svg></button></div><button type="button" id="start-guide" class="board-button icon-button" aria-label="Step-by-step guide" title="Step-by-step guide"><svg class="action-icon" aria-hidden="true"><use href="#icon-book"/></svg></button><button id="share-board" class="board-button icon-button" aria-label="Share pedalboard" title="Share pedalboard"><svg class="action-icon" aria-hidden="true"><use href="#icon-share"/></svg></button></div></header>
+      <header class="chain-heading"><div class="chain-title-actions"><h2 id="chain-title">Your pedalboard</h2><button id="save-tone" class="board-button icon-button" aria-label="Save as my sound" title="Save as my sound"><svg class="action-icon" aria-hidden="true"><use href="#icon-save"/></svg></button></div><div class="board-actions"><button type="button" id="open-quick-start" class="quick-start-launch">Quick start</button><div id="undo-toast" class="undo-toast" role="status" hidden><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"></path></svg><span id="undo-text"></span><button id="undo-button" class="icon-button" aria-label="Undo last change" title="Undo last change"><svg class="action-icon" aria-hidden="true"><use href="#icon-undo"/></svg></button></div><button type="button" id="start-guide" class="board-button icon-button" aria-label="Pedal-by-pedal guide" title="Pedal-by-pedal guide"><svg class="action-icon" aria-hidden="true"><use href="#icon-book"/></svg></button><button id="share-board" class="board-button icon-button" aria-label="Share pedalboard" title="Share pedalboard"><svg class="action-icon" aria-hidden="true"><use href="#icon-share"/></svg></button></div></header>
       <div class="comparison-bar" hidden><span id="board-slot" class="board-slot"></span><span id="save-status" class="visually-hidden" role="status"></span></div>
       <p class="chain-hint visually-hidden">Select a pedal to edit · use On/Off to bypass · drag to reorder</p>
       <div class="signal-path">
@@ -175,6 +175,14 @@
     </dialog>
     <dialog id="share-dialog" class="effect-dialog" aria-labelledby="share-title"><header class="sheet-head"><h2 id="share-title">Share your board</h2><button class="sheet-close icon-button" aria-label="Close share dialog" title="Close share dialog"><svg class="action-icon" aria-hidden="true"><use href="#icon-close"/></svg></button></header><label>Copy this link<input id="share-link" type="text" readonly /></label></dialog>
   </main>
+
+  <aside id="quick-start-tour" class="quick-start-tour" role="region" aria-label="Quick start guide" aria-live="polite" hidden>
+    <header class="quick-start-meta"><span>QUICK START</span><span id="quick-start-count">1 of 4</span><button type="button" id="close-quick-start" aria-label="Close quick start">×</button></header>
+    <div class="quick-start-progress" aria-hidden="true"><span id="quick-start-progress-fill"></span></div>
+    <h2 id="quick-start-title"></h2>
+    <p id="quick-start-copy"></p>
+    <div class="quick-start-actions"><button type="button" id="quick-start-back">Back</button><button type="button" id="quick-start-skip">Skip step</button><button type="button" id="quick-start-next">Next step <span aria-hidden="true">→</span></button></div>
+  </aside>
 
   <script src="js/dsp.js"></script>
   <script src="js/pedals.js"></script>
