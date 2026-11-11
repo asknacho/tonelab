@@ -1022,6 +1022,13 @@ button.endpoint:hover { color: var(--gate); }
 }
 
 /* Compare the sound first, then explore the pedalboard below it. */
+.board-scroll { min-width: 0; }
+@media (max-width: 700px) {
+  .board-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; padding-block: 8px; }
+  .board-scroll .signal-path { width: max-content; min-width: 100%; grid-template-columns: 28px max-content 28px; }
+  .board-scroll .drop-area { width: max-content; }
+  .board-scroll #effect-order { flex-wrap: nowrap; width: max-content; }
+}
 .journey.workspace > .scope-disclosure { width: 100%; max-width: none; margin: 0 0 20px; padding-top: 0; }
 .journey.workspace > .scope-disclosure .scope-wrap { position: relative; height: 180px; min-height: 0; }
 .journey.workspace > .scope-disclosure .scope { position: absolute; inset: 0; width: 100%; height: 100%; }

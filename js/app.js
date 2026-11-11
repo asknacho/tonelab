@@ -1992,7 +1992,7 @@
     const gap = parseFloat(getComputedStyle(orderList).gap) || 6;
     const columns = Math.max(1, Math.floor((orderList.clientWidth + gap) / (cardWidth + gap)));
     const other = activeBank === 'A' ? 'B' : 'A';
-    const rows = Math.ceil(Math.max(state.chain.length, banks[other].length) / columns);
+    const rows = getComputedStyle(orderList).flexWrap === 'nowrap' ? 1 : Math.ceil(Math.max(state.chain.length, banks[other].length) / columns);
     dropArea.style.minHeight = Math.max(126, rows * (cardHeight + gap) - gap + 28) + 'px';
   }
   window.addEventListener('resize', reserveBoardHeight);
