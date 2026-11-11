@@ -947,6 +947,8 @@ button.icon-button, .dock-bar #copy-bank.icon-button, .undo-toast.home button.ic
 }
 .icon-button:hover { color: var(--gate); background: var(--grid); }
 .icon-button:disabled { cursor: default; }
+.dock-tempo { white-space: nowrap; }
+.dock-tempo:disabled { cursor: default; padding-inline: 8px; }
 #inspect-pedal.icon-button { display: inline-flex; width: 44px; }
 .guide-navigation { justify-content: space-between; }
 .sheet-actions .icon-button { flex: none; }
