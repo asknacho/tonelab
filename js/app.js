@@ -1831,9 +1831,12 @@
   const quickStartSteps = [
     { target: '#tone-combo', title: 'Pick a sound to explore', copy: 'Choose a familiar tone above. ToneLab builds the pedals for you, so you can start listening right away.' },
     { target: '#listen', title: 'Press Play and listen', copy: 'Hear the guitar pass through the pedals. The sound and waveform update together.' },
+    { target: '#pattern', title: 'Try a different playing pattern', copy: 'Choose single notes, strums, or picking. The same pedals can sound different with a new pattern.' },
     { target: '#monitor', title: 'Compare dry and effected', copy: 'Switch between the clean input and the full effect chain to hear what changed.' },
+    { target: '#dock-bank', title: 'Switch between A and B', copy: 'A and B hold separate pedalboards. Tap each side to compare two versions of your sound.' },
     { target: '#effect-order li .pedal-toggle', title: 'Open a pedal', copy: 'Choose a pedal to see its controls and learn what each one changes.' },
-    { target: '#pedal-params input, #pedal-params button', title: 'Change a control and listen', copy: 'Move a control to shape the sound. Press Play again to hear your change.' }
+    { target: '#pedal-params input, #pedal-params button', title: 'Change a control and listen', copy: 'Move a control to shape the sound. The tour will take you to the pedal guide next.' },
+    { target: '#tab-guide', title: 'See how to make the effect', copy: 'Open Guide for this pedal’s settings, a listening explanation, and a practical tip.' }
   ];
   const quickStartTour = document.getElementById('quick-start-tour');
   let quickStartIndex = 0;
@@ -1846,15 +1849,16 @@
   function renderQuickStart() {
     document.querySelectorAll('.quick-start-target').forEach(el => el.classList.remove('quick-start-target'));
     if (quickStartTour.hidden) return;
-    document.body.classList.toggle('quick-start-controls-step', quickStartIndex === 4);
+    document.body.classList.toggle('quick-start-controls-step', quickStartIndex >= 6);
     const step = quickStartSteps[quickStartIndex];
+    if (quickStartIndex === 6 && selected() && !document.getElementById('inspector-guide').hidden) showGuide(false);
     document.getElementById('quick-start-count').textContent = (quickStartIndex + 1) + ' of ' + quickStartSteps.length;
     document.getElementById('quick-start-title').textContent = step.title;
     document.getElementById('quick-start-copy').textContent = step.copy;
     document.getElementById('quick-start-progress-fill').style.width = ((quickStartIndex + 1) / quickStartSteps.length * 100) + '%';
     document.getElementById('quick-start-back').disabled = quickStartIndex === 0;
     document.getElementById('quick-start-next').innerHTML = quickStartIndex === quickStartSteps.length - 1 ? 'Finish <span aria-hidden="true">✓</span>' : 'Next step <span aria-hidden="true">→</span>';
-    const target = document.querySelector(step.target) || (quickStartIndex === 3 ? document.getElementById('strip-add') : null);
+    const target = document.querySelector(step.target) || (quickStartIndex === 5 ? document.getElementById('strip-add') : null);
     if (target) target.classList.add('quick-start-target');
   }
   function closeQuickStart() {
@@ -1868,9 +1872,15 @@
   document.getElementById('quick-start-skip').onclick = () => { quickStartIndex += 1; if (quickStartIndex >= quickStartSteps.length) closeQuickStart(); else renderQuickStart(); };
   document.getElementById('quick-start-next').onclick = () => { quickStartIndex += 1; if (quickStartIndex >= quickStartSteps.length) closeQuickStart(); else renderQuickStart(); };
   listen.addEventListener('click', () => advanceQuickStart(1));
-  document.getElementById('monitor').addEventListener('click', e => { if (e.target.closest('button')) advanceQuickStart(2); });
-  document.addEventListener('input', e => { if (quickStartIndex === 4 && e.target.closest('#pedal-params input')) closeQuickStart(); });
-  document.getElementById('pedal-params').addEventListener('click', e => { if (quickStartIndex === 4 && e.target.closest('button')) closeQuickStart(); });
+  patternSelect.addEventListener('change', () => advanceQuickStart(2));
+  document.getElementById('monitor').addEventListener('click', e => { if (e.target.closest('button')) advanceQuickStart(3); });
+  document.getElementById('dock-bank').addEventListener('click', e => {
+    const bank = e.target.closest('[data-bank]')?.dataset.bank;
+    if (bank && bank !== activeBank) advanceQuickStart(4);
+  }, true);
+  document.addEventListener('input', e => { if (quickStartIndex === 6 && e.target.closest('#pedal-params input')) advanceQuickStart(6); });
+  document.getElementById('pedal-params').addEventListener('click', e => { if (quickStartIndex === 6 && e.target.closest('button')) advanceQuickStart(6); });
+  document.getElementById('tab-guide').addEventListener('click', () => advanceQuickStart(7));
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !quickStartTour.hidden) closeQuickStart(); });
   onBoardChange = () => { renderJourney(); renderQuickStart(); };
   refreshSlots();
@@ -1999,7 +2009,7 @@
         item.dataset.effect = id;
         item.dataset.type = pedal.type;
         item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder">⠿</button>';
-        item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal); showGuide(false); advanceQuickStart(3); };
+        item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal); showGuide(false); advanceQuickStart(5); };
         item.querySelector('.pedal-edit').onclick = () => {
           pedal.enabled = !pedal.enabled;
           edited();
