@@ -34,7 +34,7 @@
       <button class="listen-button" id="listen" aria-pressed="false" aria-label="Play"><svg class="i-play" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"></path></svg><svg class="i-pause" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"></path></svg></button>
       <div class="dock-source">
         <label class="dock-pattern"><span class="visually-hidden">Playing pattern</span><select id="pattern"><option value="guitar">Free picking</option></select></label>
-        <button id="bring-your-own" class="icon-button" type="button" aria-label="Bring your own recording" title="Bring your own recording" aria-describedby="recording-help"><svg class="action-icon" aria-hidden="true"><use href="#icon-audio-file"/></svg></button>
+        <button id="bring-your-own" class="audio-import" type="button" title="Import audio: .mp3, .wav, .m4a, .aac, .ogg, .flac" aria-describedby="recording-help"><span>Import audio</span><small>.mp3, .wav, …</small></button>
         <span id="recording-help" class="visually-hidden">Open a local audio file. For iOS Voice Memos, share the recording, save it to Files, then choose it here. Audio stays on your device.</span>
       </div>
       <button id="dock-playing" class="dock-tempo" aria-expanded="false" aria-controls="inline-tempo"><span aria-hidden="true">♪</span> <span id="dock-playing-text">126 BPM</span></button>

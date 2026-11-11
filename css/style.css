@@ -863,11 +863,6 @@ body.quick-start-controls-step .quick-start-tour { right: auto; left: max(24px, 
   .workspace-side { height: calc(100dvh - 310px); min-height: 440px; }
 }
 
-@media screen and (min-width: 1024px) {
-  .scope-disclosure { height: min(520px, 58dvh); max-height: 520px; align-self: start; }
-  .scope-disclosure .scope-card { min-height: 0; }
-}
-
 .chain-title-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin-right: auto; }
 .chain-title-actions h2 { margin-right: 0; flex-basis: auto; }
 .chain-editor .comparison-bar { gap: 8px 16px; margin: 10px 0 16px; }
@@ -1009,3 +1004,19 @@ button.endpoint[aria-pressed=true] { color: var(--gate); font-weight: 600; }
 button.endpoint[aria-pressed=true] i { border-color: var(--gate); background: var(--gate); }
 button.endpoint:hover { color: var(--gate); }
 .signal-path .drop-area:not(.drag-over):not(.drag-out) { background: transparent; }
+
+#bring-your-own.audio-import { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 44px; padding: 4px 10px; border: 1px solid var(--rule); border-radius: 8px; font: 600 12px var(--sans); white-space: nowrap; }
+#bring-your-own.audio-import small { color: var(--ink-2); font: 400 10px var(--sans); }
+
+/* Keep the desktop panels sized to their content instead of stretching to the viewport. */
+@media screen and (min-width: 1024px) {
+  body { height: auto; min-height: 100dvh; }
+  main { flex: none; display: block; }
+  .journey.workspace { flex: none; grid-template-rows: auto; padding-bottom: 24px; }
+  .workspace-top { height: auto; display: flex; flex-direction: column; }
+  .scope-disclosure { flex: none; height: auto; max-height: none; align-self: stretch; }
+  .scope-disclosure .scope-card { flex: none; display: block; }
+  .scope-disclosure .scope-wrap { flex: none; height: clamp(180px, 28dvh, 300px); max-height: 300px; }
+  .workspace-side { height: auto; min-height: 0; max-height: min(720px, calc(100dvh - 180px)); overflow: auto; }
+  .workspace-side > .inspector { height: auto; min-height: 0; max-height: none; overflow: visible; }
+}
