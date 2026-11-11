@@ -1085,3 +1085,7 @@ button.endpoint:hover { color: var(--gate); }
   .dock-bar #copy-bank.icon-button { width: 32px; min-width: 32px; padding: 0; }
   .dock-match { font-size: 11px; gap: 4px; padding-inline: 4px; }
 }
+
+/* Quick start stays beside volume in the player's always-visible first row. */
+.player-dock #open-quick-start { order: 0; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; min-width: 40px; height: 44px; min-height: 44px; padding: 0; margin: 0 4px; border: 0; background: transparent; }
+.player-dock #open-quick-start:hover { color: var(--gate); background: var(--grid); }
