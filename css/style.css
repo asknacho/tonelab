@@ -898,26 +898,6 @@ body.quick-start-controls-step .quick-start-tour { right: auto; left: max(24px, 
   .masthead .tone-hero { order: 2; flex-basis: 100%; max-width: none; }
 }
 
-/* Size the workspace from the space left below the header and player. */
-@media screen and (min-width: 1024px) {
-  body { height: 100dvh; min-height: 0; padding-bottom: 0; display: flex; flex-direction: column; }
-  .masthead { width: 100%; flex: none; }
-  .player-dock { flex: none; }
-  main { width: 100%; flex: 1; min-height: 0; display: flex; margin: 0; }
-  .journey.workspace { width: 100%; flex: 1; min-height: 0; padding-bottom: 16px; grid-template-rows: minmax(0, 1fr); }
-  .workspace-top { height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
-  .chain-editor { min-height: 0; }
-  .scope-disclosure { min-height: 0; margin-top: 24px; padding-top: 8px; display: flex; flex-direction: column; }
-  .scope-disclosure .scope-card { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 4px; }
-  .scope-card .lab-tools { flex: none; padding-block: 4px; }
-  .scope-disclosure .scope-wrap { flex: 1; height: auto; min-height: 0; position: relative; }
-  .scope-disclosure .scope-card .scope { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; }
-  .scope-card .legend { flex: none; }
-  .workspace-side { height: 100%; min-height: 0; max-height: none; overflow: hidden; }
-  .workspace-side > .inspector { height: 100%; min-height: 0; overflow-y: auto; }
-  .scope-card .journey-meta, .editing .scope-card .journey-meta { display: none; }
-}
-
 /* Touch controls allow scrolling and pinch zoom without double-tap zoom. */
 html { touch-action: manipulation; }
 @media (pointer: coarse), (max-width: 700px) {
@@ -1009,19 +989,6 @@ button.endpoint:hover { color: var(--gate); }
 
 #bring-your-own.audio-import { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 44px; padding: 4px 10px; border: 1px solid var(--rule); border-radius: 8px; font: 600 12px var(--sans); white-space: nowrap; }
 #bring-your-own.audio-import small { color: var(--ink-2); font: 400 10px var(--sans); }
-
-/* Keep the desktop panels sized to their content instead of stretching to the viewport. */
-@media screen and (min-width: 1024px) {
-  body { height: auto; min-height: 100dvh; }
-  main { flex: none; display: block; }
-  .journey.workspace { flex: none; grid-template-rows: auto; padding-bottom: 24px; }
-  .workspace-top { height: auto; display: flex; flex-direction: column; }
-  .scope-disclosure { flex: none; height: auto; max-height: none; align-self: stretch; }
-  .scope-disclosure .scope-card { flex: none; display: block; }
-  .scope-disclosure .scope-wrap { flex: none; height: 180px; max-height: 180px; }
-  .workspace-side { height: auto; min-height: 0; max-height: min(720px, calc(100dvh - 180px)); overflow: auto; }
-  .workspace-side > .inspector { height: auto; min-height: 0; max-height: none; overflow: visible; }
-}
 
 /* Compare the sound first, then explore the pedalboard below it. */
 .board-scroll { min-width: 0; }
@@ -1141,4 +1108,101 @@ button.endpoint:hover { color: var(--gate); }
 body.pedal-guide-open { overflow: hidden; }
 @media (max-width: 700px), (max-width: 1023px) and (max-height: 500px) {
   #mobile-pedal-guide { display: inline-flex; }
+}
+
+/* Tablet and desktop share a page scroll; the board and waveform form one workspace. */
+@media screen and (min-width: 701px) and (min-height: 501px), screen and (min-width: 1024px) {
+  body { display: block; height: auto; min-height: 100dvh; padding-bottom: 0; }
+  .masthead { width: 100%; }
+  main { display: block; width: 100%; }
+  .player-dock {
+    position: sticky; top: 0; left: auto; right: auto; bottom: auto; translate: none;
+    width: min(1400px, calc(100% - 48px)); margin: 0 auto 20px;
+    padding: 10px 12px; border-radius: 14px; z-index: 50;
+  }
+  .dock-bar { width: 100%; display: flex; flex-wrap: wrap; gap: 6px 0; }
+  .dock-secondary { display: contents; }
+  .dock-source { flex: 1 1 180px; }
+  .dock-whatif { flex: 1 1 100px; }
+  .journey.workspace { padding-bottom: 32px; }
+  .journey.workspace > .workspace-top, .editing .workspace-top { position: static; width: 100%; min-width: 0; height: auto; margin: 0; padding: 0; max-width: none; box-shadow: none; display: block; }
+  .workspace-side { height: auto; min-width: 0; max-height: none; overflow: visible; padding: 0; }
+  .workspace-side > .inspector { height: auto; max-height: none; overflow: visible; margin-top: 0; }
+  .inspector { scroll-margin-top: calc(var(--player-height, 80px) + 20px); }
+  .inspector .sheet-head { position: static; }
+  .board-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; padding: 8px 0; overscroll-behavior-x: contain; }
+  .board-scroll .signal-path { width: max-content; min-width: 100%; grid-template-columns: 32px max-content 32px; }
+  .board-scroll .drop-area { width: max-content; }
+  .board-scroll #effect-order { flex-wrap: nowrap; width: max-content; }
+  .board-noise { margin-bottom: 0; }
+  .journey.workspace > .scope-disclosure { margin: 0; width: 100%; }
+  .journey.workspace > .scope-disclosure.scope-expanded .scope-wrap { height: clamp(180px, 24dvh, 280px); }
+  .scope-disclosure .listening-at { min-width: 0; flex: 1 1 160px; }
+  .scope-disclosure .lab-tools { gap: 8px; }
+  .full-guide { margin-top: 16px; }
+}
+
+/* Tablets and smaller laptops keep the established waveform → pedals → controls order. */
+@media screen and (min-width: 701px) and (max-width: 1439px) and (min-height: 501px) {
+  .masthead { flex-wrap: wrap; gap: 12px 20px; }
+  .masthead .tone-hero { flex: 1 1 420px; max-width: none; }
+  .site-credit { margin-left: auto; }
+  .journey.workspace { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+  .journey.workspace > .chain-heading { order: 0; margin: 0; }
+  .journey.workspace > .workspace-top { order: 2; }
+  .journey.workspace > .scope-disclosure { order: 1; }
+  .journey.workspace > .workspace-side { order: 3; width: 100%; }
+  .workspace-side > *, .workspace-side > .inspector { max-width: none; }
+  .inspector .settings-body { grid-template-columns: minmax(0, 1fr); }
+  .inspector .params { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 32px; align-items: start; }
+  .inspector-tabs { max-width: 360px; }
+  .inspector .model-row { max-width: 420px; }
+  .inspector .curve { max-width: 260px; }
+  #inspector-guide { max-width: 68ch; }
+  .dock-compare-label { display: none; }
+  .dock-pattern { padding-inline: 10px; }
+  .dock-tempo { padding-inline: 10px; }
+  .dock-whatif { margin-left: 8px; padding-left: 8px; font-size: 13px; }
+}
+
+/* Wide desktops pair waveform and pedals with a compact editor alongside. */
+@media screen and (min-width: 1440px) {
+  .journey.workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, 480px); grid-template-rows: auto auto 1fr; gap: 16px 24px; align-items: start; }
+  .journey.workspace > .chain-heading { grid-column: 1 / -1; grid-row: 1; margin: 0; }
+  .journey.workspace > .workspace-top { grid-column: 1; grid-row: 3; }
+  .journey.workspace > .scope-disclosure { grid-column: 1; grid-row: 2; align-self: start; }
+  .journey.workspace > .workspace-side { grid-column: 2; grid-row: 2 / 4; }
+  .workspace-side > .inspector .settings-body { grid-template-columns: minmax(0, 1fr); }
+  .inspector .params { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; align-items: start; }
+  .inspector .params .param-switch { grid-column: 1 / -1; }
+  body:not(.editing) .journey.workspace { grid-template-columns: minmax(0, 1fr); }
+  body:not(.editing) .journey.workspace > .workspace-side { grid-column: 1; grid-row: 4; }
+}
+
+/* A deliberate two-row player on tablets, including smaller landscape screens. */
+@media screen and (min-width: 701px) and (max-width: 1099px) {
+  .dock-bar { display: grid; grid-template-columns: 56px minmax(0, 1fr) 100px 44px; gap: 8px; }
+  .player-dock #listen { grid-column: 1; grid-row: 1; width: 56px; }
+  .dock-source { display: contents; }
+  .dock-source .dock-pattern { grid-column: 2; grid-row: 1; padding: 0 8px; }
+  #dock-playing { grid-column: 3; grid-row: 1; padding: 0 8px; }
+  .player-dock #open-quick-start { grid-column: 4; grid-row: 1; margin: 0; }
+  .dock-break, .dock-compare-label { display: none; }
+  .dock-secondary { grid-column: 1 / -1; grid-row: 2; display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .dock-secondary > * { order: 0; }
+  .dock-secondary .dock-whatif { flex: 1; min-width: 0; margin-left: 0; padding-left: 8px; }
+  .dock-secondary #dock-volume { margin-left: auto; }
+  .dock-secondary:has(#inline-volume:not([hidden])) { flex-wrap: wrap; }
+  .dock-secondary #inline-volume { flex: 1 0 100%; margin: 0; }
+  .dock-bar #inline-tempo { grid-column: 1 / -1; grid-row: 3; margin: 0; }
+}
+@media screen and (min-width: 701px) and (max-width: 1023px) and (max-height: 500px) {
+  .board-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; }
+  .board-scroll .signal-path { width: max-content; min-width: 100%; grid-template-columns: 32px max-content 32px; }
+  .board-scroll .drop-area, .board-scroll #effect-order { width: max-content; }
+  .board-scroll #effect-order { flex-wrap: nowrap; }
+  .inspector .params { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; }
+}
+@media screen and (min-width: 701px) and (min-height: 501px), screen and (min-width: 1024px) {
+  .journey.workspace > .scope-disclosure.scope-expanded .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0 4px 4px; grid-column: 1; grid-row: 3; }
 }
