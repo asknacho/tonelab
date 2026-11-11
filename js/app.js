@@ -683,7 +683,9 @@
       button.classList.toggle('on', button.dataset.bank === activeBank);
       button.setAttribute('aria-pressed', String(button.dataset.bank === activeBank));
     });
-    document.getElementById('copy-bank').textContent = activeBank === 'A' ? 'Copy A to B' : 'Copy B to A';
+    const copy = document.getElementById('copy-bank');
+    copy.title = activeBank === 'A' ? 'Copy A to B' : 'Copy B to A';
+    copy.setAttribute('aria-label', copy.title);
   }
   document.getElementById('compare-bank').onclick = e => switchBank(e.target.closest('[data-bank]')?.dataset.bank);
   document.getElementById('dock-bank').onclick = e => switchBank(e.target.closest('[data-bank]')?.dataset.bank);
@@ -1668,8 +1670,14 @@
   function updateAuditionButtons() {
     const active = listening && audition;
     const inspect = document.getElementById('inspect-pedal');
-    inspect.textContent = active?.pedal === selectedId ? '■ Stop listening' : '▶ Hear this pedal';
-    document.getElementById('guide-listen').textContent = active?.pedal === selectedId ? '■ Stop listening' : '▶ Hear after this';
+    const playingPedal = !!active && active.pedal === selectedId;
+    for (const button of [inspect, document.getElementById('guide-listen')]) {
+      const label = playingPedal ? 'Stop listening' : button === inspect ? 'Hear this pedal' : 'Hear after this pedal';
+      button.innerHTML = '<svg class="action-icon" aria-hidden="true"><use href="#icon-' + (playingPedal ? 'stop' : 'play') + '"/></svg>';
+      button.setAttribute('aria-label', label);
+      button.setAttribute('aria-pressed', String(playingPedal));
+      button.title = label;
+    }
     journeyList.querySelectorAll('.journey-listen').forEach(button => {
       const playing = active?.pedal === button.dataset.pedal && active?.monitor === button.dataset.monitor;
       button.textContent = playing ? '■ Stop' : '▶ Hear after this';
