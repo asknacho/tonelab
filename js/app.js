@@ -364,7 +364,7 @@
   // Editing happens inline, under the chain and the scope, so the live
   // waveform stays in view while you turn the knobs.
   function closeSettings() {
-    settings.hidden = false;
+    settings.hidden = matchMedia('(max-width: 700px), (max-width: 1023px) and (max-height: 500px)').matches;
     const empty = state.chain.length === 0;
     document.getElementById('inspector-empty').hidden = !empty;
     document.getElementById('inspector-controls').hidden = true;
@@ -399,6 +399,7 @@
   }
   function openSettings(pedal) {
     const wasOpen = !settings.hidden && selectedId === pedal.id;
+    if (!wasOpen) settings.scrollTop = 0;
     selectedId = pedal.id;
     state.dirty = true;
     // Selecting a pedal points the scope at it: grey going in, black coming out.
@@ -551,6 +552,7 @@
     document.getElementById('effect-choices').appendChild(button);
   }
   settings.querySelector('.sheet-close').onclick = () => {
+    if (matchMedia('(max-width: 700px), (max-width: 1023px) and (max-height: 500px)').matches) { dismissSettings(); return; }
     const id = selectedId;
     if (state.chain.length > 1 && id) {
       const index = state.chain.findIndex(p => p.id === id);
@@ -558,6 +560,24 @@
     } else if (state.chain.length) openSettings(state.chain[0]);
     else closeSettings();
   };
+  function dismissSettings(restoreFocus = true) {
+    settings.hidden = true;
+    document.body.classList.remove('editing');
+    if (restoreFocus) orderList.querySelector('[data-effect="' + selectedId + '"] .pedal-toggle')?.focus({ preventScroll: true });
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !settings.hidden && matchMedia('(max-width: 700px), (max-width: 1023px) and (max-height: 500px)').matches && !document.querySelector('dialog[open]')) dismissSettings();
+  });
+  matchMedia('(max-width: 700px), (max-width: 1023px) and (max-height: 500px)').addEventListener('change', e => {
+    if (!e.matches) {
+      const pedal = selected() || state.chain[0];
+      if (pedal) openSettings(pedal); else closeSettings();
+    } else if (!state.chain.length) closeSettings();
+  });
+  const player = document.querySelector('.player-dock');
+  const sizePlayer = () => document.documentElement.style.setProperty('--player-height', player.getBoundingClientRect().height + 'px');
+  new ResizeObserver(sizePlayer).observe(player);
+  sizePlayer();
   for (const dialog of [library]) {
     dialog.querySelector('.sheet-close').onclick = () => dialog.close();
     dialog.addEventListener('click', e => { if (e.target === dialog) {
@@ -1689,11 +1709,11 @@
   };
   document.getElementById('guide-prev').onclick = () => {
     const index = state.chain.findIndex(p => p.id === selectedId);
-    if (index > 0) openSettings(state.chain[index - 1]);
+    if (index > 0) { openSettings(state.chain[index - 1]); showGuide(true); }
   };
   document.getElementById('guide-next').onclick = () => {
     const index = state.chain.findIndex(p => p.id === selectedId);
-    if (index >= 0 && index < state.chain.length - 1) openSettings(state.chain[index + 1]);
+    if (index >= 0 && index < state.chain.length - 1) { openSettings(state.chain[index + 1]); showGuide(true); }
   };
   document.getElementById('guide-listen').onclick = () => { if (selected()) listenTo(selectedId, 'wet'); };
   document.getElementById('print-guide').onclick = () => {
@@ -1918,14 +1938,14 @@
         handle.onlostpointercapture = clearDrag;
       }
       item.classList.toggle('off', !pedal.enabled);
-      item.classList.toggle('selected-pedal', !settings.hidden && pedal.id === selectedId);
+      item.classList.toggle('selected-pedal', pedal.id === selectedId);
       item.querySelector('.pedal-art').innerHTML = pedalArt(pedal);
       item.querySelector('.pedal-position').textContent = index + 1;
       item.querySelector('.pedal-name').textContent = shortName(pedal) + ' ' + pedal.number;
       item.dataset.shape = modelOf(pedal).shape;
       const toggle = item.querySelector('.pedal-toggle');
       toggle.setAttribute('aria-label', 'Edit ' + pedalName(pedal));
-      toggle.setAttribute('aria-pressed', String(!settings.hidden && pedal.id === selectedId));
+      toggle.setAttribute('aria-pressed', String(pedal.id === selectedId));
       const bypass = item.querySelector('.pedal-edit');
       bypass.textContent = pedal.enabled ? 'On' : 'Off';
       bypass.setAttribute('aria-label', (pedal.enabled ? 'Bypass ' : 'Enable ') + pedalName(pedal));
@@ -2537,7 +2557,10 @@
     requestAnimationFrame(frame);
   }
 
-  if (state.chain.length) openSettings(state.chain[0]);
+  if (state.chain.length) {
+    openSettings(state.chain[0]);
+    if (matchMedia('(max-width: 700px), (max-width: 1023px) and (max-height: 500px)').matches) dismissSettings(false);
+  }
   else closeSettings();
   document.getElementById('save-status').textContent = restoreMessage || (storageAvailable ? 'Autosave enabled' : 'Local saving unavailable · use Share');
   saveBoard();
