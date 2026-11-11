@@ -654,8 +654,18 @@
     } else if (!state.chain.length) closeSettings();
   });
   const player = document.querySelector('.player-dock');
-  const sizePlayer = () => document.documentElement.style.setProperty('--player-height', player.getBoundingClientRect().height + 'px');
+  const sizePlayer = () => {
+    const rect = player.getBoundingClientRect();
+    const style = document.documentElement.style;
+    style.setProperty('--player-height', rect.height + 'px');
+    style.setProperty('--quick-start-bottom', Math.max(0, innerHeight - rect.top + 12) + 'px');
+    style.setProperty('--quick-start-available', Math.max(0, rect.top - 32) + 'px');
+  };
   new ResizeObserver(sizePlayer).observe(player);
+  addEventListener('resize', sizePlayer, { passive: true });
+  addEventListener('scroll', sizePlayer, { passive: true });
+  window.visualViewport?.addEventListener('resize', sizePlayer, { passive: true });
+  window.visualViewport?.addEventListener('scroll', sizePlayer, { passive: true });
   sizePlayer();
   for (const dialog of [library]) {
     dialog.querySelector('.sheet-close').onclick = () => dialog.close();
@@ -1868,6 +1878,7 @@
   function renderQuickStart() {
     document.querySelectorAll('.quick-start-target').forEach(el => el.classList.remove('quick-start-target'));
     if (quickStartTour.hidden) return;
+    sizePlayer();
     document.body.classList.toggle('quick-start-controls-step', quickStartIndex >= 6);
     const step = quickStartSteps[quickStartIndex];
     if (step.target === '#monitor') setScopeExpanded(true);
