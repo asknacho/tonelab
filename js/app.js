@@ -1871,7 +1871,7 @@
   document.getElementById('quick-start-back').onclick = () => { quickStartIndex = Math.max(0, quickStartIndex - 1); renderQuickStart(); };
   document.getElementById('quick-start-skip').onclick = () => { quickStartIndex += 1; if (quickStartIndex >= quickStartSteps.length) closeQuickStart(); else renderQuickStart(); };
   document.getElementById('quick-start-next').onclick = () => { quickStartIndex += 1; if (quickStartIndex >= quickStartSteps.length) closeQuickStart(); else renderQuickStart(); };
-  listen.addEventListener('click', () => advanceQuickStart(1));
+  document.getElementById('listen').addEventListener('click', () => advanceQuickStart(1));
   patternSelect.addEventListener('change', () => advanceQuickStart(2));
   document.getElementById('monitor').addEventListener('click', e => { if (e.target.closest('button')) advanceQuickStart(3); });
   document.getElementById('dock-bank').addEventListener('click', e => {
