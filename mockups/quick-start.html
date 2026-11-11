@@ -85,7 +85,8 @@
     .tour-actions .skip { padding-inline:8px; border-color:transparent; background:transparent; color:#707168; }
     .screen[data-step="2"] .progress i { width:50%; }
     .screen[data-step="3"] .progress i { width:75%; }
-    .screen[data-step="4"] .progress i { width:100%; }
+    .screen[data-step="4"] .progress i { width:80%; }
+    .screen[data-step="5"] .progress i { width:100%; }
     .spotlight { outline:3px solid #d89452; outline-offset:3px; border-radius:11px; position:relative; }
     .target-note { display:none; position:absolute; z-index:3; padding:5px 8px; border-radius:5px; background:#d89452; color:#fff; font:500 10px var(--mono); white-space:nowrap; }
     .screen[data-step="1"] .search { outline:3px solid #d89452; outline-offset:3px; }
@@ -93,7 +94,8 @@
     .screen[data-step="2"] .play { outline:3px solid #d89452; outline-offset:3px; }
     .screen[data-step="2"] .target-note.play-note { display:block; bottom:64px; left:28px; }
     .screen[data-step="3"] .scope-card { outline:3px solid #d89452; outline-offset:3px; }
-    .screen[data-step="4"] .mini-control { outline:3px solid #d89452; outline-offset:3px; }
+    .screen[data-step="4"] .pedal:nth-of-type(2) { outline:3px solid #d89452; outline-offset:3px; }
+    .screen[data-step="5"] .mini-control { outline:3px solid #d89452; outline-offset:3px; }
     .phone-wrap { display:flex; justify-content:center; }
     .phone { width:390px; height:740px; min-height:0; border:9px solid #22251f; border-radius:36px; box-shadow:0 16px 45px #25251c29; }
     .phone .topbar { height:68px; padding:0 15px; gap:11px; }
@@ -141,7 +143,7 @@
 <body>
   <main class="page">
     <header class="intro">
-      <div><div class="eyebrow">Interaction mockup · responsive</div><h1>Meet your signal, one step at a time.</h1><p>A four step quick start that teaches by pointing into the live ToneLab workspace.</p></div>
+      <div><div class="eyebrow">Interaction mockup · responsive</div><h1>Meet your signal, one step at a time.</h1><p>A five step quick start that teaches by pointing into the live ToneLab workspace.</p></div>
       <div class="legend"><span>Dismiss any time</span><span>Skip a step</span><span>Progress is visible</span></div>
     </header>
     <div class="previews">
@@ -149,13 +151,13 @@
         <header class="topbar"><div class="brand"><b>∿</b> Tonelab</div><div class="search">⌕ <strong>I want to sound like…</strong></div><div class="topnote">Try a sound, then change it.</div><span class="target-note search-note">Start here</span></header>
         <div class="desktop-main"><section><div class="board-title">Your pedalboard <button>＋ Add effect</button></div><div class="board"><div class="cable"></div><span class="endpoint">INPUT</span><div class="pedal"><div class="pedal-label">TUBE<br>DRIVE</div><div class="knobs"><i></i><i></i><i></i></div><div class="footswitch"></div></div><div class="pedal"><div class="pedal-label">ANALOG<br>DELAY</div><div class="knobs"><i></i><i></i><i></i></div><div class="footswitch"></div></div><span class="endpoint">OUTPUT</span></div><div class="board-caption"><span>IN · listen to the clean guitar</span><span>OUT · hear the full chain</span></div><div class="scope-card"><div class="scope-heading"><strong>Listening at · Full chain</strong><div class="seg"><span class="on">Loudness</span><span>Tone</span></div></div><svg class="wave" viewBox="0 0 600 158" preserveAspectRatio="none"><path class="dry" d="M0 79 L32 79 L40 66 L48 93 L58 79 L94 79 L103 57 L111 101 L120 79 L156 79 L166 64 L174 94 L183 79 L220 79 L230 49 L238 108 L247 79 L284 79 L293 61 L302 96 L311 79 L348 79 L357 54 L366 103 L375 79 L412 79 L421 66 L430 92 L439 79 L476 79 L485 58 L494 101 L503 79 L540 79 L550 62 L559 95 L568 79 L600 79"/><path class="wet" d="M0 79 C15 45 25 115 40 79 S68 48 83 80 S110 113 125 79 S152 45 167 79 S195 114 210 79 S237 46 252 80 S280 114 295 79 S322 46 337 80 S365 114 380 79 S407 48 422 79 S450 110 465 79 S492 46 507 80 S535 113 550 79 S578 48 600 79"/></svg><div class="scope-legend"><span><i></i>Input (dry)</span><span><i></i>Output</span></div><div class="sound-row"><span>Dry input</span><span class="active">With effects</span></div></div></section><section class="read-panel"><h3>Small changes, heard clearly.</h3><p>Tap a pedal to explore its controls. The scope follows the signal as you go.</p><div class="mini-control"><label><span>Drive</span><strong>5.0</strong></label><div class="slider"></div><label><span>Less</span><span>More</span></label></div><div class="sound-row"><span>▶ Hear before</span><span class="active">▶ Hear after</span></div><p>Current sound: <strong>Edge style echo</strong></p></section></div>
         <nav class="player"><button class="play">▶</button><small>Free picking</small><small>126 BPM</small><div class="grow"></div><small>Compare A / B</small><div class="ab"><b class="selected">A</b><b>B</b></div></nav>
-        <aside class="tour-card"><div class="tour-meta"><b>QUICK START</b><span class="count">1 of 4</span><button class="close" aria-label="Close">×</button></div><div class="progress"><i></i></div><h2 class="tour-title">Pick a sound to explore</h2><p class="tour-copy">Choose a familiar tone above. ToneLab builds the pedals for you, so you can start listening right away.</p><div class="tour-actions"><button class="back" disabled>Back</button><button class="skip">Skip step</button><button class="next">Next step&nbsp; →</button></div></aside>
+        <aside class="tour-card"><div class="tour-meta"><b>QUICK START</b><span class="count">1 of 5</span><button class="close" aria-label="Close">×</button></div><div class="progress"><i></i></div><h2 class="tour-title">Pick a sound to explore</h2><p class="tour-copy">Choose a familiar tone above. ToneLab builds the pedals for you, so you can start listening right away.</p><div class="tour-actions"><button class="back" disabled>Back</button><button class="skip">Skip step</button><button class="next">Next step&nbsp; →</button></div></aside>
       </div></section>
       <section><div class="preview-label">Mobile <small>Same guide, adapted as a compact sheet above the player.</small></div><div class="phone-wrap"><div class="screen phone" data-step="1">
         <header class="topbar"><div class="brand"><b>∿</b> ToneLab</div><div class="search">⌕ <strong>Sound like…</strong></div><span class="target-note search-note">Choose a sound</span></header>
         <div class="desktop-main"><section><div class="board-title">Your pedalboard <button>＋ Add</button></div><div class="board"><div class="cable"></div><span class="endpoint">IN</span><div class="pedal"><div class="pedal-label">TUBE<br>DRIVE</div><div class="knobs"><i></i><i></i><i></i></div><div class="footswitch"></div></div><div class="pedal"><div class="pedal-label">ANALOG<br>DELAY</div><div class="knobs"><i></i><i></i><i></i></div><div class="footswitch"></div></div><span class="endpoint">OUT</span></div><div class="board-caption"><span>Tap a pedal to edit</span><span>2 effects</span></div><div class="scope-card"><div class="scope-heading"><strong>Listening at · Output</strong><div class="seg"><span class="on">Level</span><span>Tone</span></div></div><svg class="wave" viewBox="0 0 600 158" preserveAspectRatio="none"><path class="dry" d="M0 79 L32 79 L40 66 L48 93 L58 79 L94 79 L103 57 L111 101 L120 79 L156 79 L166 64 L174 94 L183 79 L220 79 L230 49 L238 108 L247 79 L284 79 L293 61 L302 96 L311 79 L348 79 L357 54 L366 103 L375 79 L412 79 L421 66 L430 92 L439 79 L476 79 L485 58 L494 101 L503 79 L540 79 L550 62 L559 95 L568 79 L600 79"/><path class="wet" d="M0 79 C15 45 25 115 40 79 S68 48 83 80 S110 113 125 79 S152 45 167 79 S195 114 210 79 S237 46 252 80 S280 114 295 79 S322 46 337 80 S365 114 380 79 S407 48 422 79 S450 110 465 79 S492 46 507 80 S535 113 550 79 S578 48 600 79"/></svg><div class="scope-legend"><span><i></i>Dry</span><span><i></i>With effects</span></div><div class="sound-row"><span>Dry</span><span class="active">Effects</span></div></div><section class="read-panel"><h3>Tube Drive</h3><p>Hear what happens when you turn Drive.</p><div class="mini-control"><label><span>Drive</span><strong>5.0</strong></label><div class="slider"></div></div></section></section></div>
         <nav class="player"><button class="play">▶</button><small>126 BPM</small><div class="grow"></div><small>A / B</small><div class="ab"><b class="selected">A</b><b>B</b></div></nav><span class="target-note play-note">Play the guitar</span>
-        <aside class="tour-card"><div class="tour-meta"><b>QUICK START</b><span class="count">1 of 4</span><button class="close" aria-label="Close">×</button></div><div class="progress"><i></i></div><h2 class="tour-title">Pick a sound to explore</h2><p class="tour-copy">Choose a familiar tone above. ToneLab builds the pedals for you, so you can start listening right away.</p><div class="tour-actions"><button class="back" disabled>Back</button><button class="skip">Skip step</button><button class="next">Next&nbsp; →</button></div></aside>
+        <aside class="tour-card"><div class="tour-meta"><b>QUICK START</b><span class="count">1 of 5</span><button class="close" aria-label="Close">×</button></div><div class="progress"><i></i></div><h2 class="tour-title">Pick a sound to explore</h2><p class="tour-copy">Choose a familiar tone above. ToneLab builds the pedals for you, so you can start listening right away.</p><div class="tour-actions"><button class="back" disabled>Back</button><button class="skip">Skip step</button><button class="next">Next&nbsp; →</button></div></aside>
       </div></div></section>
     </div>
   </main>
@@ -164,7 +166,8 @@
       ['Pick a sound to explore', 'Choose a familiar tone above. ToneLab builds the pedals for you, so you can start listening right away.'],
       ['Press Play and listen', 'Hear the guitar pass through the pedals. The sound and waveform update together.'],
       ['Compare dry and effected', 'Switch between the clean input and the full effect chain to hear what changed.'],
-      ['Turn a control and hear it change', 'Tap a pedal and move one knob. Use Hear before and Hear after to compare the result.']
+      ['Open a pedal', 'Choose a pedal to see its controls and learn what each one changes.'],
+      ['Change a control and listen', 'Move a control to shape the sound. Press Play again to hear your change.']
     ];
     function render(step) {
       document.querySelectorAll('.screen').forEach(screen => {
@@ -183,6 +186,13 @@
       });
     }
     render(1);
+    document.querySelectorAll('.screen').forEach(screen => {
+      screen.querySelector('.search').onclick = () => { if (Number(screen.dataset.step) === 1) render(2); };
+      screen.querySelector('.play').onclick = () => { if (Number(screen.dataset.step) === 2) render(3); };
+      screen.querySelectorAll('.scope-card .sound-row span').forEach(control => control.onclick = () => { if (Number(screen.dataset.step) === 3) render(4); });
+      screen.querySelectorAll('.pedal').forEach(pedal => pedal.onclick = () => { if (Number(screen.dataset.step) === 4) render(5); });
+      screen.querySelectorAll('.slider').forEach(control => control.onclick = () => { if (Number(screen.dataset.step) === 5) screen.querySelector('.tour-card').hidden = true; });
+    });
   </script>
 </body>
 </html>

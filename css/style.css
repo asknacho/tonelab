@@ -739,11 +739,13 @@ body { font-family: var(--sans); }
 #quick-start-skip { border-color: transparent; background: transparent; color: var(--ink-2); }
 #quick-start-next { margin-left: auto; border-color: var(--tour-green); background: var(--tour-green); color: white; }
 .quick-start-target { position: relative; z-index: 54 !important; outline: 3px solid #d89452 !important; outline-offset: 3px; border-radius: 8px; }
+body.quick-start-controls-step .quick-start-tour { right: auto; left: max(24px, calc((100vw - 1180px) / 2)); }
 @media (max-width: 700px) {
   .quick-start-tour { right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); left: 12px; width: auto; padding: 15px; border-radius: 17px; }
   .quick-start-tour h2 { font-size: 19px; }
   .quick-start-tour p { font-size: 12px; }
   .quick-start-actions { margin-top: 13px; }
+  body.quick-start-controls-step .quick-start-tour { top: calc(80px + env(safe-area-inset-top)); right: 12px; bottom: auto; left: 12px; }
 }
 
 /* Return the board to the paper workspace and keep its dashed drop boundary. */
