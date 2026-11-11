@@ -583,6 +583,7 @@
     clearTimeout(undoTimer);
     undoToast.hidden = true;
     undoAction = null;
+    document.getElementById('undo-text').textContent = '';
   }
   // Normally at the top of the screen; while a pedal is open for editing it
   // sits inline in the editor, so it never covers the pinned chain or scope.
@@ -595,6 +596,7 @@
   }
   addEventListener('scroll', () => { if (!undoToast.hidden) placeUndo(); }, { passive: true });
   function offerUndo(text, restore) {
+    hideUndo();
     placeUndo();
     undoAction = restore;
     document.getElementById('undo-text').textContent = text;
@@ -2023,6 +2025,7 @@
           announce(pedalName(pedal) + (pedal.enabled ? ' enabled' : ' bypassed'));
         };
         const handle = item.querySelector('.drag-handle');
+        handle.title = 'Hold to drag on touch screens, or use arrow keys to reorder';
         handle.onkeydown = e => {
           if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
           e.preventDefault();
@@ -2032,14 +2035,14 @@
         };
         // Dragging: a copy of the pedal follows the pointer. Outside the
         // dashed board it turns red with an ✕, and letting go removes it.
-        let drag = null;
+        let drag = null, holdTimer = null, pendingDrag = null;
+        const cancelHold = () => { clearTimeout(holdTimer); holdTimer = null; pendingDrag = null; };
         const outsideBoard = e => {
           const r = dropArea.getBoundingClientRect();
           return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
         };
-        handle.onpointerdown = e => {
-          if (e.button !== 0) return;
-          e.preventDefault();
+        const beginDrag = e => {
+          cancelHold();
           handle.focus({ preventScroll: true });
           window.getSelection()?.removeAllRanges();
           document.body.classList.add('pedal-drag-active');
@@ -2047,7 +2050,21 @@
           const r = item.getBoundingClientRect();
           drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, width: r.width, ghost: null };
         };
+        handle.onpointerdown = e => {
+          if (e.button !== 0) return;
+          cancelHold();
+          if (e.pointerType === 'touch') {
+            pendingDrag = { x: e.clientX, y: e.clientY };
+            holdTimer = setTimeout(() => beginDrag(e), 450);
+          } else {
+            e.preventDefault();
+            beginDrag(e);
+          }
+        };
+        handle.addEventListener('touchmove', e => { if (drag) e.preventDefault(); }, { passive: false });
+        handle.oncontextmenu = e => e.preventDefault();
         const clearDrag = () => {
+          cancelHold();
           drag?.ghost?.remove();
           drag = null;
           document.body.classList.remove('pedal-drag-active');
@@ -2056,6 +2073,7 @@
           orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
         };
         handle.onpointermove = e => {
+          if (pendingDrag && Math.hypot(e.clientX - pendingDrag.x, e.clientY - pendingDrag.y) > 8) cancelHold();
           if (!drag || !handle.hasPointerCapture(e.pointerId)) return;
           const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
           if (!drag.ghost) {
@@ -2083,6 +2101,7 @@
           else if (e.clientY < 65) window.scrollBy(0, -12);
         };
         handle.onpointerup = e => {
+          cancelHold();
           if (!drag || !handle.hasPointerCapture(e.pointerId)) return;
           const moved = !!drag.ghost;
           const out = outsideBoard(e);
@@ -2454,7 +2473,7 @@
     const half = (h / 2) * 0.88;
     const y = (v) => mid - amp(v) * half;
 
-    timeLines(ctx, w, h, true);
+    timeLines(ctx, w, h, h >= 60);
 
     // Amplitude grid
     const marks =
@@ -2470,7 +2489,7 @@
         ctx.lineTo(w, yy);
         ctx.stroke();
       }
-      label(ctx, text, 6, Math.round(y(v)) - 3, C.ink3);
+      if (h >= 60) label(ctx, text, 6, Math.round(y(v)) - 3, C.ink3);
     }
     ctx.strokeStyle = C.rule;
     ctx.beginPath();
@@ -2503,6 +2522,7 @@
     ctx.setLineDash([]);
     ctx.lineWidth = 1;
     for (const [db, col, name, side] of thresholds) {
+      if (h < 60) continue;
       const text = name + ' ' + fmt(db, 0) + ' dB';
       const x = side === 'left' ? 80 : w - 8;
       label(ctx, text, x, y(dbToLin(db)) - 5, col, side, 'alphabetic', true);
