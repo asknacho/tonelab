@@ -245,7 +245,11 @@
     speed.value = tempo;
     speed.disabled = free;
     speedOut.textContent = free ? 'not used' : tempo + ' BPM';
-    document.getElementById('dock-playing-text').textContent = free ? 'Free tempo' : tempo + ' BPM';
+    document.getElementById('dock-playing-text').textContent = free ? '--' : tempo + ' BPM';
+    const tempoButton = document.getElementById('dock-playing');
+    tempoButton.disabled = free;
+    tempoButton.title = free ? 'No tempo for free picking' : 'Adjust tempo';
+    tempoButton.setAttribute('aria-label', free ? 'Tempo unavailable for free picking' : 'Adjust tempo: ' + tempo + ' BPM');
   }
   // Temporary controls stay within the player bar and share the same behavior.
   let activePlayerControl = null;
