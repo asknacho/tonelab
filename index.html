@@ -68,8 +68,9 @@
             <div class="segmented" id="monitor" aria-label="Hear">
               <button data-value="dry">Dry input</button><button data-value="wet" class="on">With effects</button>
             </div>
+            <button type="button" id="expand-scope" class="scope-expand" aria-expanded="false" aria-controls="scope-plot" aria-label="Expand waveform">Expand</button>
           </div>
-          <div class="scope-wrap">
+          <div class="scope-wrap" id="scope-plot">
             <canvas id="scope" class="scope"></canvas>
             <canvas id="lanes" class="lanes" hidden></canvas>
           </div>

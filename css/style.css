@@ -1030,7 +1030,9 @@ button.endpoint:hover { color: var(--gate); }
   .board-scroll #effect-order { flex-wrap: nowrap; width: max-content; }
 }
 .journey.workspace > .scope-disclosure { width: 100%; max-width: none; margin: 0 0 20px; padding-top: 0; }
-.journey.workspace > .scope-disclosure .scope-wrap { position: relative; height: 180px; min-height: 0; }
+.journey.workspace > .scope-disclosure .scope-wrap { position: relative; height: 70px; min-height: 0; }
+.journey.workspace > .scope-disclosure.scope-expanded .scope-wrap { height: 180px; }
+.scope-expand { flex: none; min-height: 36px; padding: 0 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--card); color: var(--ink); font: 500 12px var(--sans); }
 .journey.workspace > .scope-disclosure .scope { position: absolute; inset: 0; width: 100%; height: 100%; }
 @media screen and (min-width: 1024px) {
   .journey.workspace { grid-template-rows: auto auto; }

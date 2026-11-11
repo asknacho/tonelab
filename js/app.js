@@ -763,6 +763,13 @@
     const edit = e.target.closest('[data-strip-edit]');
     if (edit) openSettings(state.chain.find(p => p.id === edit.dataset.stripEdit));
   });
+  document.getElementById('expand-scope').onclick = e => {
+    const expanded = document.querySelector('.scope-disclosure').classList.toggle('scope-expanded');
+    e.currentTarget.setAttribute('aria-expanded', String(expanded));
+    e.currentTarget.setAttribute('aria-label', expanded ? 'Collapse waveform' : 'Expand waveform');
+    e.currentTarget.textContent = expanded ? 'Collapse' : 'Expand';
+    state.dirty = true;
+  };
   document.getElementById('toggle-meters').onclick = e => {
     metersOpen = !metersOpen;
     e.target.setAttribute('aria-expanded', String(metersOpen));
