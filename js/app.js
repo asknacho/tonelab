@@ -1830,7 +1830,7 @@
   });
   const quickStartSteps = [
     { target: '#tone-combo', title: 'Pick a sound to explore', copy: 'Choose a familiar tone above. ToneLab builds the pedals for you, so you can start listening right away.' },
-    { target: '#listen', title: 'Press Play and listen', copy: 'Hear the guitar pass through the pedals. The sound and waveform update together.' },
+    { target: '#listen', title: 'Press Play and listen', copy: 'Turn up system volume and switch off mute. On iPhone, Silent mode must be off (side switch or Action button), or playback may be silent.' },
     { target: '#pattern', title: 'Try a different playing pattern', copy: 'Choose single notes, strums, or picking. The same pedals can sound different with a new pattern.' },
     { target: '#monitor', title: 'Compare dry and effected', copy: 'Switch between the clean input and the full effect chain to hear what changed.' },
     { target: '#dock-bank', title: 'Switch between A and B', copy: 'A and B hold separate pedalboards. Tap each side to compare two versions of your sound.' },
