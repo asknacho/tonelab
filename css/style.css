@@ -1070,3 +1070,18 @@ button.endpoint:hover { color: var(--gate); }
 .journey.workspace > .scope-disclosure.scope-expanded .lab-tools { grid-column: 1; grid-row: 1; display: flex; flex-wrap: wrap; padding: 0; gap: 6px; }
 .journey.workspace > .scope-disclosure.scope-expanded .scope-expand { margin-left: auto; }
 .journey.workspace > .scope-disclosure.scope-expanded .scope-wrap { grid-column: 1; grid-row: 2; height: 180px; }
+
+/* Keep the pedalboard heading and its actions together. */
+.chain-editor .chain-heading, .chain-editor .chain-title-actions, .chain-editor .board-actions { flex-wrap: nowrap; }
+.chain-editor .chain-heading { align-items: center; gap: 8px; }
+.chain-editor .chain-title-actions { min-width: 0; gap: 6px; }
+.chain-editor .chain-title-actions h2 { flex-basis: auto; white-space: nowrap; }
+.player-dock .quick-start-launch { flex: none; margin: 0 6px; }
+@media (max-width: 700px) {
+  .chain-editor .chain-heading h2 { font-size: clamp(16px, 4.6vw, 22px); }
+  .chain-editor .board-actions { gap: 4px; }
+  .player-dock .quick-start-launch { order: 2; min-height: 40px; margin: 0 2px; padding-inline: 6px; font-size: 11px; }
+  .dock-bank button { width: 32px; }
+  .dock-bar #copy-bank.icon-button { width: 32px; min-width: 32px; padding: 0; }
+  .dock-match { font-size: 11px; gap: 4px; padding-inline: 4px; }
+}
