@@ -473,12 +473,11 @@
     document.getElementById('inspector-controls').hidden = false;
     document.getElementById('tab-controls').setAttribute('aria-pressed', 'true');
     document.getElementById('tab-guide').setAttribute('aria-pressed', 'false');
+    document.getElementById('inspector-controls').before(modelRow);
     if (mobileEditor.matches) {
-      moreSettings.querySelector('summary').after(modelRow);
       moreSettings.append(pedalNote, pedalDiff);
       document.getElementById('mobile-guide-content').append(guideContent);
     } else {
-      document.getElementById('inspector-controls').before(modelRow);
       document.getElementById('inspect-pedal').before(pedalNote, pedalDiff);
       settings.append(guideContent);
     }

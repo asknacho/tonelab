@@ -55,7 +55,7 @@ Each built-in sound plays a pattern in the style of its feel, at a typical tempo
 
 ## Pedal models
 
-Each effect supports its full set of controls (`js/dsp.js`), and each classic pedal is a *model* that shows only some of them, under that pedal's own names (`js/pedals.js`). Pick a model in the pedal editor (under More on phones and tablets); the card outline changes to match. **More pedal settings** reveals the rest for any model, without a second disclosure. Switch controls (Mode, Clipping, Voicing and so on) appear as tappable options.
+Each effect supports its full set of controls (`js/dsp.js`), and each classic pedal is a *model* that shows only some of them, under that pedal's own names (`js/pedals.js`). Pick a model directly above the controls in the pedal editor on every screen size; the card outline changes to match. **More pedal settings** reveals the rest for any model, without a second disclosure. Switch controls (Mode, Clipping, Voicing and so on) appear as tappable options.
 
 Every control defaults to the effect's original behaviour, so boards and sounds saved before models existed still sound the same. The Looper (a utility, not an effect) isn't included.
 

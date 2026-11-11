@@ -21,7 +21,7 @@ Updated 2026-11-11. These decisions came from the user's reviews of the mobile s
 ## Mobile pedal settings
 
 - Use the inline editor beneath the pedalboard (the user's chosen option B), rather than a drawer or full-screen editor.
-- Keep model selection and advanced settings under More on mobile.
+- Show the pedal model selector directly above the controls on mobile and tablet. Keep advanced settings under More. This replaces the earlier decision to put model selection under More (user follow-up, 2026-11-11).
 - Open the mobile Guide separately so explanatory text does not crowd the controls.
 
 ## Pedal guide
@@ -48,9 +48,9 @@ Updated 2026-11-11. These decisions came from the user's reviews of the mobile s
 - Use Dry / A / B in the player as the main comparison. Keep directional A-to-B / B-to-A copy text. Import stays beside the playing pattern.
 - Analyse expands the waveform tools and reveals intermediate listening points and input noise. Preserve the accepted expanded default on tablet/desktop and compact default on phones.
 - Below 1024 px, keep the inline editor beneath the board, with a live selected-pedal preview in its sticky heading. Keep Guide separate on these sizes. The review's bottom-sheet suggestion does not replace the previously selected inline editor.
-- Save, Guide and New board have text labels. Help is in the header; the creator credit is in the footer. Use sans for text and mono for numeric readouts.
+- Save, Guide and New board have text labels. Give New board horizontal padding so its label does not crowd the border. Help is in the header; the creator credit is in the footer. Use sans for text and mono for numeric readouts.
 - Pedal bypass and drag controls have at least 44 px touch targets. Show one On/Off label per card and keep both endpoint labels inside the scrollable board.
-- More pedal settings is the single disclosure for extra controls, model selection on smaller screens, and labeled pedal actions; there is no second Show all controls checkbox.
+- More pedal settings is the single disclosure for extra controls and labeled pedal actions; there is no second Show all controls checkbox.
 - The effect library groups pedals by signal-chain stage. Chorus / flanger names both available model families; model-specific help only describes the offered options.
 - Quick start has four anchored steps: pick a sound, play, compare, open a pedal. Platform-specific audio tips appear only on the applicable devices.
 - Share offers a Copy button and Copied feedback. Compress the self-contained board link and continue reading existing links; no link-shortening service is required.

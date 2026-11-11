@@ -1246,7 +1246,7 @@ body.pedal-guide-open { overflow: hidden; }
 :root { --serif: var(--sans); }
 [hidden] { display: none !important; }
 .masthead .tone-hero { flex: 1; max-width: 700px; }
-.masthead .new-board { width: auto; white-space: nowrap; font-size: 13px; }
+.masthead .new-board { width: auto; min-height: 48px; padding: 0 12px; white-space: nowrap; font-size: 13px; line-height: 1.3; }
 .masthead #open-quick-start { flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; margin-left: auto; background: transparent; border: 0; }
 .masthead .combo-list { left: 0; right: 0; width: 100%; max-width: 100%; }
 .combo-list [role=option] { flex-direction: column; align-items: flex-start; gap: 4px; }
