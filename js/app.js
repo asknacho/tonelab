@@ -423,6 +423,40 @@
   const dropArea = document.querySelector('.drop-area');
   const settings = document.getElementById('effect-settings');
   const library = document.getElementById('effect-library');
+  const mobileEditor = matchMedia('(max-width: 700px), (max-width: 1023px) and (max-height: 500px)');
+  const guideDialog = document.getElementById('pedal-guide-dialog');
+  const guideContent = document.getElementById('inspector-guide');
+  const modelRow = settings.querySelector('.model-row');
+  const moreSettings = settings.querySelector('.more-pedal-settings');
+  const pedalNote = document.getElementById('pedal-note');
+  const pedalDiff = document.getElementById('pedal-diff');
+  function syncMobileEditor() {
+    if (guideDialog.open) guideDialog.close();
+    document.body.classList.remove('pedal-guide-open');
+    guideContent.hidden = true;
+    document.getElementById('inspector-controls').hidden = false;
+    document.getElementById('tab-controls').setAttribute('aria-pressed', 'true');
+    document.getElementById('tab-guide').setAttribute('aria-pressed', 'false');
+    if (mobileEditor.matches) {
+      moreSettings.querySelector('summary').after(modelRow);
+      moreSettings.append(pedalNote, pedalDiff);
+      document.getElementById('mobile-guide-content').append(guideContent);
+    } else {
+      document.getElementById('inspector-controls').before(modelRow);
+      document.getElementById('inspect-pedal').before(pedalNote, pedalDiff);
+      settings.append(guideContent);
+    }
+  }
+  syncMobileEditor();
+  mobileEditor.addEventListener('change', syncMobileEditor);
+  guideDialog.querySelector('.sheet-close').onclick = () => guideDialog.close();
+  guideDialog.addEventListener('close', () => {
+    if (!guideDialog.open) {
+      document.body.classList.remove('pedal-guide-open');
+      if (mobileEditor.matches) guideContent.hidden = true;
+    }
+  });
+  document.getElementById('mobile-pedal-guide').onclick = () => showGuide(true);
   const selected = () => state.chain.find(p => p.id === selectedId);
   function announce(text) { document.getElementById('order-status').textContent = text; }
   let onBoardChange = () => {};
@@ -447,6 +481,7 @@
   // Editing happens inline, under the chain and the scope, so the live
   // waveform stays in view while you turn the knobs.
   function closeSettings() {
+    if (guideDialog.open) guideDialog.close();
     settings.hidden = matchMedia('(max-width: 700px), (max-width: 1023px) and (max-height: 500px)').matches;
     const empty = state.chain.length === 0;
     document.getElementById('inspector-empty').hidden = !empty;
@@ -482,7 +517,7 @@
   }
   function openSettings(pedal) {
     const wasOpen = !settings.hidden && selectedId === pedal.id;
-    if (!wasOpen) settings.scrollTop = 0;
+    if (!wasOpen) { settings.scrollTop = 0; moreSettings.open = false; }
     selectedId = pedal.id;
     state.dirty = true;
     // Editing a pedal leaves the explicitly chosen listening point unchanged.
@@ -541,6 +576,14 @@
     });
     if (!undoToast.hidden) placeUndo();
     updateAuditionButtons();
+    if (mobileEditor.matches && !wasOpen && !guideDialog.open) {
+      requestAnimationFrame(() => {
+        if (settings.hidden || guideDialog.open) return;
+        const top = settings.getBoundingClientRect().top;
+        const available = window.innerHeight - document.querySelector('.player-dock').getBoundingClientRect().height;
+        if (top > available - 180) window.scrollBy({ top: top - Math.max(16, available - 240), behavior: 'smooth' });
+      });
+    }
   }
   function addPedal(type, params, model) {
     const pedal = createPedal(type, params, model);
@@ -642,6 +685,8 @@
   function dismissSettings(restoreFocus = true) {
     settings.hidden = true;
     document.body.classList.remove('editing');
+    renderStrip();
+    orderList.querySelectorAll('.selected-pedal').forEach(item => { item.classList.remove('selected-pedal'); item.querySelector('.pedal-toggle').setAttribute('aria-pressed', 'false'); });
     if (restoreFocus) orderList.querySelector('[data-effect="' + selectedId + '"] .pedal-toggle')?.focus({ preventScroll: true });
   }
   document.addEventListener('keydown', e => {
@@ -1823,6 +1868,15 @@
     document.getElementById('guide-next').disabled = index === state.chain.length - 1;
   }
   function showGuide(show) {
+    if (mobileEditor.matches) {
+      if (!show) { guideDialog.close(); guideContent.hidden = true; return; }
+      if (selected()) updateGuide(selected());
+      document.getElementById('pedal-guide-title').textContent = selected() ? pedalName(selected()) + ' · Guide' : 'Pedal guide';
+      guideContent.hidden = false;
+      if (!guideDialog.open) guideDialog.showModal();
+      document.body.classList.add('pedal-guide-open');
+      return;
+    }
     document.getElementById('inspector-guide').hidden = !show;
     document.getElementById('inspector-controls').hidden = show;
     document.getElementById('tab-guide').setAttribute('aria-pressed', String(show));
@@ -1846,6 +1900,7 @@
   };
   document.getElementById('guide-listen').onclick = () => { if (selected()) listenTo(selectedId, 'wet'); };
   document.getElementById('print-guide').onclick = () => {
+    if (guideDialog.open) guideDialog.close();
     const printGuide = document.querySelector('.full-guide');
     printGuide.hidden = false;
     printGuide.open = true;
@@ -1889,7 +1944,8 @@
     document.getElementById('quick-start-progress-fill').style.width = ((quickStartIndex + 1) / quickStartSteps.length * 100) + '%';
     document.getElementById('quick-start-back').disabled = quickStartIndex === 0;
     document.getElementById('quick-start-next').innerHTML = quickStartIndex === quickStartSteps.length - 1 ? 'Finish <span aria-hidden="true">✓</span>' : 'Next step <span aria-hidden="true">→</span>';
-    const target = document.querySelector(step.target) || (quickStartIndex === 5 ? document.getElementById('strip-add') : null);
+    const targetSelector = step.target === '#tab-guide' && mobileEditor.matches ? '#mobile-pedal-guide' : step.target;
+    const target = document.querySelector(targetSelector) || (quickStartIndex === 5 ? document.getElementById('strip-add') : null);
     if (target) target.classList.add('quick-start-target');
   }
   function closeQuickStart() {
@@ -1912,6 +1968,7 @@
   document.addEventListener('input', e => { if (quickStartIndex === 6 && e.target.closest('#pedal-params input')) advanceQuickStart(6); });
   document.getElementById('pedal-params').addEventListener('click', e => { if (quickStartIndex === 6 && e.target.closest('button')) advanceQuickStart(6); });
   document.getElementById('tab-guide').addEventListener('click', () => advanceQuickStart(7));
+  document.getElementById('mobile-pedal-guide').addEventListener('click', () => advanceQuickStart(7));
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !quickStartTour.hidden) closeQuickStart(); });
   onBoardChange = () => { renderJourney(); renderQuickStart(); };
   refreshSlots();
