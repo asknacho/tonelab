@@ -30,6 +30,7 @@ Updated 2026-11-11. These decisions came from the user's reviews of the mobile s
 - Put parameter values and A/B differences under View settings.
 - Show useful playing guidance directly under How to play it; omit the section when no advice exists.
 - Remove playback and printing from the individual pedal guide. Printing belongs in the full board guide.
+- Offer Full board guide inside the current tone’s Guide view. Do not show it as a standalone element beneath the pedalboard.
 
 ## Development preview
 

@@ -777,8 +777,12 @@ body.quick-start-controls-step .quick-start-tour { right: auto; left: max(24px, 
   body.printing-guide .inspector,
   body.printing-guide .full-guide { display: block !important; max-height: none; overflow: visible; border: 0; padding: 0; margin: 0; }
   body.printing-guide .inspector > :not(#inspector-guide),
-  body.printing-guide #inspector-guide,
+  body.printing-guide #inspector-guide > :not(.full-guide),
+  body.printing-guide .pedal-guide-dialog > .sheet-head,
   body.printing-guide .full-guide > summary { display: none !important; }
+  body.printing-guide #inspector-guide,
+  body.printing-guide #pedal-guide-dialog,
+  body.printing-guide #mobile-guide-content { display: block !important; position: static; width: auto; max-width: none; max-height: none; overflow: visible; border: 0; border-radius: 0; padding: 0; margin: 0; box-shadow: none; }
   body.printing-guide .full-guide > * { display: block !important; }
   body.printing-guide .journey-steps { padding: 0; }
   body.printing-guide .journey-step { break-inside: avoid; border-bottom: 1px solid #ddd; padding: 5mm 0; }
