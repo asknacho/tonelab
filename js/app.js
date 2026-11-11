@@ -1485,6 +1485,7 @@
     const label = tone ? tone.title : heroSelect.selectedOptions[0].textContent;
     announce(label + ' loaded');
     offerUndo(label + ' loaded', () => applyBoard(before));
+    advanceQuickStart(0);
   };
   /* Searchable "I want to sound like…": a text box over the sound list. The
    * hidden <select> stays the source of truth, so choosing an item fires the
@@ -1827,7 +1828,61 @@
     const button = e.target.closest('.journey-listen');
     if (button) listenTo(button.dataset.pedal, button.dataset.monitor);
   });
-  onBoardChange = renderJourney;
+  const quickStartSteps = [
+    { target: '#tone-combo', title: 'Pick a sound to explore', copy: 'Choose a familiar tone above. ToneLab builds the pedals for you, so you can start listening right away.' },
+    { target: '#listen', title: 'Press Play and listen', copy: 'Turn up system volume and switch off mute. On iPhone, Silent mode must be off (side switch or Action button), or playback may be silent.' },
+    { target: '#pattern', title: 'Try a different playing pattern', copy: 'Choose single notes, strums, or picking. The same pedals can sound different with a new pattern.' },
+    { target: '#monitor', title: 'Compare dry and effected', copy: 'Switch between the clean input and the full effect chain to hear what changed.' },
+    { target: '#dock-bank', title: 'Switch between A and B', copy: 'A and B hold separate pedalboards. Tap each side to compare two versions of your sound.' },
+    { target: '#effect-order li .pedal-toggle', title: 'Open a pedal', copy: 'Choose a pedal to see its controls and learn what each one changes.' },
+    { target: '#pedal-params input, #pedal-params button', title: 'Change a control and listen', copy: 'Move a control to shape the sound. The tour will take you to the pedal guide next.' },
+    { target: '#tab-guide', title: 'See how to make the effect', copy: 'Open Guide for this pedal’s settings, a listening explanation, and a practical tip.' }
+  ];
+  const quickStartTour = document.getElementById('quick-start-tour');
+  let quickStartIndex = 0;
+  function advanceQuickStart(expectedIndex) {
+    if (quickStartTour.hidden || quickStartIndex !== expectedIndex) return;
+    quickStartIndex += 1;
+    if (quickStartIndex >= quickStartSteps.length) closeQuickStart();
+    else renderQuickStart();
+  }
+  function renderQuickStart() {
+    document.querySelectorAll('.quick-start-target').forEach(el => el.classList.remove('quick-start-target'));
+    if (quickStartTour.hidden) return;
+    document.body.classList.toggle('quick-start-controls-step', quickStartIndex >= 6);
+    const step = quickStartSteps[quickStartIndex];
+    if (quickStartIndex === 6 && selected() && !document.getElementById('inspector-guide').hidden) showGuide(false);
+    document.getElementById('quick-start-count').textContent = (quickStartIndex + 1) + ' of ' + quickStartSteps.length;
+    document.getElementById('quick-start-title').textContent = step.title;
+    document.getElementById('quick-start-copy').textContent = step.copy;
+    document.getElementById('quick-start-progress-fill').style.width = ((quickStartIndex + 1) / quickStartSteps.length * 100) + '%';
+    document.getElementById('quick-start-back').disabled = quickStartIndex === 0;
+    document.getElementById('quick-start-next').innerHTML = quickStartIndex === quickStartSteps.length - 1 ? 'Finish <span aria-hidden="true">✓</span>' : 'Next step <span aria-hidden="true">→</span>';
+    const target = document.querySelector(step.target) || (quickStartIndex === 5 ? document.getElementById('strip-add') : null);
+    if (target) target.classList.add('quick-start-target');
+  }
+  function closeQuickStart() {
+    quickStartTour.hidden = true;
+    document.body.classList.remove('quick-start-controls-step');
+    document.querySelectorAll('.quick-start-target').forEach(el => el.classList.remove('quick-start-target'));
+  }
+  document.getElementById('open-quick-start').onclick = () => { quickStartIndex = 0; quickStartTour.hidden = false; renderQuickStart(); };
+  document.getElementById('close-quick-start').onclick = closeQuickStart;
+  document.getElementById('quick-start-back').onclick = () => { quickStartIndex = Math.max(0, quickStartIndex - 1); renderQuickStart(); };
+  document.getElementById('quick-start-skip').onclick = () => { quickStartIndex += 1; if (quickStartIndex >= quickStartSteps.length) closeQuickStart(); else renderQuickStart(); };
+  document.getElementById('quick-start-next').onclick = () => { quickStartIndex += 1; if (quickStartIndex >= quickStartSteps.length) closeQuickStart(); else renderQuickStart(); };
+  document.getElementById('listen').addEventListener('click', () => advanceQuickStart(1));
+  patternSelect.addEventListener('change', () => advanceQuickStart(2));
+  document.getElementById('monitor').addEventListener('click', e => { if (e.target.closest('button')) advanceQuickStart(3); });
+  document.getElementById('dock-bank').addEventListener('click', e => {
+    const bank = e.target.closest('[data-bank]')?.dataset.bank;
+    if (bank && bank !== activeBank) advanceQuickStart(4);
+  }, true);
+  document.addEventListener('input', e => { if (quickStartIndex === 6 && e.target.closest('#pedal-params input')) advanceQuickStart(6); });
+  document.getElementById('pedal-params').addEventListener('click', e => { if (quickStartIndex === 6 && e.target.closest('button')) advanceQuickStart(6); });
+  document.getElementById('tab-guide').addEventListener('click', () => advanceQuickStart(7));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !quickStartTour.hidden) closeQuickStart(); });
+  onBoardChange = () => { renderJourney(); renderQuickStart(); };
   refreshSlots();
 
   /* Loudness or Tone: what the scope and the step-by-step show. */
@@ -1954,7 +2009,7 @@
         item.dataset.effect = id;
         item.dataset.type = pedal.type;
         item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder">⠿</button>';
-        item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal); showGuide(false); };
+        item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal); showGuide(false); advanceQuickStart(5); };
         item.querySelector('.pedal-edit').onclick = () => {
           pedal.enabled = !pedal.enabled;
           edited();

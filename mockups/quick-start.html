@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ToneLab · Quick start mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root { --paper:#f4f1e8; --card:#fffdf7; --ink:#292820; --muted:#77766e; --rule:#d9d5c9; --green:#28543e; --green2:#dce8dc; --accent:#ca7451; --sans:'IBM Plex Sans',sans-serif; --serif:'Fraunces',serif; --mono:'IBM Plex Mono',monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#e8e5dc; color:var(--ink); font-family:var(--sans); }
+    .page { max-width:1440px; margin:auto; padding:34px 34px 44px; }
+    .intro { display:flex; align-items:end; justify-content:space-between; gap:24px; margin:0 auto 26px; max-width:1320px; }
+    .eyebrow { color:var(--green); font:500 12px var(--mono); letter-spacing:.08em; text-transform:uppercase; }
+    h1 { margin:8px 0 6px; font:600 34px/1.1 var(--serif); }
+    .intro p { margin:0; color:var(--muted); font-size:15px; }
+    .legend { display:flex; gap:8px; flex-wrap:wrap; justify-content:end; }
+    .legend span { border:1px solid var(--rule); border-radius:999px; padding:7px 11px; color:#5e6058; background:#f6f4ed; font-size:12px; }
+    .previews { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(360px,.78fr); gap:22px; align-items:start; max-width:1320px; margin:auto; }
+    .preview-label { display:flex; justify-content:space-between; align-items:center; margin:0 0 9px; color:#5d6059; font:500 12px var(--mono); letter-spacing:.04em; text-transform:uppercase; }
+    .preview-label small { color:#8c8b83; font:400 11px var(--sans); text-transform:none; letter-spacing:0; }
+    .screen { min-height:740px; position:relative; overflow:hidden; border:1px solid #cecabf; border-radius:16px; background:var(--paper); box-shadow:0 10px 35px #25251c14; }
+    .topbar { height:70px; padding:0 28px; display:flex; align-items:center; gap:22px; border-bottom:1px solid var(--rule); background:#faf8f1; }
+    .brand { font:600 23px var(--serif); white-space:nowrap; }
+    .brand b { color:var(--green); font-size:25px; margin-right:5px; }
+    .search { display:flex; align-items:center; gap:10px; height:43px; flex:1; max-width:480px; padding:0 14px; border:1.5px solid #55564f; border-radius:10px; background:#fffdf8; color:#6e6d64; font-size:14px; }
+    .search strong { color:#33332d; font-weight:500; }
+    .topnote { margin-left:auto; color:#77766d; font-size:12px; }
+    .desktop-main { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(315px,.8fr); gap:20px; padding:23px 24px 100px; }
+    .board-title { display:flex; justify-content:space-between; align-items:center; margin:0 0 12px; font-size:18px; font-weight:600; }
+    .board-title button { border:1px solid var(--rule); background:#faf8f1; border-radius:8px; color:#51554e; padding:8px 11px; font:500 12px var(--sans); }
+    .board { min-height:182px; display:flex; align-items:center; justify-content:space-around; position:relative; padding:24px 16px; border:1px dashed #5d705e; border-radius:12px; background:#294035; }
+    .cable { position:absolute; left:7%; right:7%; top:50%; height:2px; background:#b2c1ab; opacity:.8; }
+    .endpoint,.pedal { z-index:1; position:relative; }
+    .endpoint { color:#f5f2e8; font:500 11px var(--mono); }
+    .pedal { width:88px; height:112px; border:1px solid #d8d1bd; border-radius:14px 14px 9px 9px; background:#dfd9c7; box-shadow:0 5px 0 #aaa38f; text-align:center; padding:12px 7px; }
+    .pedal-label { color:#34352e; font:600 10px var(--mono); letter-spacing:.02em; }
+    .knobs { display:flex; justify-content:center; gap:8px; margin:14px 0 10px; }
+    .knobs i { display:block; width:15px; height:15px; border:2px solid #777567; border-radius:50%; background:linear-gradient(135deg,#eee8d7 45%,#777567 48%,#777567 54%,#eee8d7 58%); }
+    .footswitch { width:23px; height:23px; margin:auto; border:2px solid #79796e; border-radius:50%; }
+    .board-caption { display:flex; justify-content:space-between; color:#77776f; margin:8px 2px 20px; font:11px var(--mono); }
+    .scope-card { border:1px solid var(--rule); border-radius:11px; background:#fbf9f2; padding:16px; }
+    .scope-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:13px; }
+    .seg { display:flex; border:1px solid var(--rule); border-radius:7px; overflow:hidden; }
+    .seg span { padding:7px 9px; color:#74736c; background:#f5f2e9; font-size:11px; white-space:nowrap; }
+    .seg .on { color:white; background:var(--green); }
+    .wave { display:block; width:100%; height:158px; margin-top:12px; border:1px solid #e1ddd2; border-radius:8px; background:repeating-linear-gradient(0deg,#fbfaf4 0,#fbfaf4 37px,#ebe8dd 38px), repeating-linear-gradient(90deg,transparent 0,transparent 58px,#ebe8dd 59px); }
+    .wave path { fill:none; stroke-width:2.2; stroke-linecap:round; }
+    .wave .dry { stroke:#9b9a91; }
+    .wave .wet { stroke:#28543e; }
+    .scope-legend { display:flex; gap:16px; margin:10px 2px 0; color:#73726b; font-size:11px; }
+    .scope-legend i { display:inline-block; width:13px; height:3px; background:#999; vertical-align:middle; margin-right:5px; }
+    .scope-legend span+span i { background:var(--green); }
+    .read-panel { min-height:350px; border:1px solid var(--rule); border-radius:11px; background:#faf8f1; padding:20px; }
+    .read-panel h3 { margin:0 0 6px; font:600 20px var(--serif); }
+    .read-panel p { color:#696961; font-size:13px; line-height:1.5; }
+    .panel-tabs { display:flex; gap:5px; margin:0 0 14px; padding:3px; border-radius:8px; background:#eeece3; }
+    .panel-tabs span { flex:1; padding:8px; border-radius:6px; color:#60625a; text-align:center; font-size:11px; }
+    .panel-tabs span:first-child { background:var(--green); color:white; }
+    .panel-tabs .guide-tab { cursor:pointer; }
+    .guide-copy { display:none; }
+    .read-panel.show-guide .controls-copy { display:none; }
+    .read-panel.show-guide .guide-copy { display:block; }
+    .mini-control { margin:18px 0; padding:13px; border:1px solid var(--rule); border-radius:9px; background:#fffdf8; }
+    .mini-control label { display:flex; justify-content:space-between; font-size:12px; }
+    .slider { height:5px; margin:17px 4px 7px; border-radius:9px; background:#dfdcd1; position:relative; }
+    .slider:before { content:''; position:absolute; inset:0 52% 0 0; border-radius:9px; background:var(--green); }
+    .slider:after { content:''; position:absolute; left:48%; top:50%; width:15px; height:15px; border:2px solid white; border-radius:50%; background:var(--green); transform:translateY(-50%); box-shadow:0 0 0 1px var(--green); }
+    .sound-row { display:flex; gap:8px; margin-top:15px; }
+    .sound-row span { flex:1; padding:10px 8px; border:1px solid var(--rule); border-radius:8px; background:white; color:#5c5d55; text-align:center; font-size:11px; }
+    .sound-row .active { background:var(--green); color:white; border-color:var(--green); }
+    .player { position:absolute; z-index:2; inset:auto 0 0; height:69px; display:flex; align-items:center; gap:16px; padding:0 24px; border-top:1px solid var(--rule); background:#faf8f2f2; }
+    .play { height:43px; width:43px; border:0; border-radius:50%; background:var(--green); color:white; font-size:19px; }
+    .player small { color:#6f6e66; font-size:12px; }
+    .player .pattern { border:0; background:transparent; color:#5d5e56; font:500 12px var(--sans); }
+    .player .grow { margin-left:auto; }
+    .ab { display:flex; padding:3px; gap:2px; border:1px solid var(--rule); border-radius:8px; background:#f1eee5; }
+    .ab b { padding:6px 12px; border-radius:6px; font:500 12px var(--mono); }
+    .ab .selected { background:#34372f; color:white; }
+    .tour-card { position:absolute; z-index:4; right:25px; bottom:86px; width:min(390px,calc(100% - 50px)); padding:19px; border:1px solid #d5d2c7; border-radius:15px; background:#fffef9; box-shadow:0 12px 35px #20251b30; }
+    .tour-meta { display:flex; justify-content:space-between; align-items:center; color:#677369; font-size:11px; }
+    .tour-meta b { font:500 11px var(--mono); color:var(--green); }
+    .close { border:0; background:none; color:#77766e; font-size:21px; line-height:1; }
+    .progress { height:3px; margin:13px 0 15px; overflow:hidden; border-radius:4px; background:#e8e6dc; }
+    .progress i { display:block; height:100%; width:25%; background:var(--green); transition:width .2s; }
+    .tour-card h2 { margin:0 0 7px; font:600 21px var(--serif); }
+    .tour-card p { min-height:48px; margin:0; color:#62635b; font-size:13px; line-height:1.45; }
+    .tour-actions { display:flex; align-items:center; gap:8px; margin-top:17px; }
+    .tour-actions button { min-height:40px; border:1px solid var(--rule); border-radius:8px; padding:0 13px; background:#f7f5ed; color:#474941; font:500 12px var(--sans); }
+    .tour-actions .next { margin-left:auto; border-color:var(--green); background:var(--green); color:white; }
+    .tour-actions .skip { padding-inline:8px; border-color:transparent; background:transparent; color:#707168; }
+    .screen[data-step="2"] .progress i { width:25%; }
+    .screen[data-step="3"] .progress i { width:37.5%; }
+    .screen[data-step="4"] .progress i { width:50%; }
+    .screen[data-step="5"] .progress i { width:62.5%; }
+    .screen[data-step="6"] .progress i { width:75%; }
+    .screen[data-step="7"] .progress i { width:87.5%; }
+    .screen[data-step="8"] .progress i { width:100%; }
+    .spotlight { outline:3px solid #d89452; outline-offset:3px; border-radius:11px; position:relative; }
+    .target-note { display:none; position:absolute; z-index:3; padding:5px 8px; border-radius:5px; background:#d89452; color:#fff; font:500 10px var(--mono); white-space:nowrap; }
+    .screen[data-step="1"] .search { outline:3px solid #d89452; outline-offset:3px; }
+    .screen[data-step="1"] .target-note.search-note { display:block; top:56px; left:230px; }
+    .screen[data-step="2"] .play { outline:3px solid #d89452; outline-offset:3px; }
+    .screen[data-step="2"] .target-note.play-note { display:block; bottom:64px; left:28px; }
+    .screen[data-step="3"] .pattern { outline:3px solid #d89452; outline-offset:3px; }
+    .screen[data-step="4"] .scope-card { outline:3px solid #d89452; outline-offset:3px; }
+    .screen[data-step="5"] .ab { outline:3px solid #d89452; outline-offset:3px; }
+    .screen[data-step="6"] .pedal:nth-of-type(2) { outline:3px solid #d89452; outline-offset:3px; }
+    .screen[data-step="7"] .mini-control { outline:3px solid #d89452; outline-offset:3px; }
+    .screen[data-step="8"] .guide-tab { outline:3px solid #d89452; outline-offset:3px; }
+    .screen[data-step="8"] .tour-card { top:90px; bottom:auto; }
+    .phone-wrap { display:flex; justify-content:center; }
+    .phone { width:390px; height:740px; min-height:0; border:9px solid #22251f; border-radius:36px; box-shadow:0 16px 45px #25251c29; }
+    .phone .topbar { height:68px; padding:0 15px; gap:11px; }
+    .phone .brand { font-size:20px; }
+    .phone .brand b { font-size:21px; }
+    .phone .search { height:39px; padding:0 10px; font-size:11px; }
+    .phone .topnote { display:none; }
+    .phone .desktop-main { display:block; padding:15px 13px 260px; }
+    .phone .board-title { font-size:15px; margin-bottom:9px; }
+    .phone .board-title button { font-size:10px; padding:7px; }
+    .phone .board { min-height:139px; padding:15px 8px; }
+    .phone .pedal { width:69px; height:93px; padding:11px 4px; }
+    .phone .pedal-label { font-size:8px; }
+    .phone .knobs { gap:4px; margin:12px 0 8px; }
+    .phone .knobs i { width:12px; height:12px; }
+    .phone .footswitch { width:19px; height:19px; }
+    .phone .board-caption { font-size:9px; margin-bottom:13px; }
+    .phone .scope-card { padding:10px; }
+    .phone .scope-heading { font-size:10px; flex-wrap:wrap; }
+    .phone .seg span { font-size:9px; padding:6px; }
+    .phone .wave { height:106px; margin-top:9px; }
+    .phone .scope-legend { font-size:9px; gap:10px; }
+    .phone .read-panel { margin-top:13px; min-height:120px; padding:12px; }
+    .phone .read-panel h3 { font-size:16px; }
+    .phone .read-panel p { margin:5px 0 9px; font-size:10px; }
+    .phone .mini-control { margin:10px 0; padding:9px; }
+    .phone .mini-control label { font-size:10px; }
+    .phone .slider { margin:13px 3px 5px; }
+    .phone .player { height:61px; gap:10px; padding:0 13px; }
+    .phone .play { width:39px; height:39px; }
+    .phone .player small { font-size:10px; }
+    .phone .player .pattern { padding:0; font-size:9px; }
+    .phone .ab b { padding:6px 9px; }
+    .phone .tour-card { position:absolute; left:8px; right:8px; bottom:67px; width:auto; padding:15px 15px 13px; border-radius:17px; box-shadow:0 7px 26px #1e241b35; }
+    .phone .tour-card h2 { font-size:19px; }
+    .phone .tour-card p { min-height:42px; font-size:12px; }
+    .phone .tour-actions { margin-top:13px; }
+    .phone .tour-actions button { min-height:39px; padding-inline:10px; }
+    .phone .tour-actions .skip { padding-inline:5px; }
+    .phone .target-note.search-note { left:114px; top:53px; }
+    .phone .target-note.play-note { bottom:59px; left:14px; }
+    @media (max-width:900px) { .page { padding:25px 20px; } .previews { grid-template-columns:1fr; } .screen:not(.phone) { min-height:700px; } .phone-wrap { justify-content:flex-start; } .intro { align-items:start; flex-direction:column; } .legend { justify-content:start; } }
+    @media (max-width:520px) { .page { padding:20px 12px; } .phone { width:min(390px,100%); height:720px; } h1 { font-size:29px; } .preview-label small { display:none; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="intro">
+      <div><div class="eyebrow">Interaction mockup · responsive</div><h1>Meet your signal, one step at a time.</h1><p>An eight step quick start that teaches by pointing into the live ToneLab workspace.</p></div>
+      <div class="legend"><span>Dismiss any time</span><span>Skip a step</span><span>Progress is visible</span></div>
+    </header>
+    <div class="previews">
+      <section><div class="preview-label">Desktop / tablet <small>Card sits beside the waveform, clear of the pedalboard.</small></div><div class="screen desktop" data-step="1">
+        <header class="topbar"><div class="brand"><b>∿</b> Tonelab</div><div class="search">⌕ <strong>I want to sound like…</strong></div><div class="topnote">Try a sound, then change it.</div><span class="target-note search-note">Start here</span></header>
+        <div class="desktop-main"><section><div class="board-title">Your pedalboard <button>＋ Add effect</button></div><div class="board"><div class="cable"></div><span class="endpoint">INPUT</span><div class="pedal"><div class="pedal-label">TUBE<br>DRIVE</div><div class="knobs"><i></i><i></i><i></i></div><div class="footswitch"></div></div><div class="pedal"><div class="pedal-label">ANALOG<br>DELAY</div><div class="knobs"><i></i><i></i><i></i></div><div class="footswitch"></div></div><span class="endpoint">OUTPUT</span></div><div class="board-caption"><span>IN · listen to the clean guitar</span><span>OUT · hear the full chain</span></div><div class="scope-card"><div class="scope-heading"><strong>Listening at · Full chain</strong><div class="seg"><span class="on">Loudness</span><span>Tone</span></div></div><svg class="wave" viewBox="0 0 600 158" preserveAspectRatio="none"><path class="dry" d="M0 79 L32 79 L40 66 L48 93 L58 79 L94 79 L103 57 L111 101 L120 79 L156 79 L166 64 L174 94 L183 79 L220 79 L230 49 L238 108 L247 79 L284 79 L293 61 L302 96 L311 79 L348 79 L357 54 L366 103 L375 79 L412 79 L421 66 L430 92 L439 79 L476 79 L485 58 L494 101 L503 79 L540 79 L550 62 L559 95 L568 79 L600 79"/><path class="wet" d="M0 79 C15 45 25 115 40 79 S68 48 83 80 S110 113 125 79 S152 45 167 79 S195 114 210 79 S237 46 252 80 S280 114 295 79 S322 46 337 80 S365 114 380 79 S407 48 422 79 S450 110 465 79 S492 46 507 80 S535 113 550 79 S578 48 600 79"/></svg><div class="scope-legend"><span><i></i>Input (dry)</span><span><i></i>Output</span></div><div class="sound-row"><span>Dry input</span><span class="active">With effects</span></div></div></section><section class="read-panel"><div class="panel-tabs"><span>Controls</span><span class="guide-tab">Guide</span></div><h3>Small changes, heard clearly.</h3><p class="controls-copy">Tap a pedal to explore its controls. The scope follows the signal as you go.</p><p class="guide-copy">Drive adds grit; tone and level shape the result. Start low, then raise Drive until the effect sits right.</p><div class="mini-control"><label><span>Drive</span><strong>5.0</strong></label><div class="slider"></div><label><span>Less</span><span>More</span></label></div><div class="sound-row"><span>▶ Hear before</span><span class="active">▶ Hear after</span></div><p>Current sound: <strong>Edge style echo</strong></p></section></div>
+        <nav class="player"><button class="play">▶</button><button class="pattern">Free picking ▾</button><small>126 BPM</small><div class="grow"></div><small>Compare A / B</small><div class="ab"><b class="selected">A</b><b>B</b></div></nav>
+        <aside class="tour-card"><div class="tour-meta"><b>QUICK START</b><span class="count">1 of 8</span><button class="close" aria-label="Close">×</button></div><div class="progress"><i></i></div><h2 class="tour-title">Pick a sound to explore</h2><p class="tour-copy">Choose a familiar tone above. ToneLab builds the pedals for you, so you can start listening right away.</p><div class="tour-actions"><button class="back" disabled>Back</button><button class="skip">Skip step</button><button class="next">Next step&nbsp; →</button></div></aside>
+      </div></section>
+      <section><div class="preview-label">Mobile <small>Same guide, adapted as a compact sheet above the player.</small></div><div class="phone-wrap"><div class="screen phone" data-step="1">
+        <header class="topbar"><div class="brand"><b>∿</b> ToneLab</div><div class="search">⌕ <strong>Sound like…</strong></div><span class="target-note search-note">Choose a sound</span></header>
+        <div class="desktop-main"><section><div class="board-title">Your pedalboard <button>＋ Add</button></div><div class="board"><div class="cable"></div><span class="endpoint">IN</span><div class="pedal"><div class="pedal-label">TUBE<br>DRIVE</div><div class="knobs"><i></i><i></i><i></i></div><div class="footswitch"></div></div><div class="pedal"><div class="pedal-label">ANALOG<br>DELAY</div><div class="knobs"><i></i><i></i><i></i></div><div class="footswitch"></div></div><span class="endpoint">OUT</span></div><div class="board-caption"><span>Tap a pedal to edit</span><span>2 effects</span></div><div class="scope-card"><div class="scope-heading"><strong>Listening at · Output</strong><div class="seg"><span class="on">Level</span><span>Tone</span></div></div><svg class="wave" viewBox="0 0 600 158" preserveAspectRatio="none"><path class="dry" d="M0 79 L32 79 L40 66 L48 93 L58 79 L94 79 L103 57 L111 101 L120 79 L156 79 L166 64 L174 94 L183 79 L220 79 L230 49 L238 108 L247 79 L284 79 L293 61 L302 96 L311 79 L348 79 L357 54 L366 103 L375 79 L412 79 L421 66 L430 92 L439 79 L476 79 L485 58 L494 101 L503 79 L540 79 L550 62 L559 95 L568 79 L600 79"/><path class="wet" d="M0 79 C15 45 25 115 40 79 S68 48 83 80 S110 113 125 79 S152 45 167 79 S195 114 210 79 S237 46 252 80 S280 114 295 79 S322 46 337 80 S365 114 380 79 S407 48 422 79 S450 110 465 79 S492 46 507 80 S535 113 550 79 S578 48 600 79"/></svg><div class="scope-legend"><span><i></i>Dry</span><span><i></i>With effects</span></div><div class="sound-row"><span>Dry</span><span class="active">Effects</span></div></div><section class="read-panel"><div class="panel-tabs"><span>Controls</span><span class="guide-tab">Guide</span></div><h3>Tube Drive</h3><p class="controls-copy">Hear what happens when you turn Drive.</p><p class="guide-copy">Start with Drive low. Raise it until the guitar has the grit you want, then balance the output level.</p><div class="mini-control"><label><span>Drive</span><strong>5.0</strong></label><div class="slider"></div></div></section></section></div>
+        <nav class="player"><button class="play">▶</button><button class="pattern">Picking ▾</button><small>126 BPM</small><div class="grow"></div><small>A / B</small><div class="ab"><b class="selected">A</b><b>B</b></div></nav><span class="target-note play-note">Play the guitar</span>
+        <aside class="tour-card"><div class="tour-meta"><b>QUICK START</b><span class="count">1 of 8</span><button class="close" aria-label="Close">×</button></div><div class="progress"><i></i></div><h2 class="tour-title">Pick a sound to explore</h2><p class="tour-copy">Choose a familiar tone above. ToneLab builds the pedals for you, so you can start listening right away.</p><div class="tour-actions"><button class="back" disabled>Back</button><button class="skip">Skip step</button><button class="next">Next&nbsp; →</button></div></aside>
+      </div></div></section>
+    </div>
+  </main>
+  <script>
+    const steps = [
+      ['Pick a sound to explore', 'Choose a familiar tone above. ToneLab builds the pedals for you, so you can start listening right away.'],
+      ['Press Play and listen', 'Turn up system volume and switch off mute. On iPhone, Silent mode must be off (side switch or Action button), or playback may be silent.'],
+      ['Try a different playing pattern', 'Choose single notes, strums, or picking. The same pedals can sound different with a new pattern.'],
+      ['Compare dry and effected', 'Switch between the clean input and the full effect chain to hear what changed.'],
+      ['Switch between A and B', 'A and B hold separate pedalboards. Tap each side to compare two versions of your sound.'],
+      ['Open a pedal', 'Choose a pedal to see its controls and learn what each one changes.'],
+      ['Change a control and listen', 'Move a control to shape the sound. Press Play again to hear your change.'],
+      ['See how to make the effect', 'Open Guide for this pedal’s settings, a listening explanation, and a practical tip.']
+    ];
+    function render(step) {
+      document.querySelectorAll('.screen').forEach(screen => {
+        screen.dataset.step = step;
+        const [title, copy] = steps[step - 1];
+        screen.querySelector('.count').textContent = `${step} of ${steps.length}`;
+        screen.querySelector('.tour-title').textContent = title;
+        screen.querySelector('.tour-copy').textContent = copy;
+        screen.querySelector('.progress i').style.width = `${step / steps.length * 100}%`;
+        screen.querySelector('.back').disabled = step === 1;
+        screen.querySelector('.back').onclick = () => render(Math.max(1, step - 1));
+        screen.querySelector('.next').textContent = step === steps.length ? 'Finish ✓' : (screen.classList.contains('phone') ? 'Next →' : 'Next step →');
+        screen.querySelector('.next').onclick = () => step === steps.length ? document.querySelectorAll('.tour-card').forEach(card => card.hidden = true) : render(step + 1);
+        screen.querySelector('.skip').onclick = () => render(Math.min(steps.length, step + 1));
+        screen.querySelector('.close').onclick = () => document.querySelectorAll('.tour-card').forEach(card => card.hidden = true);
+      });
+    }
+    render(1);
+    document.querySelectorAll('.screen').forEach(screen => {
+      screen.querySelector('.search').onclick = () => { if (Number(screen.dataset.step) === 1) render(2); };
+      screen.querySelector('.play').onclick = () => { if (Number(screen.dataset.step) === 2) render(3); };
+      screen.querySelector('.pattern').onclick = () => { if (Number(screen.dataset.step) === 3) render(4); };
+      screen.querySelectorAll('.scope-card .sound-row span').forEach(control => control.onclick = () => { if (Number(screen.dataset.step) === 4) render(5); });
+      screen.querySelectorAll('.ab b').forEach(control => control.onclick = () => { if (Number(screen.dataset.step) === 5) render(6); });
+      screen.querySelectorAll('.pedal').forEach(pedal => pedal.onclick = () => { if (Number(screen.dataset.step) === 6) render(7); });
+      screen.querySelectorAll('.slider').forEach(control => control.onclick = () => { if (Number(screen.dataset.step) === 7) render(8); });
+      screen.querySelector('.guide-tab').onclick = () => { screen.querySelector('.read-panel').classList.add('show-guide'); screen.querySelector('.tour-card').hidden = true; };
+    });
+  </script>
+</body>
+</html>
