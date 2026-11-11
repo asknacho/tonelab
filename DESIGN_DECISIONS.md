@@ -11,6 +11,11 @@ Updated 2026-11-11. These decisions came from the user's reviews of the mobile s
 - Avoid a nested settings scrollbar that hides the editor heading and close button. Keep editing in the normal page flow.
 - Use available width to balance the controls and eliminate awkward empty space. Exact column breakpoints are implementation choices, not permission to change page order.
 
+## Playing source
+
+- Import audio is a way to choose the playing pattern. Keep it immediately beside the pattern selector in the same group at every screen size.
+- Do not move importing into the A/B comparison or volume group when rearranging the player. A compact labeled icon is acceptable on phones.
+
 ## Mobile pedal settings
 
 - Use the inline editor beneath the pedalboard (the user's chosen option B), rather than a drawer or full-screen editor.

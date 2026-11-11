@@ -1087,8 +1087,6 @@ button.endpoint:hover { color: var(--gate); }
   .dock-secondary { grid-column: 1 / -1; grid-row: 2; display: flex; align-items: center; gap: 4px; min-width: 0; }
   .dock-secondary > * { order: 0; }
   .dock-secondary .dock-whatif { display: block; flex: 1; min-width: 0; margin-left: 0; padding-left: 4px; font-size: 11px; }
-  .dock-secondary #bring-your-own { order: 0; margin: 0; padding-inline: 6px; font-size: 11px; }
-  .dock-secondary #bring-your-own small { font-size: 9px; }
   .dock-secondary #dock-volume { order: 0; flex: none; width: 40px; margin-left: auto; }
   .dock-secondary:has(#inline-volume:not([hidden])) { flex-wrap: wrap; }
   .dock-bar #inline-tempo { grid-column: 1 / -1; grid-row: 3; margin: 0; }
@@ -1205,4 +1203,23 @@ body.pedal-guide-open { overflow: hidden; }
 }
 @media screen and (min-width: 701px) and (min-height: 501px), screen and (min-width: 1024px) {
   .journey.workspace > .scope-disclosure.scope-expanded .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0 4px 4px; grid-column: 1; grid-row: 3; }
+}
+
+/* Importing audio chooses the playing source, so it stays beside the pattern. */
+.dock-source { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.dock-source .dock-pattern { flex: 1 1 0; min-width: 0; }
+.dock-source #bring-your-own { display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; margin: 0; padding: 6px 10px; }
+.dock-source #bring-your-own .action-icon { flex: none; }
+@media (max-width: 700px) {
+  .dock-bar { grid-template-columns: 48px minmax(0, 1fr) 60px 36px; }
+  .dock-source { grid-column: 2; grid-row: 1; }
+  .dock-source .dock-pattern { padding: 0; }
+  .dock-source #bring-your-own { min-width: 40px; width: 40px; padding: 0; }
+  .dock-source #bring-your-own span { display: none; }
+  .player-dock #open-quick-start { width: 36px; min-width: 36px; }
+  #dock-playing { font-size: 11px; padding-inline: 2px; }
+}
+@media screen and (min-width: 701px) and (max-width: 1099px) {
+  .dock-source { display: flex; grid-column: 2; grid-row: 1; }
+  .dock-source .dock-pattern { padding: 0 4px; }
 }
