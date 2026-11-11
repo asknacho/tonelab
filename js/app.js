@@ -248,13 +248,38 @@
     const samples = localRecording.samples.slice();
     audioNode.port.postMessage({ type: 'recording', samples }, [samples.buffer]);
   };
-  bringYourOwn.onclick = () => recordingFile.click();
+  bringYourOwn.onclick = e => { if (bringYourOwn.disabled) e.preventDefault(); };
+  bringYourOwn.addEventListener('keydown', e => {
+    if ((e.key === 'Enter' || e.key === ' ') && !bringYourOwn.disabled) {
+      e.preventDefault();
+      recordingFile.click();
+    }
+  });
+  bringYourOwn.addEventListener('dragover', e => {
+    if (!Array.from(e.dataTransfer.types).includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = bringYourOwn.disabled ? 'none' : 'copy';
+    bringYourOwn.classList.toggle('drag-over', !bringYourOwn.disabled);
+  });
+  bringYourOwn.addEventListener('dragleave', e => {
+    if (!e.relatedTarget || !bringYourOwn.contains(e.relatedTarget)) bringYourOwn.classList.remove('drag-over');
+  });
+  bringYourOwn.addEventListener('drop', e => {
+    e.preventDefault();
+    bringYourOwn.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && !bringYourOwn.disabled) loadRecording(file);
+  });
   recordingFile.addEventListener('cancel', syncPattern);
   recordingFile.onchange = async () => {
     const file = recordingFile.files[0];
     if (!file) { syncPattern(); return; }
+    await loadRecording(file);
+  };
+  async function loadRecording(file) {
     const load = ++recordingLoad;
     bringYourOwn.disabled = true;
+    bringYourOwn.setAttribute('aria-disabled', 'true');
     bringYourOwn.setAttribute('aria-busy', 'true');
     bringYourOwn.title = 'Opening recording…';
     try {
@@ -297,10 +322,11 @@
         bringYourOwn.disabled = false;
         bringYourOwn.removeAttribute('aria-busy');
         bringYourOwn.title = 'Bring your own recording';
+        bringYourOwn.removeAttribute('aria-disabled');
         recordingFile.value = '';
       }
     }
-  };
+  }
   // Free picking has no tempo; every other pattern follows the Speed slider.
   function syncPattern() {
     patternSelect.value = source.kind;
@@ -372,6 +398,7 @@
   patternSelect.onchange = () => {
     recordingLoad++;
     bringYourOwn.disabled = false;
+    bringYourOwn.removeAttribute('aria-disabled');
     bringYourOwn.removeAttribute('aria-busy');
     bringYourOwn.title = 'Bring your own recording';
     source.setKind(patternSelect.value);
@@ -1564,8 +1591,7 @@
     if (tone?.view) setView(tone.view);
     changed();
     refreshSlots();
-    if (state.chain.length) openSettings(state.chain[0]);
-    else closeSettings();
+    closeSettings();
     const label = tone ? tone.title : heroSelect.selectedOptions[0].textContent;
     announce(label + ' loaded');
     offerUndo(label + ' loaded', () => applyBoard(before));
@@ -2879,11 +2905,7 @@
     requestAnimationFrame(frame);
   }
 
-  if (state.chain.length) {
-    openSettings(state.chain[0]);
-    if (matchMedia('(max-width: 700px), (max-width: 1023px) and (max-height: 500px)').matches) dismissSettings(false);
-  }
-  else closeSettings();
+  closeSettings();
   setScopeExpanded(scopePreferences[roomyLayout.matches ? 'roomy' : 'compact']);
   document.getElementById('save-status').textContent = restoreMessage || (storageAvailable ? 'Autosave enabled' : 'Local saving unavailable · use Share');
   saveBoard();

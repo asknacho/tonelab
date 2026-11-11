@@ -9,11 +9,13 @@ Updated 2026-11-11. These decisions came from the user's reviews of the mobile s
 - Expand the waveform by default on tablets and desktops. Users can still collapse it.
 - Tablet and desktop settings must have a working close button. Closing must not reopen the same pedal or reopen settings merely because the window is resized.
 - Avoid a nested settings scrollbar that hides the editor heading and close button. Keep editing in the normal page flow.
+- On tablet and desktop, the pedalboard fills the same available width as the waveform. Start with details closed; only narrow the workspace when a pedal is explicitly selected. Closing details restores full width.
 - Use available width to balance the controls and eliminate awkward empty space. Exact column breakpoints are implementation choices, not permission to change page order.
 
 ## Playing source
 
 - Import audio is a way to choose the playing pattern. Keep it immediately beside the pattern selector in the same group at every screen size.
+- Present audio import as a borderless drop-or-click upload affordance, not a rounded button. Accept dropped audio through the same local recording flow as the file picker.
 - Do not move importing into the A/B comparison or volume group when rearranging the player. A compact labeled icon is acceptable on phones.
 
 ## Mobile pedal settings

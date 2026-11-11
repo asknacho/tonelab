@@ -991,16 +991,14 @@ button.endpoint[aria-pressed=true] i { border-color: var(--gate); background: va
 button.endpoint:hover { color: var(--gate); }
 .signal-path .drop-area:not(.drag-over):not(.drag-out) { background: transparent; }
 
-#bring-your-own.audio-import { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 44px; padding: 4px 10px; border: 1px solid var(--rule); border-radius: 8px; font: 600 12px var(--sans); white-space: nowrap; }
-#bring-your-own.audio-import small { color: var(--ink-2); font: 400 10px var(--sans); }
 
 /* Compare the sound first, then explore the pedalboard below it. */
 .board-scroll { min-width: 0; }
 @media (max-width: 700px) {
   .board-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; padding-block: 8px; }
   .board-scroll .signal-path { width: max-content; min-width: 100%; grid-template-columns: 28px max-content 28px; }
-  .board-scroll .drop-area { width: max-content; }
-  .board-scroll #effect-order { flex-wrap: nowrap; width: max-content; }
+  .board-scroll .drop-area { width: auto; }
+  .board-scroll #effect-order { flex-wrap: nowrap; width: max-content; min-width: 100%; }
 }
 .journey.workspace > .scope-disclosure { width: 100%; max-width: none; margin: 0 0 20px; padding-top: 0; }
 .journey.workspace > .scope-disclosure .scope-wrap { position: relative; height: 70px; min-height: 0; }
@@ -1128,14 +1126,15 @@ body.pedal-guide-open { overflow: hidden; }
   .dock-whatif { flex: 1 1 100px; }
   .journey.workspace { padding-bottom: 32px; }
   .journey.workspace > .workspace-top, .editing .workspace-top { position: static; width: 100%; min-width: 0; height: auto; margin: 0; padding: 0; max-width: none; box-shadow: none; display: block; }
+  .workspace-top > .chain-editor { width: 100%; max-width: none; }
   .workspace-side { height: auto; min-width: 0; max-height: none; overflow: visible; padding: 0; }
   .workspace-side > .inspector { height: auto; max-height: none; overflow: visible; margin-top: 0; }
   .inspector { scroll-margin-top: calc(var(--player-height, 80px) + 20px); }
   .inspector .sheet-head { position: static; }
   .board-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; padding: 8px 0; overscroll-behavior-x: contain; }
-  .board-scroll .signal-path { width: max-content; min-width: 100%; grid-template-columns: 32px max-content 32px; }
-  .board-scroll .drop-area { width: max-content; }
-  .board-scroll #effect-order { flex-wrap: nowrap; width: max-content; }
+  .board-scroll .signal-path { width: max-content; min-width: 100%; grid-template-columns: 32px minmax(max-content, 1fr) 32px; }
+  .board-scroll .drop-area { width: auto; }
+  .board-scroll #effect-order { flex-wrap: nowrap; width: max-content; min-width: 100%; }
   .board-noise { margin-bottom: 0; }
   .journey.workspace > .scope-disclosure { margin: 0; width: 100%; }
   .journey.workspace > .scope-disclosure.scope-expanded .scope-wrap { height: clamp(180px, 24dvh, 280px); }
@@ -1200,8 +1199,9 @@ body.pedal-guide-open { overflow: hidden; }
 }
 @media screen and (min-width: 701px) and (max-width: 1023px) and (max-height: 500px) {
   .board-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; }
-  .board-scroll .signal-path { width: max-content; min-width: 100%; grid-template-columns: 32px max-content 32px; }
-  .board-scroll .drop-area, .board-scroll #effect-order { width: max-content; }
+  .board-scroll .signal-path { width: max-content; min-width: 100%; grid-template-columns: 32px minmax(max-content, 1fr) 32px; }
+  .board-scroll .drop-area { width: auto; }
+  .board-scroll #effect-order { width: max-content; min-width: 100%; }
   .board-scroll #effect-order { flex-wrap: nowrap; }
   .inspector .params { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; }
 }
@@ -1212,7 +1212,11 @@ body.pedal-guide-open { overflow: hidden; }
 /* Importing audio chooses the playing source, so it stays beside the pattern. */
 .dock-source { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .dock-source .dock-pattern { flex: 1 1 0; min-width: 0; }
-.dock-source #bring-your-own { display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; margin: 0; padding: 6px 10px; }
+.dock-source #bring-your-own { display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; margin: 0; padding: 6px 8px; border: 0; border-radius: 0; background: transparent; box-shadow: none; cursor: pointer; color: var(--ink-2); font: 500 12px/1.4 var(--sans); white-space: nowrap; }
+.dock-source #bring-your-own:hover, .dock-source #bring-your-own.drag-over { color: var(--gate); background: var(--gate-soft); }
+.dock-source #bring-your-own.drag-over { outline: 1px dashed var(--gate); outline-offset: -2px; }
+.dock-source #bring-your-own:focus-visible { outline: 2px solid var(--gate); outline-offset: 2px; }
+.dock-source #bring-your-own[aria-disabled=true] { opacity: .5; cursor: progress; }
 .dock-source #bring-your-own .action-icon { flex: none; }
 @media (max-width: 700px) {
   .dock-bar { grid-template-columns: 48px minmax(0, 1fr) 60px 36px; }
