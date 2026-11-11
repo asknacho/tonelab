@@ -475,3 +475,59 @@ test('a shuffle uses a triplet grid and chugs are palm-muted (short)', () => {
   const decay = b => rmsOf(b, Math.round(0.28 * SR), Math.round(0.33 * SR)) / rmsOf(b, Math.round(0.12 * SR), Math.round(0.17 * SR));
   assert(decay(chug) < 0.05 && decay(power) > 0.2, 'chug ' + decay(chug).toFixed(3) + ', open chord ' + decay(power).toFixed(3));
 });
+
+test('local recording source loops exact samples without synthesized noise', () => {
+  const source = new context.TL.Source('guitar');
+  const clip = Float32Array.from([0, 0.25, -0.5, 0.75, -0.125]);
+  source.noiseDb = -20;
+  source.setRecording(clip);
+  source.setKind('recording');
+  const first = new Float32Array(7), second = new Float32Array(8);
+  source.generate(first, 0, first.length);
+  source.generate(second, 0, second.length);
+  const streamed = [...first, ...second];
+  assert.deepEqual(streamed, Array.from({ length: 15 }, (_, i) => clip[i % clip.length]));
+  source.setRecording(Float32Array.from([0.1, -0.1]));
+  const replaced = new Float32Array(3);
+  source.generate(replaced, 0, 3);
+  assert.deepEqual([...replaced], [...Float32Array.from([0.1, -0.1, 0.1])]);
+  source.setKind('guitar');
+  source.setKind('recording');
+  assert.equal(source.recordingPosition, 0);
+});
+
+test('recorded audio feeds both worklet banks and pauses without advancing', () => {
+  let Processor;
+  const messages = [];
+  const ctx = vm.createContext({ Float32Array, Math, sampleRate: 24000,
+    AudioWorkletProcessor: class { constructor() { this.port = { postMessage: msg => messages.push(msg) }; } },
+    registerProcessor: (_, value) => { Processor = value; } });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/dsp.js'), 'utf8'), ctx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/audio-worklet.js'), 'utf8').replace("import './dsp.js';", ''), ctx);
+  const processor = new Processor();
+  const clip = Float32Array.from({ length: 300 }, (_, i) => 0.2 * Math.sin(i * 0.11));
+  processor.port.onmessage({ data: { type: 'recording', samples: clip } });
+  const fuzz = { id: 'f', type: 'fuzz', enabled: true, params: { fuzz: 24, tone: 0.5, level: -8 } };
+  const settings = { type: 'settings', kind: 'recording', noiseDb: -20, monitor: 'wet', volume: 0.5, matchVolume: false,
+    activeBank: 'A', banks: { A: [], B: [fuzz] }, state: { chain: [], playing: true, speed: 2 } };
+  processor.port.onmessage({ data: settings });
+  const out = new Float32Array(128);
+  for (let i = 0; i < 5; i++) processor.process([], [[out]]);
+  assert.equal(messages.length, 3, 'recordings ignore synthetic tempo multiplier');
+  assert(out.some(v => v !== 0));
+  assert.deepEqual([...messages[0].views.A.input], [...messages[0].views.B.input]);
+  assert(messages[0].views.B.output.some((v, i) => Math.abs(v - messages[0].views.A.output[i]) > 0.01));
+  settings.state.playing = false;
+  const position = processor.source.recordingPosition;
+  processor.process([], [[out]]);
+  assert(out.every(v => v === 0));
+  assert.equal(processor.source.recordingPosition, position);
+  settings.state.playing = true;
+  processor.process([], [[out]]);
+  assert(out.some(v => v !== 0));
+  processor.port.onmessage({ data: { type: 'recording', samples: new Float32Array(8).fill(0.15) } });
+  processor.process([], [[out]]);
+  assert(messages.at(-1).samples.every(v => Math.abs(v - 0.15) < 1e-6));
+  processor.port.onmessage({ data: { ...settings, kind: 'guitar' } });
+  assert.equal(processor.source.kind, 'guitar');
+});

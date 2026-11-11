@@ -32,8 +32,23 @@ class TonelabAudio extends AudioWorkletProcessor {
     this.matchedSamples = { A: 0, B: 0 };
     this.previousTaps = { A: '', B: '' };
     this.port.onmessage = ({ data }) => {
+      if (data.type === 'recording') {
+        this.source.setRecording(data.samples);
+        this.position = BLOCK_SIZE;
+        this.fraction = this.current = this.next = 0;
+        this.chains = { A: new EffectChain(BLOCK_SIZE), B: new EffectChain(BLOCK_SIZE) };
+        for (const bank of BANKS) {
+          this.powers[bank] = { input: 0, output: 0 };
+          this.matchGains[bank] = this.targetMatches[bank] = 1;
+        }
+        return;
+      }
       if (data.type !== 'settings') return;
-      if (data.kind !== this.source.kind) this.source.setKind(data.kind);
+      if (data.kind !== this.source.kind) {
+        this.source.setKind(data.kind);
+        this.position = BLOCK_SIZE;
+        this.fraction = this.current = this.next = 0;
+      }
       this.source.noiseDb = data.noiseDb;
       if (typeof data.tempo === 'number') this.source.tempo = data.tempo;
       this.settings = data;
@@ -114,7 +129,7 @@ class TonelabAudio extends AudioWorkletProcessor {
       out.fill(0);
       return true;
     }
-    const step = SR / sampleRate * this.settings.state.speed;
+    const step = SR / sampleRate * (this.settings.kind === 'recording' ? 1 : this.settings.state.speed);
     for (let i = 0; i < out.length; i++) {
       this.fraction += step;
       while (this.fraction >= 1) {

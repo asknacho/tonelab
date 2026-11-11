@@ -181,6 +181,7 @@
 
     setKind(kind) {
       this.kind = kind;
+      if (kind === 'recording') this.recordingPosition = 0;
       this.voices = [];
       this.nextEvent = this.n + Math.round(0.05 * SR);
       this.step = 0;
@@ -255,8 +256,21 @@
       }
     }
 
+    setRecording(samples) {
+      this.recording = samples;
+      this.recordingPosition = 0;
+    }
+
     // Write `count` new samples into `out` starting at `offset`.
     generate(out, offset, count) {
+      if (this.kind === 'recording') {
+        const clip = this.recording;
+        for (let i = 0; i < count; i++) {
+          out[offset + i] = clip?.length ? clip[this.recordingPosition] : 0;
+          if (clip?.length) this.recordingPosition = (this.recordingPosition + 1) % clip.length;
+        }
+        return;
+      }
       const nl = dbToLin(this.noiseDb);
       const r = this.rand;
       for (let i = 0; i < count; i++) {

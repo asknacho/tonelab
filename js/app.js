@@ -76,6 +76,7 @@
   let matchVolume = true;
   let saveTimer;
   let storageAvailable = true;
+  let localRecording = null;
 
   function validateChain(chain) {
     if (!Array.isArray(chain)) throw new Error('Invalid chain');
@@ -123,7 +124,7 @@
   }
   function snapshot() {
     banks[activeBank] = clone(state.chain);
-    return { version: 1, active: activeBank, banks, noise: source.noiseDb, matchVolume, source: { kind: source.kind, tempo: source.tempo }, slots };
+    return { version: 1, active: activeBank, banks, noise: source.noiseDb, matchVolume, source: { kind: source.kind === 'recording' ? 'guitar' : source.kind, tempo: source.tempo }, slots };
   }
   function saveBoard() {
     clearTimeout(saveTimer);
@@ -237,6 +238,62 @@
     for (const [id, pattern] of Object.entries(TL.PATTERNS)) if (pattern.group === name) group.appendChild(new Option(pattern.label, id));
     return group;
   }));
+  const recordingGroup = document.createElement('optgroup');
+  recordingGroup.label = 'Your sound';
+  const bringYourOwn = new Option('Bring your own…', 'bring-your-own');
+  recordingGroup.append(bringYourOwn);
+  patternSelect.append(recordingGroup);
+  const recordingFile = document.getElementById('recording-file');
+  let recordingLoad = 0;
+  const sendRecording = () => {
+    if (!audioNode || !localRecording) return;
+    const samples = localRecording.samples.slice();
+    audioNode.port.postMessage({ type: 'recording', samples }, [samples.buffer]);
+  };
+  recordingFile.addEventListener('cancel', syncPattern);
+  recordingFile.onchange = async () => {
+    const file = recordingFile.files[0];
+    if (!file) { syncPattern(); return; }
+    const load = ++recordingLoad;
+    bringYourOwn.textContent = 'Opening recording…';
+    try {
+      if (file.size > 50 * 1024 * 1024) throw new Error('Choose a recording smaller than 50 MB.');
+      const OfflineContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const decoder = new OfflineContext(1, 1, SR);
+      const decoded = await decoder.decodeAudioData(await file.arrayBuffer());
+      if (load !== recordingLoad) return;
+      if (!decoded.length || decoded.duration > 600) throw new Error('Choose a recording between a moment and 10 minutes long.');
+      // The pedal engine is mono. Decode/resample locally, then mix channels.
+      const samples = new Float32Array(decoded.length);
+      for (let channel = 0; channel < decoded.numberOfChannels; channel++) {
+        const data = decoded.getChannelData(channel);
+        for (let i = 0; i < samples.length; i++) samples[i] += data[i] / decoded.numberOfChannels;
+      }
+      localRecording = { samples, name: file.name };
+      source.setRecording(samples);
+      source.setKind('recording');
+      let option = recordingGroup.querySelector('[value="recording"]');
+      if (!option) { option = new Option('', 'recording'); recordingGroup.prepend(option); }
+      option.textContent = 'Your recording · ' + file.name;
+      input.fill(0);
+      source.generate(input, 0, N);
+      source.recordingPosition = 0;
+      resetScopeHistory();
+      sendRecording();
+      syncPattern();
+      state.dirty = true;
+      onBoardChange();
+      saveBoard();
+      sendAudioState();
+      announce('Recording ready · stays on this device · loops during playback');
+    } catch (error) {
+      if (load !== recordingLoad) return;
+      syncPattern();
+      window.alert(error.message?.startsWith('Choose a recording') ? error.message : 'This audio file could not be opened. Try a WAV, MP3, or M4A recording.');
+    } finally {
+      if (load === recordingLoad) { bringYourOwn.textContent = 'Bring your own…'; recordingFile.value = ''; }
+    }
+  };
   // Free picking has no tempo; every other pattern follows the Speed slider.
   function syncPattern() {
     patternSelect.value = source.kind;
@@ -248,8 +305,13 @@
     document.getElementById('dock-playing-text').textContent = free ? '--' : tempo + ' BPM';
     const tempoButton = document.getElementById('dock-playing');
     tempoButton.disabled = free;
-    tempoButton.title = free ? 'No tempo for free picking' : 'Adjust tempo';
-    tempoButton.setAttribute('aria-label', free ? 'Tempo unavailable for free picking' : 'Adjust tempo: ' + tempo + ' BPM');
+    tempoButton.title = free ? (source.kind === 'recording' ? 'Recording plays at its original speed' : 'No tempo for free picking') : 'Adjust tempo';
+    tempoButton.setAttribute('aria-label', free ? tempoButton.title : 'Adjust tempo: ' + tempo + ' BPM');
+    patternSelect.title = source.kind === 'recording' ? localRecording.name + ' · local recording · loops during playback' : '';
+    document.getElementById('noise').disabled = source.kind === 'recording';
+    document.querySelector('.noise-hint').textContent = source.kind === 'recording'
+      ? 'Your recording keeps its own background noise.'
+      : 'Add background hiss to try the noise gate.';
   }
   // Temporary controls stay within the player bar and share the same behavior.
   let activePlayerControl = null;
@@ -301,7 +363,20 @@
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') activePlayerControl?.close(); });
   patternSelect.onchange = () => {
+    if (patternSelect.value === 'bring-your-own') {
+      syncPattern();
+      recordingFile.click();
+      return;
+    }
+    recordingLoad++;
+    bringYourOwn.textContent = 'Bring your own…';
     source.setKind(patternSelect.value);
+    if (source.kind === 'recording') {
+      input.fill(0);
+      source.generate(input, 0, N);
+      source.recordingPosition = 0;
+      resetScopeHistory();
+    }
     // Start at the pattern's own tempo; Speed changes it from there.
     if (TL.PATTERNS[source.kind]?.tempo) source.tempo = TL.PATTERNS[source.kind].tempo;
     syncPattern();
@@ -1295,7 +1370,7 @@
       noiseOut.textContent = fmtDb(noiseDb);
     }
     if (tempo) source.tempo = tempo;
-    if (kind && source.kind !== kind) source.setKind(kind);
+    if (kind && source.kind !== kind && source.kind !== 'recording') source.setKind(kind);
     syncPattern();
   }
 
@@ -2496,6 +2571,7 @@
         await audioContext.resume();
         await audioContext.audioWorklet.addModule('js/audio-worklet.js');
         audioNode = new AudioWorkletNode(audioContext, 'tonelab-audio', { outputChannelCount: [1] });
+        sendRecording();
         audioNode.port.onmessage = ({ data }) => {
           if (!listening || !state.playing || !data.samples) return;
           const samples = data.samples;
@@ -2527,7 +2603,7 @@
       listen.setAttribute('aria-label', listening ? 'Pause' : 'Play');
       listen.setAttribute('aria-pressed', String(listening));
       listen.classList.toggle('playing', listening);
-      audioStatus.textContent = listening ? 'Listening · tap a dot on the chain to hear that point' : 'Synthesized guitar';
+      audioStatus.textContent = listening ? 'Listening · tap a dot on the chain to hear that point' : source.kind === 'recording' ? 'Recording paused' : 'Synthesized guitar';
       if (!listening) audition = null;
       updateAuditionButtons();
     } catch (error) {
@@ -2535,7 +2611,7 @@
       if (audioContext) await audioContext.close().catch(() => {});
       audioContext = audioNode = null;
       audioStatus.textContent = 'Audio could not start. Tap Play to try again in Safari or Chrome.';
-      dockPanel.hidden = false;
+      announce(audioStatus.textContent);
     } finally { audioStarting = false; listen.disabled = false; }
   };
 
@@ -2548,7 +2624,7 @@
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
-    if (state.playing && !listening) {
+    if (state.playing && !listening && source.kind !== 'recording') {
       carry += dt * SR * state.speed;
       const n = Math.floor(carry);
       carry -= n;
