@@ -554,15 +554,24 @@ html, body { overflow-x: clip; }
 #effect-order li.selected-pedal { outline: 3px solid #f6c77f; outline-offset: 4px; border-radius: 5px; }
 .endpoint i { background: var(--paper); }
 .scope-disclosure { margin-top: 18px; border: 1px solid var(--rule); border-radius: 10px; background: var(--card); }
-.full-guide > summary { cursor: default; padding: 12px 16px; margin: 0; font-weight: 600; }
+.full-guide > summary { cursor: pointer; padding: 12px 16px; margin: 0; font-weight: 600; }
 .scope-card { padding: 0 16px 16px; }
 .scope { height: 180px; }
 .inspector-tabs { display: flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; margin: 12px 0 18px; }
 .inspector-tabs button { flex: 1; border: 0; min-height: 44px; background: transparent; color: var(--ink); }
 .inspector-tabs button[aria-pressed=true] { background: #23563d; color: white; }
-#guide-position { font-weight: 600; }
-.guide-navigation { display: flex; gap: 8px; margin: 16px 0; }
-#inspector-guide details { margin-top: 16px; }
+#guide-position { color: var(--ink-2); font-size: 13px; white-space: nowrap; }
+.guide-navigation { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--rule); }
+.guide-navigation button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 8px; min-width: 80px; }
+.guide-navigation .action-icon { width: 16px; height: 16px; }
+.guide-note { margin: 0 0 20px; font-size: 16px; line-height: 1.6; }
+.guide-playing h3 { margin: 0 0 8px; font-size: 14px; }
+.guide-playing p { margin: 0 0 12px; color: var(--ink-2); font-size: 14px; }
+.guide-settings { margin-block: 16px; font-size: 14px; }
+#inspector-guide .journey-diff { margin-top: 16px; }
+#inspector-guide .guide-settings summary { min-height: 44px; align-content: center; }
+#inspector-guide .guide-values { margin: 8px 0 0; }
+#print-guide { display: inline-flex; align-items: center; gap: 8px; margin: 12px 16px; }
 .full-guide { margin-top: 20px; border: 1px solid var(--rule); border-radius: 10px; }
 .full-guide[open] { padding: 0 12px 12px; }
 @media (min-width: 1024px) {
@@ -586,7 +595,6 @@ html, body { overflow-x: clip; }
 }
 
 .guide-values { color: var(--ink-2); font-size: 13px; }
-#guide-listen { color: white; background: #23563d; border-color: #23563d; }
 #inspector-guide details summary { cursor: pointer; font-weight: 600; }
 @media (max-width: 700px) {
   .chain-editor { display: flex; flex-direction: column; }
@@ -774,6 +782,7 @@ body.quick-start-controls-step .quick-start-tour { right: auto; left: max(24px, 
   body.printing-guide .full-guide > * { display: block !important; }
   body.printing-guide .journey-steps { padding: 0; }
   body.printing-guide .journey-step { break-inside: avoid; border-bottom: 1px solid #ddd; padding: 5mm 0; }
+  body.printing-guide #print-guide,
   body.printing-guide .journey-listen,
   body.printing-guide .journey-step button { display: none !important; }
   body.printing-guide .journey-note,
@@ -932,7 +941,8 @@ html { touch-action: manipulation; }
   .inspector-head-actions { gap: 6px; }
   .inspector .pedal-saved { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .pedal-guide-dialog { margin: auto; border-radius: 12px; width: calc(100% - 24px); max-height: calc(100dvh - 48px); padding: 20px; }
-  .pedal-guide-dialog .sheet-head { top: -20px; }
+  .pedal-guide-dialog .sheet-head h2 { font: 700 24px/1.2 var(--sans); letter-spacing: -.03em; }
+  .pedal-guide-dialog .sheet-head .field-label { font-size: 11px; }
   .inspector .sheet-head h2 { font-size: 24px; }
   .inspector .settings-body { grid-template-columns: minmax(0, 1fr); }
   .scope-card .scope, .editing .scope-card .scope { height: 160px; }
@@ -970,7 +980,6 @@ button.icon-button, .dock-bar #copy-bank.icon-button, .undo-toast.home button.ic
 .dock-tempo { white-space: nowrap; }
 .dock-tempo:disabled { cursor: default; padding-inline: 8px; }
 #inspect-pedal.icon-button { display: inline-flex; width: 44px; }
-.guide-navigation { justify-content: space-between; }
 .sheet-actions .icon-button { flex: none; }
 
 .dock-source { flex: 1 1 190px; min-width: 0; display: flex; align-items: center; }

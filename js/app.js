@@ -434,6 +434,7 @@
     if (guideDialog.open) guideDialog.close();
     document.body.classList.remove('pedal-guide-open');
     guideContent.hidden = true;
+    modelRow.hidden = false;
     document.getElementById('inspector-controls').hidden = false;
     document.getElementById('tab-controls').setAttribute('aria-pressed', 'true');
     document.getElementById('tab-guide').setAttribute('aria-pressed', 'false');
@@ -517,7 +518,7 @@
   }
   function openSettings(pedal) {
     const wasOpen = !settings.hidden && selectedId === pedal.id;
-    if (!wasOpen) { settings.scrollTop = 0; moreSettings.open = false; }
+    if (!wasOpen) { settings.scrollTop = 0; moreSettings.open = false; document.getElementById('guide-settings').open = false; }
     selectedId = pedal.id;
     state.dirty = true;
     // Editing a pedal leaves the explicitly chosen listening point unchanged.
@@ -1835,15 +1836,13 @@
   }
   function updateAuditionButtons() {
     const active = listening && audition;
-    const inspect = document.getElementById('inspect-pedal');
+    const button = document.getElementById('inspect-pedal');
     const playingPedal = listening && inspectId === selectedId && monitor === 'wet';
-    for (const button of [inspect, document.getElementById('guide-listen')]) {
-      const label = playingPedal ? 'Stop listening' : button === inspect ? 'Hear this pedal' : 'Hear after this pedal';
-      button.innerHTML = '<svg class="action-icon" aria-hidden="true"><use href="#icon-' + (playingPedal ? 'stop' : 'play') + '"/></svg>';
-      button.setAttribute('aria-label', label);
-      button.setAttribute('aria-pressed', String(playingPedal));
-      button.title = label;
-    }
+    const label = playingPedal ? 'Stop listening' : 'Hear this pedal';
+    button.innerHTML = '<svg class="action-icon" aria-hidden="true"><use href="#icon-' + (playingPedal ? 'stop' : 'play') + '"/></svg>';
+    button.setAttribute('aria-label', label);
+    button.setAttribute('aria-pressed', String(playingPedal));
+    button.title = label;
     journeyList.querySelectorAll('.journey-listen').forEach(button => {
       const playing = active?.pedal === button.dataset.pedal && active?.monitor === button.dataset.monitor;
       button.textContent = playing ? '■ Stop' : '▶ Hear after this';
@@ -1858,20 +1857,31 @@
   function updateGuide(pedal) {
     const index = state.chain.findIndex(p => p.id === pedal.id);
     if (index < 0) return;
-    document.getElementById('guide-position').textContent = (index + 1) + ' of ' + state.chain.length + ' · ' + pedalName(pedal);
+    document.getElementById('guide-position').textContent = (index + 1) + ' of ' + state.chain.length;
     document.getElementById('guide-note').textContent = noteFor(pedal, state.chain);
     document.getElementById('guide-values').textContent = modelOf(pedal).name + ' · ' + controlsFor(pedal).map(c => c.label + ' ' + controlValue(pedal, c)).join(' · ');
-    document.getElementById('guide-diff').textContent = differences(state.chain, banks[otherBank(activeBank)], otherBank(activeBank)).byPedal.get(pedal.id) || '';
-    document.getElementById('guide-intro').textContent = document.getElementById('journey-play').textContent;
-    document.getElementById('guide-tip').textContent = document.getElementById('journey-tip').textContent;
+    const diff = differences(state.chain, banks[otherBank(activeBank)], otherBank(activeBank)).byPedal.get(pedal.id) || '';
+    document.getElementById('guide-diff').textContent = diff ? 'A/B difference · ' + diff : '';
+    document.getElementById('guide-diff').hidden = !diff;
+    const tone = toneOf(slots[activeBank]) || lessonTone();
+    const intro = tone?.play || '';
+    const tip = tone?.tip || '';
+    document.getElementById('guide-intro').textContent = intro;
+    document.getElementById('guide-intro').hidden = !intro;
+    document.getElementById('guide-tip').textContent = tip;
+    document.getElementById('guide-tip').hidden = !tip;
+    document.getElementById('guide-playing').hidden = !intro && !tip;
     document.getElementById('guide-prev').disabled = index === 0;
-    document.getElementById('guide-next').disabled = index === state.chain.length - 1;
+    const last = index === state.chain.length - 1;
+    const next = document.getElementById('guide-next');
+    next.querySelector('span').textContent = last ? 'Done' : 'Next';
+    next.querySelector('svg').toggleAttribute('hidden', last);
   }
   function showGuide(show) {
     if (mobileEditor.matches) {
       if (!show) { guideDialog.close(); guideContent.hidden = true; return; }
       if (selected()) updateGuide(selected());
-      document.getElementById('pedal-guide-title').textContent = selected() ? pedalName(selected()) + ' · Guide' : 'Pedal guide';
+      document.getElementById('pedal-guide-title').textContent = selected() ? pedalName(selected()) : 'Pedal guide';
       guideContent.hidden = false;
       if (!guideDialog.open) guideDialog.showModal();
       document.body.classList.add('pedal-guide-open');
@@ -1879,6 +1889,7 @@
     }
     document.getElementById('inspector-guide').hidden = !show;
     document.getElementById('inspector-controls').hidden = show;
+    modelRow.hidden = show;
     document.getElementById('tab-guide').setAttribute('aria-pressed', String(show));
     document.getElementById('tab-controls').setAttribute('aria-pressed', String(!show));
     if (selected()) updateGuide(selected());
@@ -1897,17 +1908,19 @@
   document.getElementById('guide-next').onclick = () => {
     const index = state.chain.findIndex(p => p.id === selectedId);
     if (index >= 0 && index < state.chain.length - 1) { openSettings(state.chain[index + 1]); showGuide(true); }
+    else if (index >= 0) {
+      showGuide(false);
+      if (!mobileEditor.matches) document.getElementById('tab-controls').focus();
+    }
   };
-  document.getElementById('guide-listen').onclick = () => { if (selected()) listenTo(selectedId, 'wet'); };
   document.getElementById('print-guide').onclick = () => {
     if (guideDialog.open) guideDialog.close();
     const printGuide = document.querySelector('.full-guide');
-    printGuide.hidden = false;
     printGuide.open = true;
     document.body.classList.add('printing-guide');
     window.print();
   };
-  window.addEventListener('afterprint', () => { document.body.classList.remove('printing-guide'); document.querySelector('.full-guide').hidden = true; });
+  window.addEventListener('afterprint', () => { document.body.classList.remove('printing-guide'); });
   journeyList.addEventListener('click', e => {
     const button = e.target.closest('.journey-listen');
     if (button) listenTo(button.dataset.pedal, button.dataset.monitor);
