@@ -937,3 +937,16 @@ html { touch-action: manipulation; }
   .dock-whatif { display: none; }
   .dock-match { margin-left: auto; padding-inline: 0; font-size: 11px; }
 }
+
+/* One stroke style and one touch target for familiar actions. */
+.icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+.action-icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+button.icon-button, .dock-bar #copy-bank.icon-button, .undo-toast.home button.icon-button {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: none; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0;
+}
+.icon-button:hover { color: var(--gate); background: var(--grid); }
+.icon-button:disabled { cursor: default; }
+#inspect-pedal.icon-button { display: inline-flex; width: 44px; }
+.guide-navigation { justify-content: space-between; }
+.sheet-actions .icon-button { flex: none; }
