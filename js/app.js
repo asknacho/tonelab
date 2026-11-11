@@ -485,14 +485,7 @@
     if (!wasOpen) settings.scrollTop = 0;
     selectedId = pedal.id;
     state.dirty = true;
-    // Selecting a pedal points the scope at it: grey going in, black coming out.
-    if (inspectId !== pedal.id) {
-      inspectId = pedal.id;
-      inspectByBank[activeBank] = pedal.id;
-      resetScopeHistory();
-      refreshInspect();
-      if (listening) sendAudioState();
-    }
+    // Editing a pedal leaves the explicitly chosen listening point unchanged.
     document.getElementById('settings-title').textContent = pedalName(pedal);
     document.getElementById('settings-state').textContent = pedal.enabled ? 'Enabled' : 'Bypassed';
     settings.dataset.type = pedal.type;
@@ -547,6 +540,7 @@
       item.querySelector('.pedal-toggle').setAttribute('aria-pressed', String(isSelected));
     });
     if (!undoToast.hidden) placeUndo();
+    updateAuditionButtons();
   }
   function addPedal(type, params, model) {
     const pedal = createPedal(type, params, model);
@@ -687,6 +681,8 @@
   function refreshInspect() {
     if (inspectId && !state.chain.some(p => p.id === inspectId)) {
       inspectId = '';
+      monitor = 'wet';
+      audition = null;
       resetScopeHistory();
     }
     const pedal = state.chain.find(p => p.id === inspectId);
@@ -694,7 +690,7 @@
     document.querySelector('#monitor [data-value="wet"]').textContent = pedal ? 'After' : 'With pedals';
     const name = pedal && kindName(pedal).toLowerCase();
     document.getElementById('scope-caption').textContent = !pedal
-      ? (monitor === 'dry' || !state.chain.length ? 'Your guitar' : 'What you hear')
+      ? (monitor === 'dry' || !state.chain.length ? 'Your guitar' : 'Full chain output')
       : (monitor === 'dry' ? 'Before the ' : 'After the ') + name;
     renderStrip();
     document.querySelector('.sw-in').parentElement.lastChild.textContent = pedal ? 'Pedal input' : 'Guitar input';
@@ -702,6 +698,12 @@
     document.querySelector('.sw-in').parentElement.hidden = monitor !== 'dry';
     document.querySelector('.sw-out').parentElement.hidden = monitor === 'dry';
     document.querySelector('.sw-in').style.background = C.ink;
+    document.querySelectorAll('#monitor button').forEach(button => {
+      const on = button.dataset.value === monitor;
+      button.classList.toggle('on', on);
+      button.setAttribute('aria-pressed', String(on));
+    });
+    syncListeningPoints();
     state.dirty = true;
   }
   document.getElementById('inspect-pedal').onclick = () => { if (selectedId) listenTo(selectedId, 'wet'); };
@@ -712,8 +714,14 @@
   function dotPoint(k) {
     const chain = state.chain;
     if (k === 0) return { pedal: '', monitor: 'dry', label: 'Your guitar' };
-    if (k === chain.length) return { pedal: '', monitor: 'wet', label: 'What you hear' };
-    return { pedal: chain[k - 1].id, monitor: 'wet', label: 'After the ' + kindName(chain[k - 1]).toLowerCase() };
+    if (k === chain.length) return { pedal: '', monitor: 'wet', label: 'Full chain output' };
+    return { pedal: chain[k - 1].id, monitor: 'wet', label: 'After ' + pedalName(chain[k - 1]) };
+  }
+  function syncListeningPoints() {
+    const on = activeDot();
+    document.querySelectorAll('.listening-point').forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.listenIndex) === on)));
+    document.querySelector('.endpoint-input').setAttribute('aria-pressed', String(on === 0 && monitor === 'dry'));
+    document.querySelector('.endpoint-output').setAttribute('aria-pressed', String(on === state.chain.length && monitor === 'wet'));
   }
   function activeDot() {
     const chain = state.chain;
@@ -1728,7 +1736,7 @@
   // pedal's output (wet), "your guitar" means the dry input, and an empty
   // pedal id means the whole chain. The audio starts if it isn't already.
   async function listenTo(pedal, monitorChoice, bank = activeBank) {
-    if (listening && audition?.bank === bank && audition.pedal === pedal && audition.monitor === monitorChoice) {
+    if (listening && activeBank === bank && inspectId === pedal && monitor === monitorChoice) {
       audition = null;
       listen.click();
       updateAuditionButtons();
@@ -1753,7 +1761,7 @@
   function updateAuditionButtons() {
     const active = listening && audition;
     const inspect = document.getElementById('inspect-pedal');
-    const playingPedal = !!active && active.pedal === selectedId;
+    const playingPedal = listening && inspectId === selectedId && monitor === 'wet';
     for (const button of [inspect, document.getElementById('guide-listen')]) {
       const label = playingPedal ? 'Stop listening' : button === inspect ? 'Hear this pedal' : 'Hear after this pedal';
       button.innerHTML = '<svg class="action-icon" aria-hidden="true"><use href="#icon-' + (playingPedal ? 'stop' : 'play') + '"/></svg>';
@@ -2075,6 +2083,41 @@
    * between neighbours and snakes through the gap when the board wraps. */
   const signalPath = document.querySelector('.signal-path');
   const cables = document.getElementById('cables');
+  const listeningPoints = document.querySelector('.listening-points');
+  document.querySelector('.endpoint-input').onclick = () => listenTo('', 'dry');
+  document.querySelector('.endpoint-output').onclick = () => listenTo('', 'wet');
+  listeningPoints.onclick = e => {
+    const button = e.target.closest('[data-listen-index]');
+    if (!button) return;
+    const point = dotPoint(Number(button.dataset.listenIndex));
+    listenTo(point.pedal, point.monitor);
+  };
+  function positionListeningPoints(items, box) {
+    const count = Math.max(0, items.length - 1);
+    for (const button of listeningPoints.querySelectorAll('button')) if (Number(button.dataset.listenIndex) > count) button.remove();
+    for (let i = 1; i <= count; i++) {
+      const a = box(items[i - 1]), b = box(items[i]);
+      const ay = a.top + P.JACK_Y * a.width / ART_W;
+      const by = b.top + P.JACK_Y * b.width / ART_W;
+      const wrapped = b.left < a.right;
+      const x = (a.right + b.left) / 2;
+      const y = wrapped ? (a.bottom + b.top) / 2 : (ay + by) / 2;
+      let button = listeningPoints.querySelector('[data-listen-index="' + i + '"]');
+      if (!button) {
+        button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'listening-point';
+        button.dataset.listenIndex = i;
+        button.innerHTML = '<span aria-hidden="true"></span>';
+        listeningPoints.appendChild(button);
+      }
+      button.title = 'Listen here: ' + dotPoint(i).label;
+      button.setAttribute('aria-label', button.title);
+      button.style.left = x + 'px';
+      button.style.top = y + 'px';
+    }
+    syncListeningPoints();
+  }
   function roundedPath(points, radius = 6) {
     const pts = points.filter((pt, i) => i === 0 || Math.hypot(pt[0] - points[i - 1][0], pt[1] - points[i - 1][1]) > 0.5);
     let d = 'M' + pts[0].join(',');
@@ -2112,6 +2155,7 @@
       const a = box(endpoints[0].querySelector('i')), b = box(endpoints[1].querySelector('i'));
       const y = a.top + a.height / 2;
       cables.innerHTML = `<path d="M${a.right.toFixed(1)},${y.toFixed(1)} H${b.left.toFixed(1)}"/>`;
+      positionListeningPoints(items, box);
       return;
     }
     for (const endpoint of endpoints) endpoint.style.paddingTop = '';
@@ -2142,6 +2186,7 @@
       paths += `<path d="${roundedPath(pts)}"/>`;
     }
     cables.innerHTML = paths;
+    positionListeningPoints(items, box);
   }
   new ResizeObserver(drawCables).observe(signalPath);
   document.fonts?.ready.then(drawCables);
@@ -2562,7 +2607,7 @@
     audioNode?.port.postMessage({ type: 'settings', state: { playing: state.playing, speed: state.speed, chain: state.chain }, kind: source.kind, tempo: source.tempo,
       noiseDb: source.noiseDb, banks, activeBank, inspectId, inspectByBank, matchVolume, monitor, volume: Number(document.getElementById('volume').value) });
   }
-  segmented('monitor', v => { monitor = v; refreshInspect(); sendAudioState(); });
+  segmented('monitor', v => { monitor = v; refreshInspect(); updateAuditionButtons(); sendAudioState(); });
   document.getElementById('volume').oninput = sendAudioState;
   listen.onclick = async () => {
     if (audioStarting) return;

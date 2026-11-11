@@ -964,3 +964,16 @@ button.icon-button, .dock-bar #copy-bank.icon-button, .undo-toast.home button.ic
   .dock-source .dock-pattern { padding-inline: 8px 2px; }
   #bring-your-own { margin-right: 0; }
 }
+
+/* Explicit listening points share the cable path, independently of editing. */
+#effect-order { column-gap: 32px; row-gap: 44px; }
+.signal-path > .listening-points { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.listening-point { position: absolute; translate: -50% -50%; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; pointer-events: auto; }
+.listening-point > span { width: 14px; height: 14px; border: 2px solid var(--ink-3); border-radius: 50%; background: var(--paper); }
+.listening-point:hover > span, .listening-point[aria-pressed=true] > span { border-color: var(--gate); background: var(--gate); box-shadow: 0 0 0 4px var(--paper); }
+button.endpoint { border: 0; background: transparent; min-width: 36px; cursor: pointer; }
+button.endpoint i { flex: none; }
+button.endpoint[aria-pressed=true] { color: var(--gate); font-weight: 600; }
+button.endpoint[aria-pressed=true] i { border-color: var(--gate); background: var(--gate); }
+button.endpoint:hover { color: var(--gate); }
+.signal-path .drop-area:not(.drag-over):not(.drag-out) { background: transparent; }
