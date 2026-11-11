@@ -1148,11 +1148,11 @@ body.pedal-guide-open { overflow: hidden; }
   .masthead { flex-wrap: wrap; gap: 12px 20px; }
   .masthead .tone-hero { flex: 1 1 420px; max-width: none; }
   .site-credit { margin-left: auto; }
-  .journey.workspace { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+  .journey.workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 36%); grid-template-rows: auto auto auto; gap: 16px 20px; align-items: start; }
   .journey.workspace > .chain-heading { order: 0; margin: 0; }
-  .journey.workspace > .workspace-top { order: 2; }
-  .journey.workspace > .scope-disclosure { order: 1; }
-  .journey.workspace > .workspace-side { order: 3; width: 100%; }
+  .journey.workspace > .workspace-top { grid-column: 1; grid-row: 3; }
+  .journey.workspace > .scope-disclosure { grid-column: 1; grid-row: 2; }
+  .journey.workspace > .workspace-side { grid-column: 2; grid-row: 2 / 4; width: 100%; }
   .workspace-side > *, .workspace-side > .inspector { max-width: none; }
   .inspector .settings-body { grid-template-columns: minmax(0, 1fr); }
   .inspector .params { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 32px; align-items: start; }
@@ -1231,3 +1231,13 @@ body.pedal-guide-open { overflow: hidden; }
   .dock-source { display: flex; grid-column: 2; grid-row: 1; }
   .dock-source .dock-pattern { padding: 0 4px; }
 }
+
+@media screen and (min-width: 701px) and (max-width: 1439px) and (min-height: 501px) {
+  body:not(.editing) .journey.workspace { grid-template-columns: minmax(0, 1fr); }
+  body:not(.editing) .journey.workspace > .scope-disclosure { grid-column: 1; grid-row: 2; }
+  body:not(.editing) .journey.workspace > .workspace-top { grid-column: 1; grid-row: 3; }
+  body:not(.editing) .journey.workspace > .workspace-side { grid-column: 1; grid-row: 4; }
+}
+.strip-dot::after { content: 'Listen'; position: absolute; top: 0; left: 50%; transform: translate(-50%, -100%); padding: 2px 5px; border-radius: 3px; background: var(--ink); color: var(--paper); font: 600 9px/1.2 var(--sans); opacity: 0; pointer-events: none; white-space: nowrap; }
+.strip-dot:hover::after, .strip-dot:focus-visible::after, .strip-dot.on::after { opacity: 1; }
+.strip-dot:focus-visible { outline: 2px solid var(--gate); outline-offset: -2px; border-radius: 50%; }
