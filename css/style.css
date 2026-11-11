@@ -1127,3 +1127,10 @@ button.endpoint:hover { color: var(--gate); }
 @media (max-width: 700px) {
   .dock-secondary #copy-bank { order: 0; }
 }
+
+/* Keep mobile playback reachable even while Safari changes its browser chrome. */
+@media (max-width: 700px) {
+  .player-dock { z-index: 60; }
+  .quick-start-tour { bottom: var(--quick-start-bottom, calc(var(--player-height, 140px) + 12px)); max-height: var(--quick-start-available, calc(100dvh - var(--player-height, 140px) - 32px)); }
+  body.quick-start-controls-step .quick-start-tour { max-height: max(0px, calc(var(--quick-start-available, 300px) - 80px - env(safe-area-inset-top))); }
+}
