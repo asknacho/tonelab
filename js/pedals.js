@@ -11,6 +11,8 @@
 (function (TL) {
   'use strict';
 
+  const tr = TL.I18n?.t || (value => value);
+
   /* ---------------------------------------------------------- formatting */
   const fmt = (v, d = 1) => (Math.abs(v) < 0.5 * 10 ** -d ? 0 : v).toFixed(d).replace('-', '−');
   const fmtMs = v => (v < 10 ? fmt(v, 1) : fmt(v, 0)) + ' ms';
@@ -296,6 +298,17 @@
         { id: 'bigsky', name: 'Strymon BigSky style', shape: 'big', controls: ['decay', 'predelay', 'mix', 'tone', 'lowCut', { key: 'dwell', label: 'Drive' }, 'mode'], defaults: { mode: 1 } },
       ] },
   };
+
+  // Pedal names, control labels, switch positions and value formats match the
+  // English terms printed on pedals. Only explanatory copy is localized.
+  for (const info of Object.values(types)) {
+    const explanation = info.explanation;
+    Object.defineProperty(info, 'explanation', { enumerable: true, get: () => tr(explanation) });
+    for (const spec of info.specs) {
+      const hint = spec.hint;
+      Object.defineProperty(spec, 'hint', { enumerable: true, get: () => tr(hint) });
+    }
+  }
 
   /* ------------------------------------------------------------ helpers */
   const modelOf = pedal => types[pedal.type].models.find(m => m.id === pedal.model) || types[pedal.type].models[0];

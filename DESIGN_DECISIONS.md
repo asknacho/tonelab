@@ -12,6 +12,11 @@ Updated 2026-11-12. These decisions came from the user's reviews of the mobile s
 - On tablet and desktop, the pedalboard fills the same available width as the waveform. Start with details closed; only narrow the workspace when a pedal is explicitly selected. Closing details restores full width. The waveform keeps its full width when details open; the board and editor share the row beneath it.
 - Use available width to balance the controls and eliminate awkward empty space. Exact column breakpoints are implementation choices, not permission to change page order.
 
+## Language
+
+- Offer interface and learning explanations in English and Spanish. Keep pedal/effect names, knob labels, option names, and parameter value formats in English, following the terminology printed on guitar pedals (user clarification, 2026-11-12). Choose the first supported browser language on the first visit, falling back to English. Remember an explicit language choice locally.
+- Put a globe button immediately beside the header Quick start icon to switch languages. Switch in place, preserving playback, local recordings, board edits, and tutorial progress. Keep song titles, pedal model names, and user-saved names intact. (User follow-up, 2026-11-12.)
+
 ## Playing source
 
 - Import audio is a way to choose the playing pattern. Keep it immediately beside the pattern selector in the same group at every screen size.
