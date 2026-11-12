@@ -2207,7 +2207,7 @@
         item = document.createElement('li');
         item.dataset.effect = id;
         item.dataset.type = pedal.type;
-        item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder">⠿</button>';
+        item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder"><svg aria-hidden="true" focusable="false" width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="4" r="1"/><circle cx="8" cy="4" r="1"/><circle cx="4" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="8" cy="12" r="1"/></svg></button>';
         item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal, true); advanceQuickStart(3); };
         item.querySelector('.pedal-edit').onclick = () => {
           pedal.enabled = !pedal.enabled;
@@ -2239,6 +2239,7 @@
           handle.setPointerCapture(e.pointerId);
           const r = item.getBoundingClientRect();
           drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, width: r.width, ghost: null };
+          item.classList.add('drag-ready');
         };
         handle.onpointerdown = e => {
           if (e.button !== 0) return;
@@ -2258,7 +2259,7 @@
           drag?.ghost?.remove();
           drag = null;
           document.body.classList.remove('pedal-drag-active');
-          item.classList.remove('dragging');
+          item.classList.remove('dragging', 'drag-ready');
           dropArea.classList.remove('drag-over', 'drag-out');
           orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
         };
@@ -2269,6 +2270,7 @@
           if (!drag.ghost) {
             if (Math.hypot(dx, dy) < 4) return; // a tap or tiny wobble isn't a drag
             const ghost = item.cloneNode(true);
+            ghost.classList.remove('drag-ready');
             ghost.classList.add('drag-ghost');
             ghost.removeAttribute('data-effect');
             ghost.setAttribute('aria-hidden', 'true');
