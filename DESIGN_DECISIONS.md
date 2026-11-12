@@ -54,6 +54,7 @@ Updated 2026-11-12. These decisions came from the user's reviews of the mobile s
 - More pedal settings is the single disclosure for extra controls and labeled pedal actions; there is no second Show all controls checkbox.
 - The effect library groups pedals by signal-chain stage. Chorus / flanger names both available model families; model-specific help only describes the offered options.
 - Quick start has five anchored steps: pick a sound, play, compare, watch the waveform, open a pedal. The waveform step asks users to switch between Dry and B, listen, and watch for changes. On mobile, the final Make it yours card sits immediately above the player, with the whole pedal highlighted and scrolled into view above the card. This replaces the four-step sequence (user follow-up, 2026-11-12). Platform-specific audio tips appear only on the applicable devices.
+- Open Quick start automatically on the first visit. Remember locally when it has been shown so closing it, finishing it, or returning later does not reopen it automatically. The header help button can restart it at any time (user follow-up, 2026-11-12).
 - Share offers a Copy button and Copied feedback. Compress the self-contained board link and continue reading existing links; no link-shortening service is required.
 
 ### Review proposals left open

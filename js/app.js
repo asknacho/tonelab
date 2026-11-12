@@ -2023,6 +2023,7 @@
     { target: '#effect-order li[data-effect]', title: 'Make it yours', copy: 'Open a pedal and change a control. Guide explains what to listen for and how to play it.', mobileBottom: true }
   ];
   const quickStartTour = document.getElementById('quick-start-tour');
+  const quickStartSeenKey = 'tonelab-quick-start-seen';
   let quickStartIndex = 0;
   function advanceQuickStart(expectedIndex) {
     if (quickStartTour.hidden || quickStartIndex !== expectedIndex) return;
@@ -2093,7 +2094,13 @@
     document.body.classList.remove('quick-start-pedal-step');
     document.querySelectorAll('.quick-start-target').forEach(el => el.classList.remove('quick-start-target'));
   }
-  document.getElementById('open-quick-start').onclick = () => { quickStartIndex = 0; quickStartTour.hidden = false; renderQuickStart(); };
+  function openQuickStart() {
+    quickStartIndex = 0;
+    quickStartTour.hidden = false;
+    renderQuickStart();
+    try { localStorage.setItem(quickStartSeenKey, '1'); } catch {}
+  }
+  document.getElementById('open-quick-start').onclick = openQuickStart;
   document.getElementById('close-quick-start').onclick = closeQuickStart;
   document.getElementById('quick-start-back').onclick = () => { quickStartIndex = Math.max(0, quickStartIndex - 1); renderQuickStart(); };
   const nextQuickStart = () => { quickStartIndex += 1; if (quickStartIndex >= quickStartSteps.length) closeQuickStart(); else renderQuickStart(); };
@@ -3022,5 +3029,9 @@
   setScopeExpanded(scopePreferences[roomyLayout.matches ? 'roomy' : 'compact']);
   document.getElementById('save-status').textContent = restoreMessage || (storageAvailable ? 'Autosave enabled' : 'Local saving unavailable · use Share');
   saveBoard();
+  // Wait until the board and responsive layout are ready before anchoring the tour.
+  let quickStartSeen = false;
+  try { quickStartSeen = localStorage.getItem(quickStartSeenKey) === '1'; } catch {}
+  if (!quickStartSeen) requestAnimationFrame(openQuickStart);
   requestAnimationFrame(frame);
 })(window.TL);
