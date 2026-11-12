@@ -24,6 +24,7 @@ test('Play sends a running preset to the worklet immediately, including after pa
   }
   const ui = vm.createContext({
     window: { AudioContext },
+    tr: value => value,
     AudioWorkletNode: class {
       constructor() { this.port = { postMessage(message) {
         const data = structuredClone(message); // A real MessagePort copies the state.

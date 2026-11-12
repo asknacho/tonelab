@@ -5,6 +5,10 @@
 (async function (TL) {
   'use strict';
 
+  const I18n = TL.I18n;
+  const tr = I18n?.t || (value => value);
+  I18n?.initializeStatic();
+
   const { SR, dbToLin, linToDb, Source, EffectChain, compCurve } = TL;
 
   const VIEW_SECONDS = 3;   // visible window
@@ -121,9 +125,9 @@
       const raw = atob(encoded);
       const json = compressed ? await new Response(new Blob([Uint8Array.from(raw, c => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('deflate'))).text() : (() => { try { return decodeURIComponent(escape(raw)); } catch { return raw; } })();
       restoreBoard(JSON.parse(json));
-      restoreMessage = 'Shared pedalboard loaded';
+      restoreMessage = tr('Shared pedalboard loaded');
       history.replaceState(null, '', location.pathname + location.search);
-    } catch { restoreMessage = 'This shared link is invalid. Your saved board was kept.'; }
+    } catch { restoreMessage = tr('This shared link is invalid. Your saved board was kept.'); }
   }
   function snapshot() {
     banks[activeBank] = clone(state.chain);
@@ -134,10 +138,10 @@
     saveTimer = setTimeout(() => {
       try {
         localStorage.setItem(storageKey, JSON.stringify(snapshot()));
-        document.getElementById('save-status').textContent = 'Saved on this device';
+        document.getElementById('save-status').textContent = tr('Saved on this device');
       } catch {
         storageAvailable = false;
-        document.getElementById('save-status').textContent = 'Local saving unavailable · use Share';
+        document.getElementById('save-status').textContent = tr('Local saving unavailable · use Share');
       }
     }, 250);
   }
@@ -157,7 +161,7 @@
         moreHeading = true;
         const h = document.createElement('p');
         h.className = 'params-more';
-        h.textContent = 'More controls (not on this pedal)';
+        h.textContent = tr('More controls (not on this pedal)');
         container.appendChild(h);
       }
       if (typeof target[c.key] !== 'number') target[c.key] = spec.value;
@@ -166,7 +170,7 @@
         row.className = 'param param-switch';
         row.innerHTML = '<span class="param-top"><span class="param-name"></span></span><div class="segmented switch-options" role="group"></div><span class="param-hint"></span>';
         row.querySelector('.param-name').textContent = c.label;
-        row.querySelector('.param-hint').textContent = pedal.type === 'reverb' && c.key === 'mode' ? c.options.map(([, name]) => ({ Room: 'Room is small and close', Hall: 'Hall is spacious', Plate: 'Plate is bright and dense', Spring: 'Spring has a bouncy tail', Shimmer: 'Shimmer rings an octave up' }[name] || name)).join('; ') + '.' : spec.hint || '';
+        row.querySelector('.param-hint').textContent = pedal.type === 'reverb' && c.key === 'mode' ? c.options.map(([, name]) => ({ Room: tr('Room is small and close'), Hall: tr('Hall is spacious'), Plate: tr('Plate is bright and dense'), Spring: tr('Spring has a bouncy tail'), Shimmer: tr('Shimmer rings an octave up') }[I18n?.english(name) || name] || name)).join('; ') + '.' : spec.hint || '';
         const group = row.querySelector('.switch-options');
         group.setAttribute('aria-label', c.label);
         const sync = () => {
@@ -235,14 +239,14 @@
   const patternSelect = document.getElementById('pattern');
   const speed = document.getElementById('speed');
   const speedOut = document.getElementById('speed-out');
-  patternSelect.replaceChildren(...['Free', 'Single notes', 'Strums', 'Picking', 'Rhythm'].map(name => {
+  patternSelect.replaceChildren(...[tr('Free'), tr('Single notes'), tr('Strums'), tr('Picking'), tr('Rhythm')].map(name => {
     const group = document.createElement('optgroup');
     group.label = name;
     for (const [id, pattern] of Object.entries(TL.PATTERNS)) if (pattern.group === name) group.appendChild(new Option(pattern.label, id));
     return group;
   }));
   const recordingGroup = document.createElement('optgroup');
-  recordingGroup.label = 'Your sound';
+  recordingGroup.label = tr('Your sound');
   const bringYourOwn = document.getElementById('bring-your-own');
   const recordingFile = document.getElementById('recording-file');
   let recordingLoad = 0;
@@ -285,14 +289,14 @@
     bringYourOwn.disabled = true;
     bringYourOwn.setAttribute('aria-disabled', 'true');
     bringYourOwn.setAttribute('aria-busy', 'true');
-    bringYourOwn.title = 'Opening recording…';
+    bringYourOwn.title = tr('Opening recording…');
     try {
-      if (file.size > 50 * 1024 * 1024) throw new Error('Choose a recording smaller than 50 MB.');
+      if (file.size > 50 * 1024 * 1024) throw new Error(tr('Choose a recording smaller than 50 MB.'));
       const OfflineContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
       const decoder = new OfflineContext(1, 1, SR);
       const decoded = await decoder.decodeAudioData(await file.arrayBuffer());
       if (load !== recordingLoad) return;
-      if (!decoded.length || decoded.duration > 600) throw new Error('Choose a recording between a moment and 10 minutes long.');
+      if (!decoded.length || decoded.duration > 600) throw new Error(tr('Choose a recording between a moment and 10 minutes long.'));
       // The pedal engine is mono. Decode/resample locally, then mix channels.
       const samples = new Float32Array(decoded.length);
       for (let channel = 0; channel < decoded.numberOfChannels; channel++) {
@@ -304,7 +308,7 @@
       source.setKind('recording');
       let option = recordingGroup.querySelector('[value="recording"]');
       if (!option) { option = new Option('', 'recording'); recordingGroup.prepend(option); }
-      option.textContent = 'Your recording · ' + file.name;
+      option.textContent = tr('Your recording · ') + file.name;
       if (!recordingGroup.isConnected) patternSelect.append(recordingGroup);
       input.fill(0);
       source.generate(input, 0, N);
@@ -316,18 +320,18 @@
       onBoardChange();
       saveBoard();
       sendAudioState();
-      announce('Recording ready · stays on this device · loops during playback');
+      announce(tr('Recording ready · stays on this device · loops during playback'));
     } catch (error) {
       if (load !== recordingLoad) return;
       syncPattern();
       const errorBox = document.getElementById('recording-error');
-      errorBox.querySelector('span').textContent = error.message?.startsWith('Choose a recording') ? error.message : 'This audio file could not be opened. Try a WAV, MP3, or M4A recording.';
+      errorBox.querySelector('span').textContent = error.message?.startsWith(tr('Choose a recording')) ? error.message : tr('This audio file could not be opened. Try a WAV, MP3, or M4A recording.');
       errorBox.hidden = false;
     } finally {
       if (load === recordingLoad) {
         bringYourOwn.disabled = false;
         bringYourOwn.removeAttribute('aria-busy');
-        bringYourOwn.title = 'Bring your own recording';
+        bringYourOwn.title = tr('Bring your own recording');
         bringYourOwn.removeAttribute('aria-disabled');
         recordingFile.value = '';
       }
@@ -340,17 +344,17 @@
     const free = !TL.PATTERNS[source.kind]?.tempo;
     speed.value = tempo;
     speed.disabled = free;
-    speedOut.textContent = free ? 'not used' : tempo + ' BPM';
-    document.getElementById('dock-playing-text').textContent = free ? (source.kind === 'recording' ? 'Original' : 'Free time') : tempo + ' BPM';
+    speedOut.textContent = free ? tr('not used') : tempo + ' BPM';
+    document.getElementById('dock-playing-text').textContent = free ? (source.kind === 'recording' ? 'Original' : tr('Free time')) : tempo + ' BPM';
     const tempoButton = document.getElementById('dock-playing');
     tempoButton.disabled = free;
-    tempoButton.title = free ? (source.kind === 'recording' ? 'Recording plays at its original speed' : 'No tempo for free picking') : 'Adjust tempo';
-    tempoButton.setAttribute('aria-label', free ? tempoButton.title : 'Adjust tempo: ' + tempo + ' BPM');
-    patternSelect.title = source.kind === 'recording' ? localRecording.name + ' · local recording · loops during playback' : '';
+    tempoButton.title = free ? (source.kind === 'recording' ? tr('Recording plays at its original speed') : tr('No tempo for free picking')) : tr('Adjust tempo');
+    tempoButton.setAttribute('aria-label', free ? tempoButton.title : tr('Adjust tempo: ') + tempo + ' BPM');
+    patternSelect.title = source.kind === 'recording' ? localRecording.name + tr(' · local recording · loops during playback') : '';
     document.getElementById('noise').disabled = source.kind === 'recording';
     document.querySelector('.noise-hint').textContent = source.kind === 'recording'
-      ? 'Your recording keeps its own background noise.'
-      : 'Add background hiss to try the noise gate.';
+      ? tr('Your recording keeps its own background noise.')
+      : tr('Add background hiss to try the noise gate.');
   }
   // Temporary controls stay within the player bar and share the same behavior.
   let activePlayerControl = null;
@@ -406,7 +410,7 @@
     bringYourOwn.disabled = false;
     bringYourOwn.removeAttribute('aria-disabled');
     bringYourOwn.removeAttribute('aria-busy');
-    bringYourOwn.title = 'Bring your own recording';
+    bringYourOwn.title = tr('Bring your own recording');
     source.setKind(patternSelect.value);
     if (source.kind === 'recording') {
       input.fill(0);
@@ -509,7 +513,7 @@
     state.chain.splice(to, 0, pedal);
     edited();
     if (!settings.hidden) syncMoveButtons();
-    announce(pedalName(pedal) + ' moved to position ' + (to + 1));
+    announce(pedalName(pedal) + tr(' moved to position ') + (to + 1));
   }
   function syncMoveButtons() {
     const index = state.chain.findIndex(p => p.id === selectedId);
@@ -538,19 +542,19 @@
     if (!undoToast.hidden) placeUndo();
   }
   function showPedalNotes(pedal) {
-    document.getElementById('settings-state').textContent = pedal.enabled ? 'Enabled' : 'Bypassed';
+    document.getElementById('settings-state').textContent = pedal.enabled ? tr('Enabled') : tr('Bypassed');
     document.getElementById('pedal-note').textContent = noteFor(pedal, state.chain);
     const other = otherBank(activeBank);
     const diff = differences(state.chain, banks[other], other).byPedal.get(pedal.id);
     const diffEl = document.getElementById('pedal-diff');
-    diffEl.textContent = diff ? 'A/B difference · ' + diff : '';
+    diffEl.textContent = diff ? tr('A/B difference · ') + diff : '';
     diffEl.hidden = !diff;
     updateGuide(pedal);
   }
   let savedTimer;
   function flashSaved() {
     const el = document.getElementById('pedal-saved');
-    el.textContent = '✓ Saved';
+    el.textContent = tr('✓ Saved');
     clearTimeout(savedTimer);
     savedTimer = setTimeout(() => { el.textContent = ''; }, 1600);
   }
@@ -565,7 +569,7 @@
     selectedId = pedal.id;
     // Editing a pedal leaves the explicitly chosen listening point unchanged.
     document.getElementById('settings-title').textContent = pedalName(pedal);
-    document.getElementById('settings-state').textContent = pedal.enabled ? 'Enabled' : 'Bypassed';
+    document.getElementById('settings-state').textContent = pedal.enabled ? tr('Enabled') : tr('Bypassed');
     settings.dataset.type = pedal.type;
     // Which classic pedal this is: its outline, its controls and their names.
     const modelSelect = document.getElementById('pedal-model');
@@ -576,7 +580,7 @@
       Object.assign(pedal.params, modelOf(pedal).defaults || {});
       edited();
       openSettings(pedal);
-      announce(pedalName(pedal) + ' is now a ' + modelOf(pedal).name);
+      announce(pedalName(pedal) + tr(' is now a ') + modelOf(pedal).name);
     };
     pedal.advanced = moreSettings.open;
     const container = document.getElementById('pedal-params');
@@ -635,7 +639,7 @@
     const pedal = createPedal(type, params, model);
     state.chain.push(pedal);
     edited();
-    announce(pedalName(pedal) + ' added at position ' + state.chain.length);
+    announce(pedalName(pedal) + tr(' added at position ') + state.chain.length);
     return pedal;
   }
   function removePedal(id) {
@@ -659,7 +663,7 @@
       state.chain.splice(Math.min(index, state.chain.length), 0, pedal);
       edited();
       openSettings(pedal);
-      announce(pedalName(pedal) + ' restored at position ' + (state.chain.indexOf(pedal) + 1));
+      announce(pedalName(pedal) + tr(' restored at position ') + (state.chain.indexOf(pedal) + 1));
       orderList.querySelector('[data-effect="' + pedal.id + '"] .pedal-toggle')?.focus({ preventScroll: true });
     });
   }
@@ -706,27 +710,32 @@
   document.querySelector('.board-add-tile')?.addEventListener('click', () => library.showModal());
   document.getElementById('strip-add').onclick = () => library.showModal();
   const effectGroups = [['Dynamics', ['gate', 'comp']], ['Drive', ['boost', 'drive', 'dist', 'fuzz']], ['Pitch', ['octave', 'harm']], ['Filter', ['eq', 'wah']], ['Modulation', ['chorus', 'phaser', 'trem']], ['Time', ['swell', 'delay', 'reverb']]];
-  for (const [name, effectTypes] of effectGroups) {
-    const section = document.createElement('section');
-    section.className = 'effect-group';
-    const heading = document.createElement('h3');
-    heading.textContent = name;
-    section.append(heading);
-    document.getElementById('effect-choices').append(section);
-    for (const type of effectTypes) {
-    const info = types[type];
-    const button = document.createElement('button');
-    button.dataset.type = type;
-    const preview = { type, model: info.models[0].id, params: P.modelDefaults(type, info.models[0].id) };
-    button.innerHTML = artSvg(preview, 'choice-art') + '<strong>' + (type === 'chorus' ? 'Chorus / flanger' : info.name) + '</strong><span class="choice-text">' + info.explanation.split('.')[0] + '.</span><span class="choice-model">' + info.models.map(m => m.name).join(' · ') + '</span><span class="choice-add" aria-hidden="true">+</span>';
-    button.onclick = () => {
-      const pedal = addPedal(type);
-      library.close();
-      openSettings(pedal);
-    };
-    section.appendChild(button);
+  function renderLibrary() {
+    const choices = document.getElementById('effect-choices');
+    choices.replaceChildren();
+    for (const [name, effectTypes] of effectGroups) {
+      const section = document.createElement('section');
+      section.className = 'effect-group';
+      const heading = document.createElement('h3');
+      heading.textContent = name;
+      section.append(heading);
+      choices.append(section);
+      for (const type of effectTypes) {
+        const info = types[type];
+        const button = document.createElement('button');
+        button.dataset.type = type;
+        const preview = { type, model: info.models[0].id, params: P.modelDefaults(type, info.models[0].id) };
+        button.innerHTML = artSvg(preview, 'choice-art') + '<strong>' + (type === 'chorus' ? 'Chorus / flanger' : info.name) + '</strong><span class="choice-text">' + info.explanation.split('.')[0] + '.</span><span class="choice-model">' + info.models.map(m => m.name).join(' · ') + '</span><span class="choice-add" aria-hidden="true">+</span>';
+        button.onclick = () => {
+          const pedal = addPedal(type);
+          library.close();
+          openSettings(pedal);
+        };
+        section.appendChild(button);
+      }
+    }
   }
-  }
+  renderLibrary();
   settings.querySelector('.sheet-close').onclick = () => dismissSettings();
   function dismissSettings(restoreFocus = true) {
     const id = selectedId;
@@ -788,15 +797,15 @@
       resetScopeHistory();
     }
     const pedal = state.chain.find(p => p.id === inspectId);
-    document.querySelector('#monitor [data-value="dry"]').textContent = pedal ? 'Before' : 'Dry guitar';
-    document.querySelector('#monitor [data-value="wet"]').textContent = pedal ? 'After' : 'With pedals';
+    document.querySelector('#monitor [data-value="dry"]').textContent = pedal ? tr('Before') : tr('Dry guitar');
+    document.querySelector('#monitor [data-value="wet"]').textContent = pedal ? tr('After') : tr('With pedals');
     const name = pedal && kindName(pedal).toLowerCase();
     document.getElementById('scope-caption').textContent = !pedal
-      ? (monitor === 'dry' || !state.chain.length ? 'Your guitar' : 'Full chain output')
-      : (monitor === 'dry' ? 'Before the ' : 'After the ') + name;
+      ? (monitor === 'dry' || !state.chain.length ? tr('Your guitar') : tr('Full chain output'))
+      : (monitor === 'dry' ? tr('Before the ') : tr('After the ')) + name;
     renderStrip();
-    document.querySelector('.sw-in').parentElement.lastChild.textContent = pedal ? 'Pedal input' : 'Guitar input';
-    document.querySelector('.sw-out').parentElement.lastChild.textContent = pedal ? 'Pedal output' : 'Chain output';
+    document.querySelector('.sw-in').parentElement.lastChild.textContent = pedal ? tr('Pedal input') : tr('Guitar input');
+    document.querySelector('.sw-out').parentElement.lastChild.textContent = pedal ? tr('Pedal output') : tr('Chain output');
     document.querySelector('.sw-in').parentElement.hidden = false;
     document.querySelector('.sw-out').parentElement.hidden = monitor === 'dry';
     document.querySelector('.sw-in').style.background = C.ink3;
@@ -816,9 +825,9 @@
   const strip = document.getElementById('chain-strip');
   function dotPoint(k) {
     const chain = state.chain;
-    if (k === 0) return { pedal: '', monitor: 'dry', label: 'Your guitar' };
-    if (k === chain.length) return { pedal: '', monitor: 'wet', label: 'Full chain output' };
-    return { pedal: chain[k - 1].id, monitor: 'wet', label: 'After ' + pedalName(chain[k - 1]) };
+    if (k === 0) return { pedal: '', monitor: 'dry', label: tr('Your guitar') };
+    if (k === chain.length) return { pedal: '', monitor: 'wet', label: tr('Full chain output') };
+    return { pedal: chain[k - 1].id, monitor: 'wet', label: tr('After ') + pedalName(chain[k - 1]) };
   }
   function syncListeningPoints() {
     const on = activeDot();
@@ -837,16 +846,16 @@
     const on = activeDot();
     const dot = k => {
       const point = dotPoint(k);
-      return `<li class="strip-node"><button type="button" class="strip-dot${k === on ? ' on' : ''}" data-dot="${k}" aria-pressed="${k === on}" aria-label="Listen here: ${point.label}"><i></i></button></li>`;
+      return `<li class="strip-node"><button type="button" class="strip-dot${k === on ? ' on' : ''}" data-dot="${k}" aria-pressed="${k === on}" aria-label="${tr('Listen here: ')}${point.label}"><i></i></button></li>`;
     };
-    const items = ['<li class="strip-end">In</li>', dot(0)];
+    const items = ['<li class="strip-end">' + tr('In') + '</li>', dot(0)];
     chain.forEach((pedal, i) => {
       items.push(`<li class="strip-pedal${pedal.enabled ? '' : ' off'}${pedal.id === selectedId && !settings.hidden ? ' selected' : ''}" data-type="${pedal.type}">` +
-        `<button type="button" data-strip-edit="${pedal.id}" aria-label="Tweak ${pedalName(pedal)}">${artSvg(pedal, 'strip-art')}<span>${modelOf(pedal).short || types[pedal.type].short || kindName(pedal)}</span></button></li>`);
+        `<button type="button" data-strip-edit="${pedal.id}" aria-label="${tr('Edit ')}${pedalName(pedal)}">${artSvg(pedal, 'strip-art')}<span>${modelOf(pedal).short || types[pedal.type].short || kindName(pedal)}</span></button></li>`);
       if (i < chain.length - 1) items.push(dot(i + 1));
     });
     if (chain.length) items.push(dot(chain.length));
-    items.push('<li class="strip-end">Out</li>');
+    items.push('<li class="strip-end">' + tr('Out') + '</li>');
     strip.innerHTML = items.join('');
     // Keep the selected pedal (or the listening point) in view on narrow screens.
     const focus = strip.querySelector('.strip-pedal.selected') || strip.querySelector('.strip-dot.on');
@@ -873,9 +882,9 @@
     document.body.classList.toggle('analysing', expanded);
     const button = document.getElementById('expand-scope');
     button.setAttribute('aria-expanded', String(expanded));
-    button.setAttribute('aria-label', expanded ? 'Collapse waveform' : 'Expand waveform');
-    button.title = expanded ? 'Collapse waveform' : 'Expand waveform';
-    button.textContent = expanded ? 'Analyse −' : 'Analyse +';
+    button.setAttribute('aria-label', expanded ? tr('Collapse waveform') : tr('Expand waveform'));
+    button.title = expanded ? tr('Collapse waveform') : tr('Expand waveform');
+    button.textContent = expanded ? tr('Analyse −') : tr('Analyse +');
     state.dirty = true;
   }
   document.getElementById('expand-scope').onclick = () => {
@@ -887,7 +896,7 @@
   document.getElementById('toggle-meters').onclick = e => {
     metersOpen = !metersOpen;
     e.target.setAttribute('aria-expanded', String(metersOpen));
-    e.target.textContent = metersOpen ? 'Hide meters' : 'Show meters';
+    e.target.textContent = metersOpen ? tr('Hide meters') : tr('Show meters');
     state.dirty = true;
   };
   function syncBanks() {
@@ -900,7 +909,7 @@
     dry.setAttribute('aria-pressed', String(monitor === 'dry' && !inspectId));
     document.getElementById('copy-bank-label').textContent = activeBank === 'A' ? 'A → B' : 'B → A';
     const copy = document.getElementById('copy-bank');
-    copy.title = activeBank === 'A' ? 'Copy A to B' : 'Copy B to A';
+    copy.title = activeBank === 'A' ? tr('Copy A to B') : tr('Copy B to A');
     copy.setAttribute('aria-label', copy.title);
   }
   document.getElementById('compare-bank').onclick = e => switchBank(e.target.closest('[data-bank]')?.dataset.bank);
@@ -942,7 +951,7 @@
     state.dirty = true;
     saveBoard();
     refreshSlots();
-    announce(activeBank + ' copied to ' + other);
+    announce(activeBank + tr(' copied to ') + other);
   };
   document.getElementById('match-volume').checked = matchVolume;
   document.getElementById('match-volume').onchange = e => {
@@ -962,19 +971,19 @@
     url.hash = key + '=' + btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     document.getElementById('share-link').value = url.href;
     document.getElementById('share-copy-status').textContent = '';
-    document.getElementById('copy-share-link').textContent = 'Copy link';
+    document.getElementById('copy-share-link').textContent = tr('Copy link');
     document.getElementById('share-dialog').showModal();
   };
   document.getElementById('copy-share-link').onclick = async () => {
     const field = document.getElementById('share-link');
     try {
       await navigator.clipboard.writeText(field.value);
-      document.getElementById('copy-share-link').textContent = 'Copied';
-      document.getElementById('share-copy-status').textContent = 'Link copied, including A and B';
+      document.getElementById('copy-share-link').textContent = tr('Copied');
+      document.getElementById('share-copy-status').textContent = tr('Link copied, including A and B');
     } catch {
       field.focus();
       field.select();
-      document.getElementById('share-copy-status').textContent = 'Select and copy the link above.';
+      document.getElementById('share-copy-status').textContent = tr('Select and copy the link above.');
     }
   };
   document.querySelector('#share-dialog .sheet-close').onclick = () => document.getElementById('share-dialog').close();
@@ -1419,6 +1428,7 @@
       ],
     },
   ];
+  I18n?.catalog(TONES);
   const toneById = id => TONES.find(tone => tone.id === id);
 
   // What a pedal does, in a guitarist's words, when a sound has no note for it.
@@ -1440,6 +1450,7 @@
     swell: 'Fades each note in, hiding the pick attack.',
     reverb: 'Adds the sound of a room ringing on after each note.',
   };
+  I18n?.catalog(ROLES);
 
   // Your own sounds, kept on this device. A board you built is never lost:
   // before a sound replaces it, it's kept as "My last board".
@@ -1452,7 +1463,7 @@
   const specOf = chain => chain.map(p => [p.type + ':' + p.model, { ...p.params }, null, p.enabled]);
   function rememberMyBoard(chain) {
     if (!chain.length) return;
-    const entry = { id: 'my-last-board', name: 'My last board', spec: specOf(chain) };
+    const entry = { id: 'my-last-board', name: tr('My last board'), spec: specOf(chain) };
     myTones = [entry, ...myTones.filter(t => t.id !== entry.id)];
     saveMyTones();
   }
@@ -1486,11 +1497,11 @@
   const toneOf = s => (s.kind === 'tone' || s.kind === 'whatif' ? toneById(s.tone) : null);
   const whatIfOf = s => (s.kind === 'whatif' ? toneById(s.tone).whatIfs.find(w => w.id === s.whatIf) : null);
   function slotLabel(s) {
-    let text = 'My board';
+    let text = tr('My board');
     if (s.kind === 'tone') text = toneById(s.tone).title;
-    else if (s.kind === 'whatif') text = 'What if: ' + whatIfOf(s).label;
-    else if (s.kind === 'mine') text = myTones.find(t => t.id === s.mine)?.name || 'My sound';
-    return text + (s.edited && s.kind !== 'custom' ? ' (edited)' : '');
+    else if (s.kind === 'whatif') text = tr('What if: ') + whatIfOf(s).label;
+    else if (s.kind === 'mine') text = s.mine === 'my-last-board' ? tr('My last board') : myTones.find(t => t.id === s.mine)?.name || tr('My sound');
+    return text + (s.edited && s.kind !== 'custom' ? tr(' (edited)') : '');
   }
   // The sound being explained: the one in A, or else the one in B.
   const lessonTone = () => toneOf(slots.A) || toneOf(slots.B);
@@ -1558,8 +1569,8 @@
     fillSlot(bank, value);
     changed();
     refreshSlots();
-    announce(label + ' loaded into ' + bank);
-    offerUndo(label + ' loaded into ' + bank, () => applyBoard(before));
+    announce(label + tr(' loaded into ') + bank);
+    offerUndo(label + tr(' loaded into ') + bank, () => applyBoard(before));
   }
 
   /* Pickers: "I want to sound like" and one per slot. */
@@ -1573,28 +1584,28 @@
     return g;
   }
   function refreshSlots() {
-    heroSelect.replaceChildren(new Option('Choose a sound…', ''));
-    for (const name of ['Songs', 'Techniques']) heroSelect.appendChild(group(name, TONES.filter(t => t.group === name).map(t => [t.title, 'tone:' + t.id])));
-    if (myTones.length) heroSelect.appendChild(group('My sounds', myTones.map(t => [t.name, 'mine:' + t.id])));
+    heroSelect.replaceChildren(new Option(tr('Choose a sound…'), ''));
+    for (const name of [tr('Songs'), tr('Techniques')]) heroSelect.appendChild(group(name, TONES.filter(t => t.group === name).map(t => [t.title, 'tone:' + t.id])));
+    if (myTones.length) heroSelect.appendChild(group(tr('My sounds'), myTones.map(t => [t.id === 'my-last-board' ? tr('My last board') : t.name, 'mine:' + t.id])));
     const shown = toneOf(slots.A);
     heroSelect.value = shown ? 'tone:' + shown.id : slots.A.kind === 'mine' ? 'mine:' + slots.A.mine : '';
     syncCombo();
     const lesson = lessonTone();
-    document.getElementById('tone-summary').textContent = lesson ? lesson.summary : 'Pick a famous sound to see how it’s built, pedal by pedal. Or build your own on the board below.';
+    document.getElementById('tone-summary').textContent = lesson ? lesson.summary : tr('Pick a famous sound to see how it’s built, pedal by pedal. Or build your own on the board below.');
 
     for (const bank of ['A', 'B']) {
       const select = slotSelects[bank];
       const other = otherBank(bank);
       select.replaceChildren(new Option(slotLabel(slots[bank]), 'current'));
       const base = toneOf(slots[other]) || toneOf(slots[bank]);
-      if (base) select.appendChild(group('What if… (' + base.short + ')', base.whatIfs.map(w => [w.label, 'whatif:' + base.id + ':' + w.id]).concat([['The original ' + base.short + ' sound', 'tone:' + base.id]])));
-      select.appendChild(group('Copy', [['Same as ' + other, 'same']]));
-      for (const name of ['Songs', 'Techniques']) select.appendChild(group(name, TONES.filter(t => t.group === name).map(t => [t.title, 'tone:' + t.id])));
-      if (myTones.length) select.appendChild(group('My sounds', myTones.map(t => [t.name, 'mine:' + t.id])));
+      if (base) select.appendChild(group(tr('What if… (') + base.short + ')', base.whatIfs.map(w => [w.label, 'whatif:' + base.id + ':' + w.id]).concat([[tr('The original ') + base.short + tr(' sound'), 'tone:' + base.id]])));
+      select.appendChild(group(tr('Copy'), [[tr('Same as ') + other, 'same']]));
+      for (const name of [tr('Songs'), tr('Techniques')]) select.appendChild(group(name, TONES.filter(t => t.group === name).map(t => [t.title, 'tone:' + t.id])));
+      if (myTones.length) select.appendChild(group(tr('My sounds'), myTones.map(t => [t.id === 'my-last-board' ? tr('My last board') : t.name, 'mine:' + t.id])));
       select.value = 'current';
-      select.setAttribute('aria-label', 'Sound in ' + bank);
+      select.setAttribute('aria-label', tr('Sound in ') + bank);
     }
-    document.getElementById('board-slot').textContent = 'Editing ' + activeBank + ': ' + slotLabel(slots[activeBank]);
+    document.getElementById('board-slot').textContent = tr('Editing ') + activeBank + ': ' + slotLabel(slots[activeBank]);
     renderJourney();
   }
   const newBoardDialog = document.getElementById('new-board-dialog');
@@ -1608,7 +1619,7 @@
     resetScopeHistory();
     scopeHistory.B.input.fill(0);
     scopeHistory.B.output.fill(0);
-    offerUndo('New pedalboard started', () => applyBoard(before));
+    offerUndo(tr('New pedalboard started'), () => applyBoard(before));
   };
   heroSelect.onchange = () => {
     const value = heroSelect.value;
@@ -1687,7 +1698,7 @@
         const empty = document.createElement('li');
         empty.className = 'combo-empty';
         empty.setAttribute('role', 'presentation');
-        empty.textContent = 'No sound matches “' + query.trim() + '”. Try another word.';
+        empty.textContent = tr('No sound matches “') + query.trim() + tr('”. Try another word.');
         list.appendChild(empty);
       }
       const current = shown.findIndex(item => item.value === heroSelect.value);
@@ -1745,7 +1756,7 @@
   const soundName = document.getElementById('sound-name');
   const closeSave = () => { saveForm.hidden = true; document.getElementById('save-tone').focus({ preventScroll: true }); };
   document.getElementById('save-tone').onclick = () => {
-    soundName.value = slots[activeBank].kind === 'custom' ? 'My sound ' + (myTones.filter(t => t.id !== 'my-last-board').length + 1) : slotLabel(slots[activeBank]).replace(' (edited)', '') + ' (mine)';
+    soundName.value = slots[activeBank].kind === 'custom' ? tr('My sound ') + (myTones.filter(t => t.id !== 'my-last-board').length + 1) : slotLabel(slots[activeBank]).replace(tr(' (edited)'), '') + tr(' (mine)');
     saveForm.hidden = false;
     soundName.focus();
     soundName.select();
@@ -1756,7 +1767,7 @@
   saveForm.onsubmit = e => {
     e.preventDefault();
     const name = soundName.value.trim();
-    if (!name) { soundName.setCustomValidity('Enter a name for your sound.'); soundName.reportValidity(); return; }
+    if (!name) { soundName.setCustomValidity(tr('Enter a name for your sound.')); soundName.reportValidity(); return; }
     const entry = { id: 'mine-' + Date.now().toString(36), name: name.slice(0, 60), spec: specOf(state.chain) };
     myTones = [entry, ...myTones];
     saveMyTones();
@@ -1764,7 +1775,7 @@
     saveBoard();
     refreshSlots();
     closeSave();
-    announce('Saved as “' + entry.name + '” in My sounds');
+    announce(tr('Saved as “') + entry.name + tr('” in My sounds'));
   };
 
   /* Step by step: your guitar, then each pedal with what it does and the
@@ -1774,7 +1785,7 @@
   // What a pedal is doing here: the sound's own note when the pedal is set
   // as in the original sound, the what-if's note when that's the change.
   function noteFor(pedal, chain) {
-    if (!pedal.enabled) return 'Switched off: your signal passes straight through.';
+    if (!pedal.enabled) return tr('Switched off: your signal passes straight through.');
     const s = slots[activeBank];
     const tone = toneOf(s);
     if (!tone) return ROLES[pedal.type];
@@ -1794,7 +1805,7 @@
     const whatIf = whatIfOf(s);
     const firstChanged = chain.find(p => p.enabled && p !== pedal && chainKeys.indexOf(pedalKey(chain, p)) < chainKeys.indexOf(key) && noteDiffers(p, chain, tone, toneKeys, chainKeys));
     if (whatIf && !s.edited && !firstChanged) return whatIf.note;
-    return ROLES[pedal.type] + (sameSettings ? '' : ' (Set differently from the original sound.)');
+    return ROLES[pedal.type] + (sameSettings ? '' : tr(' (Set differently from the original sound.)'));
   }
   function noteDiffers(pedal, chain, tone, toneKeys, chainKeys) {
     const key = pedalKey(chain, pedal);
@@ -1815,15 +1826,15 @@
     chain.forEach((pedal, i) => {
       const key = thisKeys[i];
       const twin = otherByKey.get(key);
-      if (!twin) { result.set(pedal.id, 'Not in ' + other); return; }
+      if (!twin) { result.set(pedal.id, tr('Not in ') + other); return; }
       const parts = [];
-      if (twin.enabled !== pedal.enabled) parts.push(twin.enabled ? 'on' : 'switched off');
-      if (twin.model !== pedal.model) parts.push('a ' + modelOf(twin).name);
+      if (twin.enabled !== pedal.enabled) parts.push(twin.enabled ? tr('on') : tr('switched off'));
+      if (twin.model !== pedal.model) parts.push(tr('a ') + modelOf(twin).name);
       for (const c of controlsFor(twin, true)) {
         if (Math.abs(twin.params[c.key] - pedal.params[c.key]) > 1e-6) parts.push(c.label.toLowerCase() + ' ' + controlValue(twin, c));
       }
-      if (shared.indexOf(key) !== otherShared.indexOf(key)) parts.push('in a different order');
-      if (parts.length) result.set(pedal.id, 'In ' + other + ': ' + parts.join(', '));
+      if (shared.indexOf(key) !== otherShared.indexOf(key)) parts.push(tr('in a different order'));
+      if (parts.length) result.set(pedal.id, tr('In ') + other + ': ' + parts.join(', '));
     });
     const missing = otherChain.filter(p => !thisKeys.includes(pedalKey(otherChain, p)));
     return { byPedal: result, missing };
@@ -1838,9 +1849,9 @@
     document.getElementById('board-guide-tone').textContent = activeBank + ' · ' + slotLabel(s);
     const demoPattern = TL.PATTERNS[source.kind];
     const playsNote = demoPattern?.tempo
-      ? ' The demo plays “' + demoPattern.label + '” at ' + Math.round(source.tempo) + ' BPM, a generic pattern in the spirit of the style, not the actual part. Change it with Playing and Speed.'
+      ? tr(' The demo plays “') + demoPattern.label + tr('” at ') + Math.round(source.tempo) + tr(' BPM, a generic pattern in the spirit of the style, not the actual part. Change it with Playing and Speed.')
       : '';
-    document.getElementById('journey-play').textContent = ((tone || lessonTone())?.play || 'Your guitar, before any pedals.') + playsNote;
+    document.getElementById('journey-play').textContent = ((tone || lessonTone())?.play || tr('Your guitar, before any pedals.')) + playsNote;
     const items = [];
     // Each step has a Hear button: it plays, and shows on the scope, the
     // signal right after that pedal.
@@ -1852,7 +1863,7 @@
         artSvg(pedal, 'journey-art') +
         `<div><button class="journey-name" data-edit="${pedal.id}">${i + 1} · ${info.name}</button><div class="journey-chips">${chips}</div>` +
         `<p class="journey-note"></p>${diff ? `<p class="journey-diff">${diff}</p>` : ''}` +
-        `<button type="button" class="journey-listen" data-pedal="${pedal.id}" data-monitor="wet" aria-label="Hear after the ${info.name.toLowerCase()}">▶ Hear after this</button></div></li>`);
+        `<button type="button" class="journey-listen" data-pedal="${pedal.id}" data-monitor="wet" aria-label="${tr('Hear after the ')}${info.name.toLowerCase()}">${tr('▶ Hear after this')}</button></div></li>`);
     });
     journeyList.innerHTML = items.join('');
     // Notes are plain text: set them as text, not markup.
@@ -1864,7 +1875,12 @@
         openSettings(state.chain.find(p => p.id === button.dataset.edit), true);
       };
     });
-    if (!chain.length) journeyList.insertAdjacentHTML('beforeend', '<li class="journey-empty">No pedals yet: you hear your guitar just as it is. Pick a sound above or add pedals below.</li>');
+    if (!chain.length) {
+      const empty = document.createElement('li');
+      empty.className = 'journey-empty';
+      empty.textContent = tr('No pedals yet: you hear your guitar just as it is. Pick a sound above or add pedals below.');
+      journeyList.append(empty);
+    }
     renderStrip();
     if (!settings.hidden) {
       const open = selected();
@@ -1877,18 +1893,18 @@
     const title = document.getElementById('whatif-title');
     const text = document.getElementById('whatif-text');
     if (whatIfBank) {
-      title.textContent = 'What ' + whatIfBank + ' changes: ' + whatIfOf(slots[whatIfBank]).label.toLowerCase();
+      title.textContent = tr('What ') + whatIfBank + tr(' changes: ') + whatIfOf(slots[whatIfBank]).label.toLowerCase();
       text.textContent = whatIfOf(slots[whatIfBank]).note;
     } else if (byPedal.size || missing.length) {
-      title.textContent = 'How ' + other + ' is different';
-      text.textContent = [...[...byPedal.entries()].map(([id, d]) => pedalName(chain.find(p => p.id === id)) + ': ' + d.replace(/^In [AB]: /, '')),
-        ...missing.map(p => 'Only ' + other + ' has ' + types[p.type].name.toLowerCase())].join(' · ');
+      title.textContent = tr('How ') + other + tr(' is different');
+      text.textContent = [...[...byPedal.entries()].map(([id, d]) => pedalName(chain.find(p => p.id === id)) + ': ' + d.replace(/^(?:In|En) [AB]: /, '')),
+        ...missing.map(p => tr('Only ') + other + tr(' has ') + types[p.type].name.toLowerCase())].join(' · ');
     } else {
-      title.textContent = 'A and B are the same';
-      text.textContent = 'Pick a “What if…” for B to hear what one change does.';
+      title.textContent = tr('A and B are the same');
+      text.textContent = tr('Pick a “What if…” for B to hear what one change does.');
     }
     const dockWhatIf = document.getElementById('dock-whatif');
-    dockWhatIf.textContent = whatIfBank ? whatIfBank + ': ' + whatIfOf(slots[whatIfBank]).label : (byPedal.size || missing.length ? 'A and B differ' : 'A and B are the same');
+    dockWhatIf.textContent = whatIfBank ? whatIfBank + ': ' + whatIfOf(slots[whatIfBank]).label : (byPedal.size || missing.length ? tr('A and B differ') : tr('A and B are the same'));
     dockWhatIf.title = text.textContent;
     document.getElementById('journey-tip').textContent = (tone || lessonTone())?.tip || '';
     document.getElementById('journey-tip').hidden = !(tone || lessonTone())?.tip;
@@ -1930,30 +1946,30 @@
     const active = listening && audition;
     const button = document.getElementById('inspect-pedal');
     const playingPedal = listening && inspectId === selectedId && monitor === 'wet';
-    const label = playingPedal ? 'Stop listening' : 'Hear this pedal';
+    const label = playingPedal ? tr('Stop listening') : tr('Hear this pedal');
     button.innerHTML = '<svg class="action-icon" aria-hidden="true"><use href="#icon-' + (playingPedal ? 'stop' : 'play') + '"/></svg>';
     button.setAttribute('aria-label', label);
     button.setAttribute('aria-pressed', String(playingPedal));
     button.title = label;
     journeyList.querySelectorAll('.journey-listen').forEach(button => {
       const playing = active?.pedal === button.dataset.pedal && active?.monitor === button.dataset.monitor;
-      button.textContent = playing ? '■ Stop' : '▶ Hear after this';
+      button.textContent = playing ? tr('■ Stop') : tr('▶ Hear after this');
       button.setAttribute('aria-pressed', String(!!playing));
     });
     document.querySelectorAll('#whatif-box [data-hear]').forEach(button => {
       const playing = active?.bank === button.dataset.hear && active.pedal === '' && active.monitor === 'wet';
-      button.textContent = (playing ? '■ Stop ' : '▶ Hear ') + button.dataset.hear;
+      button.textContent = (playing ? tr('■ Stop ') : tr('▶ Hear ')) + button.dataset.hear;
       button.setAttribute('aria-pressed', String(!!playing));
     });
   }
   function updateGuide(pedal) {
     const index = state.chain.findIndex(p => p.id === pedal.id);
     if (index < 0) return;
-    document.getElementById('guide-position').textContent = (index + 1) + ' of ' + state.chain.length;
+    document.getElementById('guide-position').textContent = (index + 1) + tr(' of ') + state.chain.length;
     document.getElementById('guide-note').textContent = noteFor(pedal, state.chain);
     document.getElementById('guide-values').textContent = modelOf(pedal).name + ' · ' + controlsFor(pedal).map(c => c.label + ' ' + controlValue(pedal, c)).join(' · ');
     const diff = differences(state.chain, banks[otherBank(activeBank)], otherBank(activeBank)).byPedal.get(pedal.id) || '';
-    document.getElementById('guide-diff').textContent = diff ? 'A/B difference · ' + diff : '';
+    document.getElementById('guide-diff').textContent = diff ? tr('A/B difference · ') + diff : '';
     document.getElementById('guide-diff').hidden = !diff;
     const tone = toneOf(slots[activeBank]) || lessonTone();
     const intro = tone?.play || '';
@@ -1966,7 +1982,7 @@
     document.getElementById('guide-prev').disabled = index === 0;
     const last = index === state.chain.length - 1;
     const next = document.getElementById('guide-next');
-    next.querySelector('span').textContent = last ? 'Done' : 'Next';
+    next.querySelector('span').textContent = last ? tr('Done') : tr('Next');
     next.querySelector('svg').toggleAttribute('hidden', last);
   }
   function showGuide(show) {
@@ -1979,7 +1995,7 @@
     if (mobileEditor.matches) {
       if (!show) { guideDialog.close(); guideContent.hidden = true; return; }
       if (selected()) updateGuide(selected());
-      document.getElementById('pedal-guide-title').textContent = selected() ? pedalName(selected()) : 'Pedal guide';
+      document.getElementById('pedal-guide-title').textContent = selected() ? pedalName(selected()) : tr('Pedal guide');
       guideContent.hidden = false;
       if (!guideDialog.open) guideDialog.showModal();
       document.body.classList.add('pedal-guide-open');
@@ -2022,6 +2038,7 @@
     { target: '#scope-plot', title: 'See what changes', copy: 'Switch between Dry and B. Listen to the difference and watch how the waveform changes.' },
     { target: '#effect-order li[data-effect]', title: 'Make it yours', copy: 'Open a pedal and change a control. Guide explains what to listen for and how to play it.', mobileBottom: true }
   ];
+  I18n?.catalog(quickStartSteps);
   const quickStartTour = document.getElementById('quick-start-tour');
   const quickStartSeenKey = 'tonelab-quick-start-seen';
   let quickStartIndex = 0;
@@ -2072,13 +2089,13 @@
     if (quickStartTour.hidden) return;
     sizePlayer();
     const step = quickStartSteps[quickStartIndex];
-    document.getElementById('quick-start-count').textContent = (quickStartIndex + 1) + ' of ' + quickStartSteps.length;
+    document.getElementById('quick-start-count').textContent = (quickStartIndex + 1) + tr(' of ') + quickStartSteps.length;
     document.getElementById('quick-start-title').textContent = step.title;
     const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    document.getElementById('quick-start-copy').textContent = step.copy + (quickStartIndex === 1 && ios ? ' On iPhone, turn Silent mode off if you cannot hear playback.' : '');
+    document.getElementById('quick-start-copy').textContent = step.copy + (quickStartIndex === 1 && ios ? tr(' On iPhone, turn Silent mode off if you cannot hear playback.') : '');
     document.getElementById('quick-start-progress-fill').style.width = ((quickStartIndex + 1) / quickStartSteps.length * 100) + '%';
     document.getElementById('quick-start-back').disabled = quickStartIndex === 0;
-    document.getElementById('quick-start-next').textContent = quickStartIndex === quickStartSteps.length - 1 ? 'Finish ✓' : 'Next step →';
+    document.getElementById('quick-start-next').textContent = quickStartIndex === quickStartSteps.length - 1 ? tr('Finish ✓') : tr('Next step →');
     const target = document.querySelector(step.target) || document.querySelector('.board-add-tile');
     if (target) {
       target.classList.add('quick-start-target');
@@ -2131,8 +2148,8 @@
     });
     document.body.classList.toggle('tone-view', view === 'tone');
     document.getElementById('view-hint').textContent = view === 'tone'
-      ? 'Tone: bass on the left, treble on the right. Grey is before the pedal, black after.'
-      : 'Loudness over the last moments. Grey is before the pedal, black after.';
+      ? tr('Tone: bass on the left, treble on the right. Grey is before the pedal, black after.')
+      : tr('Loudness over the last moments. Grey is before the pedal, black after.');
     spectrumMemory.clear();
     state.dirty = true;
   }
@@ -2190,6 +2207,7 @@
     return prev;
   }
   const BANDS = [['Bass', 60, 250], ['Mids', 250, 2000], ['Treble', 2000, 10000]];
+  I18n?.catalog(BANDS);
   function drawSpectrum(ctx, w, h, before, after, key, detailed) {
     const xf = f => Math.log(f / F_LO) / Math.log(F_HI / F_LO) * w;
     const top = detailed ? 20 : 13, bottom = detailed ? 18 : 2;
@@ -2244,15 +2262,15 @@
         item = document.createElement('li');
         item.dataset.effect = id;
         item.dataset.type = pedal.type;
-        item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder"><svg aria-hidden="true" focusable="false" width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="4" r="1"/><circle cx="8" cy="4" r="1"/><circle cx="4" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="8" cy="12" r="1"/></svg></button>';
+        item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="' + tr('Edit ') + pedalName(pedal) + '">' + tr('Edit') + '</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="' + tr('Drag ') + pedalName(pedal) + tr(', or use arrow keys to reorder') + '"><svg aria-hidden="true" focusable="false" width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="4" r="1"/><circle cx="8" cy="4" r="1"/><circle cx="4" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="8" cy="12" r="1"/></svg></button>';
         item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal, true); advanceQuickStart(4); };
         item.querySelector('.pedal-edit').onclick = () => {
           pedal.enabled = !pedal.enabled;
           edited();
-          announce(pedalName(pedal) + (pedal.enabled ? ' enabled' : ' bypassed'));
+          announce(pedalName(pedal) + (pedal.enabled ? tr(' enabled') : tr(' bypassed')));
         };
         const handle = item.querySelector('.drag-handle');
-        handle.title = 'Hold to drag on touch screens, or use arrow keys to reorder';
+        handle.title = tr('Hold to drag on touch screens, or use arrow keys to reorder');
         handle.onkeydown = e => {
           if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
           e.preventDefault();
@@ -2353,13 +2371,15 @@
       item.querySelector('.pedal-name').textContent = shortName(pedal) + ' ' + pedal.number;
       item.dataset.shape = modelOf(pedal).shape;
       const toggle = item.querySelector('.pedal-toggle');
-      toggle.setAttribute('aria-label', 'Edit ' + pedalName(pedal));
+      toggle.setAttribute('aria-label', tr('Edit ') + pedalName(pedal));
       toggle.setAttribute('aria-pressed', String(pedal.id === selectedId));
       const bypass = item.querySelector('.pedal-edit');
       bypass.textContent = pedal.enabled ? 'On' : 'Off';
-      bypass.setAttribute('aria-label', (pedal.enabled ? 'Bypass ' : 'Enable ') + pedalName(pedal));
+      bypass.setAttribute('aria-label', (pedal.enabled ? tr('Bypass ') : tr('Enable ')) + pedalName(pedal));
       bypass.setAttribute('aria-pressed', String(pedal.enabled));
       item.querySelector('.pedal-status').textContent = '';
+      item.querySelector('.drag-handle').setAttribute('aria-label', tr('Drag ') + pedalName(pedal) + tr(', or use arrow keys to reorder'));
+      item.querySelector('.drag-handle').title = tr('Hold to drag on touch screens, or use arrow keys to reorder');
       // Keep DOM nodes in place during playback and editing to preserve focus.
       if (orderList.querySelectorAll('[data-effect]')[index] !== item) {
         const nextEffect = orderList.querySelectorAll('[data-effect]')[index];
@@ -2376,10 +2396,10 @@
       addTile = document.createElement('li');
       addTile.className = 'board-add-slot';
       addTile.innerHTML = artSvg(preview, 'pedal-art') + '<button type="button" class="board-add-tile"><span class="add-tile-plus">+</span><span class="add-tile-label"></span></button>';
-      addTile.querySelector('.add-tile-label').textContent = state.chain.length ? 'Add next pedal' : 'Add a pedal here';
+      addTile.querySelector('.add-tile-label').textContent = state.chain.length ? tr('Add next pedal') : tr('Add a pedal here');
       addTile.querySelector('button').onclick = () => library.showModal();
     }
-    addTile.querySelector('.add-tile-label').textContent = state.chain.length ? 'Add next pedal' : 'Add a pedal here';
+    addTile.querySelector('.add-tile-label').textContent = state.chain.length ? tr('Add next pedal') : tr('Add a pedal here');
     orderList.appendChild(addTile);
     if (previousList) previousList.replaceWith(orderList);
     document.getElementById('empty-chain').hidden = true;
@@ -2421,7 +2441,7 @@
         button.innerHTML = '<span aria-hidden="true"></span>';
         listeningPoints.appendChild(button);
       }
-      button.title = 'Listen here: ' + dotPoint(i).label;
+      button.title = tr('Listen here: ') + dotPoint(i).label;
       button.setAttribute('aria-label', button.title);
       button.style.left = x + 'px';
       button.style.top = y + 'px';
@@ -2579,7 +2599,7 @@
       if (entry) meter.set(entry.meter); else meter.fill(type === 'gate' ? 1 : 0);
       const legend = document.querySelector('.lg-' + type);
       legend.classList.toggle('hidden', !pedal?.enabled || (!!inspectId && inspectId !== pedal?.id));
-      legend.lastChild.textContent = pedal ? pedalName(pedal) + ' threshold' : '';
+      legend.lastChild.textContent = pedal ? pedalName(pedal) + tr(' threshold') : '';
     }
     if (audioNode) sendAudioState();
   }
@@ -2613,6 +2633,7 @@
   }
 
   function label(ctx, text, x, y, col, align = 'left', base = 'alphabetic', boxed = false) {
+    text = tr(text);
     ctx.font = '500 10.5px ' + C.mono;
     if (boxed) {
       const tw = ctx.measureText(text).width;
@@ -2697,10 +2718,10 @@
     for (let i = PRE; i < samples.length; i++) { peak = Math.max(peak, Math.abs(samples[i])); energy += samples[i] * samples[i]; }
     const peakDb = linToDb(peak);
     const rmsDb = linToDb(Math.sqrt(energy / VIEW));
-    document.getElementById('signal-peak').textContent = 'Peak ' + fmtDb(peakDb);
+    document.getElementById('signal-peak').textContent = tr('Peak ') + fmtDb(peakDb);
     document.getElementById('signal-rms').textContent = 'RMS ' + fmtDb(rmsDb);
     const headroom = document.getElementById('signal-headroom');
-    headroom.textContent = peak >= 1 ? 'Clipping · lower output' : peak > 0 ? fmt(Math.max(0, -peakDb), 1) + ' dB headroom' : 'No signal';
+    headroom.textContent = peak >= 1 ? tr('Clipping · lower output') : peak > 0 ? fmt(Math.max(0, -peakDb), 1) + tr(' dB headroom') : tr('No signal');
     headroom.classList.toggle('clipping', peak >= 1);
   }
 
@@ -2819,10 +2840,10 @@
 
     const pad = 6;
     lane(0, state.gateOn, gateGain, (g) => rowH - pad - g * (rowH - pad * 2 - 12), C.gate, C.gateSoft, false,
-      (observed('gate') ? pedalName(observed('gate')) : 'Gate') + ' · gain');
+      (observed('gate') ? pedalName(observed('gate')) : 'Gate') + tr(' · gain'));
     const GR_RANGE = 24;
     lane(rowH, state.compOn, compGR, (gr) => rowH + pad + Math.min(1, -gr / GR_RANGE) * (rowH - pad * 2), C.comp,
-      C.compSoft, true, (observed('comp') ? pedalName(observed('comp')) : 'Compressor') + ' · reduction (dB)');
+      C.compSoft, true, (observed('comp') ? pedalName(observed('comp')) : 'Compressor') + tr(' · reduction (dB)'));
   }
 
   /* Transfer curves: input level on x, output level on y, both −60..0 dB. */
@@ -2904,7 +2925,7 @@
     }
     ctx.restore();
 
-    label(ctx, 'in →', padL + pw, padT + ph - 5, C.ink3, 'right');
+    label(ctx, tr('in →'), padL + pw, padT + ph - 5, C.ink3, 'right');
     label(ctx, '↑ out', padL + 4, padT + 11, C.ink3);
   }
 
@@ -2923,8 +2944,8 @@
     const makeup = !isGate && pedal.enabled ? p.makeup : 0;
     drawCurve(curveEl, x => isGate ? (x >= p.threshold ? x : x + p.range) : compCurve(x, p) + p.makeup,
       p.threshold, pedal.enabled, isGate ? C.gate : C.comp, [level, level + gr + makeup], trails[pedal.type]);
-    badgeEl.textContent = !pedal.enabled ? 'Bypassed' : isGate ? entry.processor.state() : gr < -0.5 ? 'Compressing' : 'Idle';
-    readEl.textContent = (isGate ? 'gain ' : 'GR ') + fmtDb(gr);
+    badgeEl.textContent = !pedal.enabled ? tr('Bypassed') : isGate ? tr(entry.processor.state()) : gr < -0.5 ? tr('Compressing') : tr('Idle');
+    readEl.textContent = (isGate ? tr('gain ') : 'GR ') + fmtDb(gr);
   }
 
   // Audio runs off the main thread. Its source samples also drive the scope.
@@ -2980,17 +3001,17 @@
         sendAudioState();
         await audioContext.resume();
       }
-      listen.setAttribute('aria-label', listening ? 'Pause' : 'Play');
+      listen.setAttribute('aria-label', listening ? tr('Pause') : tr('Play'));
       listen.setAttribute('aria-pressed', String(listening));
       listen.classList.toggle('playing', listening);
-      audioStatus.textContent = listening ? 'Listening · tap a dot on the chain to hear that point' : source.kind === 'recording' ? 'Recording paused' : 'Synthesized guitar';
+      audioStatus.textContent = listening ? tr('Listening · tap a dot on the chain to hear that point') : source.kind === 'recording' ? tr('Recording paused') : tr('Synthesized guitar');
       if (!listening) audition = null;
       updateAuditionButtons();
     } catch (error) {
       listening = state.playing = false;
       if (audioContext) await audioContext.close().catch(() => {});
       audioContext = audioNode = null;
-      audioStatus.textContent = 'Audio could not start. Tap Play to try again in Safari or Chrome.';
+      audioStatus.textContent = tr('Audio could not start. Tap Play to try again in Safari or Chrome.');
       announce(audioStatus.textContent);
     } finally { audioStarting = false; listen.disabled = false; }
   };
@@ -3025,9 +3046,51 @@
     requestAnimationFrame(frame);
   }
 
+  function updateLanguageButton() {
+    const spanish = I18n.language === 'es';
+    const button = document.getElementById('switch-language');
+    const action = tr(spanish ? 'Switch to English' : 'Switch to Spanish');
+    button.setAttribute('aria-label', action);
+    button.title = tr('Language') + ': ' + (spanish ? 'Español' : 'English') + ' · ' + action;
+    document.getElementById('language-code').textContent = spanish ? 'ES' : 'EN';
+  }
+  if (I18n) {
+    updateLanguageButton();
+    document.getElementById('switch-language').onclick = () => I18n.setLanguage(I18n.language === 'en' ? 'es' : 'en');
+    I18n.onChange(() => {
+      updateLanguageButton();
+      // Refresh the UI in place: recordings, playback, edits and tour progress stay live.
+      for (const group of patternSelect.querySelectorAll('optgroup')) {
+        if (group === recordingGroup) { group.label = tr('Your sound'); continue; }
+        const pattern = TL.PATTERNS[group.querySelector('option')?.value];
+        if (pattern) group.label = pattern.group;
+        for (const option of group.children) option.textContent = TL.PATTERNS[option.value].label;
+      }
+      if (localRecording) recordingGroup.querySelector('option').textContent = tr('Your recording · ') + localRecording.name;
+      renderLibrary();
+      renderOrder();
+      refreshSlots();
+      refreshInspect();
+      setScopeExpanded(document.querySelector('.scope-disclosure').classList.contains('scope-expanded'));
+      setView(state.view);
+      if (!settings.hidden && selected()) {
+        const guide = guideSelected;
+        openSettings(selected());
+        showGuide(guide);
+      }
+      if (guideDialog.open && selected()) document.getElementById('pedal-guide-title').textContent = pedalName(selected());
+      updateAuditionButtons();
+      syncPattern();
+      listen.setAttribute('aria-label', listening ? tr('Pause') : tr('Play'));
+      audioStatus.textContent = listening ? tr('Listening · tap a dot on the chain to hear that point') : source.kind === 'recording' ? tr('Recording paused') : tr('Synthesized guitar');
+      renderQuickStart();
+      state.dirty = true;
+    });
+  }
+
   closeSettings();
   setScopeExpanded(scopePreferences[roomyLayout.matches ? 'roomy' : 'compact']);
-  document.getElementById('save-status').textContent = restoreMessage || (storageAvailable ? 'Autosave enabled' : 'Local saving unavailable · use Share');
+  document.getElementById('save-status').textContent = restoreMessage || (storageAvailable ? tr('Autosave enabled') : tr('Local saving unavailable · use Share'));
   saveBoard();
   // Wait until the board and responsive layout are ready before anchoring the tour.
   let quickStartSeen = false;

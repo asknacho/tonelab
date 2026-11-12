@@ -1372,3 +1372,10 @@ body.analysing .chain-strip-wrap { display: none; }
   #effect-order li { transition: none; }
 }
 #effect-order li.drag-ready > .drag-handle { outline: none; }
+
+/* Header help and language stay together on every screen size. */
+.header-help { display: flex; align-items: center; gap: 2px; margin-left: auto; flex: none; }
+.masthead .header-help #open-quick-start { margin: 0; }
+.language-switch { position: relative; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; color: var(--ink); }
+.language-switch:hover { color: var(--gate); }
+#language-code { position: absolute; right: 0; bottom: 0; padding: 1px 2px; border-radius: 3px; background: var(--paper); font: 600 9px/1 var(--sans); }
