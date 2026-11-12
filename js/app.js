@@ -2034,14 +2034,19 @@
     const target = document.querySelector('.quick-start-target');
     if (!target) return;
     const rect = target.getBoundingClientRect();
-    const card = quickStartTour.getBoundingClientRect();
     const player = document.querySelector('.player-dock').getBoundingClientRect();
-    const maxBottom = innerWidth <= 700 ? player.top - 12 : innerHeight - 12;
-    const minTop = innerWidth > 700 && rect.top > player.bottom ? Math.max(12, player.bottom + 12) : 12;
+    const viewport = window.visualViewport;
+    const viewportTop = viewport?.offsetTop ?? 0;
+    const viewportBottom = viewportTop + (viewport?.height ?? innerHeight);
+    const maxBottom = (innerWidth <= 700 ? Math.min(player.top, viewportBottom) : viewportBottom) - 12;
+    const minTop = innerWidth > 700 && rect.top > player.bottom ? Math.max(viewportTop + 12, player.bottom + 12) : viewportTop + 12;
+    quickStartTour.style.maxHeight = Math.max(0, maxBottom - minTop) + 'px';
+    const card = quickStartTour.getBoundingClientRect();
     const below = rect.bottom + 12;
     const above = rect.top - card.height - 12;
     const top = below + card.height <= maxBottom ? below : above >= minTop ? above : Math.max(minTop, maxBottom - card.height);
-    quickStartTour.style.top = Math.max(12, top) + 'px';
+    // An anchor inside the player must clear the whole dock, including its first row.
+    quickStartTour.style.top = Math.max(minTop, Math.min(top, maxBottom - card.height)) + 'px';
     quickStartTour.style.left = Math.max(12, Math.min(innerWidth - card.width - 12, rect.left)) + 'px';
   }
   function renderQuickStart() {
@@ -2080,6 +2085,11 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !quickStartTour.hidden) closeQuickStart(); });
   addEventListener('resize', positionQuickStart);
   addEventListener('scroll', positionQuickStart, { passive: true });
+  window.visualViewport?.addEventListener('resize', positionQuickStart, { passive: true });
+  window.visualViewport?.addEventListener('scroll', positionQuickStart, { passive: true });
+  const quickStartLayout = new ResizeObserver(positionQuickStart);
+  quickStartLayout.observe(player);
+  quickStartLayout.observe(quickStartTour);
   onBoardChange = () => { renderJourney(); renderQuickStart(); };
   refreshSlots();
 
