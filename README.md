@@ -80,10 +80,10 @@ The waveform uses a fixed decibel scale and normal playback speed.
 ## DSP checks
 
 ```sh
-node --test tests/dsp.test.cjs
+node --test tests/*.test.cjs
 ```
 
-Checks cover independent duplicate compressors, bypass and empty chains, processor cleanup, streamed audio continuity, effect ordering, octave and harmonizer pitch accuracy, and fuzz clipping.
+Checks cover first-play and pause/resume through the real audio worklet, independent duplicate compressors, bypass and empty chains, processor cleanup, streamed audio continuity, effect ordering, octave and harmonizer pitch accuracy, and fuzz clipping.
 
 
 ## UX review updates

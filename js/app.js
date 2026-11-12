@@ -2926,16 +2926,17 @@
         audioNode.connect(audioContext.destination);
       }
       if (listening) {
-        listening = false;
+        listening = state.playing = false;
+        sendAudioState();
         await audioContext.suspend();
       } else {
         input.fill(0);
         for (const history of Object.values(scopeHistory)) { history.input.fill(0); history.output.fill(0); }
-        listening = true;
+        // MessagePort copies this state, so set playing before sending it.
+        listening = state.playing = true;
         sendAudioState();
         await audioContext.resume();
       }
-      state.playing = listening;
       listen.setAttribute('aria-label', listening ? 'Pause' : 'Play');
       listen.setAttribute('aria-pressed', String(listening));
       listen.classList.toggle('playing', listening);
