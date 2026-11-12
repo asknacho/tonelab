@@ -53,7 +53,7 @@ Updated 2026-11-12. These decisions came from the user's reviews of the mobile s
 - Pedal bypass and drag controls have at least 44 px touch targets. Center the grip in the pedal artwork’s bottom row on mobile and desktop; tilt the pedal slightly when dragging activates on any device (after a long press on touch, on handle press with mouse or pen), until release or cancellation (user follow-up, 2026-11-12). Show the red removal × only while the dragged pedal is outside the pedalboard; hide it again when it returns inside. Show one On/Off label per card and keep both endpoint labels inside the scrollable board.
 - More pedal settings is the single disclosure for extra controls and labeled pedal actions; there is no second Show all controls checkbox.
 - The effect library groups pedals by signal-chain stage. Chorus / flanger names both available model families; model-specific help only describes the offered options.
-- Quick start has four anchored steps: pick a sound, play, compare, open a pedal. Platform-specific audio tips appear only on the applicable devices.
+- Quick start has five anchored steps: pick a sound, play, compare, watch the waveform, open a pedal. The waveform step asks users to switch between Dry and B, listen, and watch for changes. On mobile, the final Make it yours card sits immediately above the player, with the whole pedal highlighted and scrolled into view above the card. This replaces the four-step sequence (user follow-up, 2026-11-12). Platform-specific audio tips appear only on the applicable devices.
 - Share offers a Copy button and Copied feedback. Compress the self-contained board link and continue reading existing links; no link-shortening service is required.
 
 ### Review proposals left open
