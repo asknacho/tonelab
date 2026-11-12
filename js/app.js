@@ -2019,7 +2019,8 @@
     { target: '#tone-combo', title: 'Pick a sound', copy: 'Choose a song or technique. A gets the original sound; B gets a variation to explore.' },
     { target: '#listen', title: 'Press Play', copy: 'Listen to the demo guitar, then try another pattern or upload your own recording.' },
     { target: '#dock-bank', title: 'Compare Dry, A and B', copy: 'Dry is your guitar without pedals. A and B let you compare two versions at matched volume.' },
-    { target: '#effect-order li .pedal-toggle', title: 'Make it yours', copy: 'Open a pedal and change a control. Guide explains what to listen for and how to play it.' }
+    { target: '#scope-plot', title: 'See what changes', copy: 'Switch between Dry and B. Listen to the difference and watch how the waveform changes.' },
+    { target: '#effect-order li[data-effect]', title: 'Make it yours', copy: 'Open a pedal and change a control. Guide explains what to listen for and how to play it.', mobileBottom: true }
   ];
   const quickStartTour = document.getElementById('quick-start-tour');
   let quickStartIndex = 0;
@@ -2040,17 +2041,33 @@
     const viewportBottom = viewportTop + (viewport?.height ?? innerHeight);
     const maxBottom = (innerWidth <= 700 ? Math.min(player.top, viewportBottom) : viewportBottom) - 12;
     const minTop = innerWidth > 700 && rect.top > player.bottom ? Math.max(viewportTop + 12, player.bottom + 12) : viewportTop + 12;
-    quickStartTour.style.maxHeight = Math.max(0, maxBottom - minTop) + 'px';
+    const mobileBottom = innerWidth <= 700 && quickStartSteps[quickStartIndex].mobileBottom;
+    // Leave room above the last card for the entire pedal, even on short screens.
+    quickStartTour.style.maxHeight = Math.max(0, maxBottom - minTop - (mobileBottom ? rect.height + 24 : 0)) + 'px';
     const card = quickStartTour.getBoundingClientRect();
+    document.documentElement.style.setProperty('--quick-start-card-height', card.height + 'px');
     const below = rect.bottom + 12;
     const above = rect.top - card.height - 12;
-    const top = below + card.height <= maxBottom ? below : above >= minTop ? above : Math.max(minTop, maxBottom - card.height);
+    const top = mobileBottom ? maxBottom - card.height : below + card.height <= maxBottom ? below : above >= minTop ? above : Math.max(minTop, maxBottom - card.height);
     // An anchor inside the player must clear the whole dock, including its first row.
     quickStartTour.style.top = Math.max(minTop, Math.min(top, maxBottom - card.height)) + 'px';
     quickStartTour.style.left = Math.max(12, Math.min(innerWidth - card.width - 12, rect.left)) + 'px';
   }
+  function revealQuickStartPedal() {
+    if (quickStartTour.hidden || innerWidth > 700 || !quickStartSteps[quickStartIndex].mobileBottom) return;
+    const target = document.querySelector('.quick-start-target');
+    if (!target) return;
+    // Reveal the pedal horizontally, then fit it above the bottom tutorial card.
+    target.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+    const rect = target.getBoundingClientRect();
+    const top = (window.visualViewport?.offsetTop ?? 0) + 12;
+    const bottom = quickStartTour.getBoundingClientRect().top - 12;
+    const delta = rect.bottom > bottom ? rect.bottom - bottom : rect.top < top ? rect.top - top : 0;
+    if (delta) window.scrollBy({ top: delta, behavior: 'instant' });
+  }
   function renderQuickStart() {
     document.querySelectorAll('.quick-start-target').forEach(el => el.classList.remove('quick-start-target'));
+    document.body.classList.toggle('quick-start-pedal-step', !quickStartTour.hidden && !!quickStartSteps[quickStartIndex]?.mobileBottom);
     if (quickStartTour.hidden) return;
     sizePlayer();
     const step = quickStartSteps[quickStartIndex];
@@ -2068,10 +2085,12 @@
       const bottom = innerWidth <= 700 ? document.querySelector('.player-dock').getBoundingClientRect().top : innerHeight;
       if (rect.top < 0 || rect.bottom > bottom) target.scrollIntoView({ block: 'center', inline: 'nearest' });
       positionQuickStart();
+      revealQuickStartPedal();
     }
   }
   function closeQuickStart() {
     quickStartTour.hidden = true;
+    document.body.classList.remove('quick-start-pedal-step');
     document.querySelectorAll('.quick-start-target').forEach(el => el.classList.remove('quick-start-target'));
   }
   document.getElementById('open-quick-start').onclick = () => { quickStartIndex = 0; quickStartTour.hidden = false; renderQuickStart(); };
@@ -2083,11 +2102,12 @@
   document.getElementById('listen').addEventListener('click', () => advanceQuickStart(1));
   document.getElementById('dock-bank').addEventListener('click', e => { if (e.target.closest('button')) advanceQuickStart(2); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !quickStartTour.hidden) closeQuickStart(); });
-  addEventListener('resize', positionQuickStart);
+  const resizeQuickStart = () => { positionQuickStart(); revealQuickStartPedal(); };
+  addEventListener('resize', resizeQuickStart);
   addEventListener('scroll', positionQuickStart, { passive: true });
-  window.visualViewport?.addEventListener('resize', positionQuickStart, { passive: true });
+  window.visualViewport?.addEventListener('resize', resizeQuickStart, { passive: true });
   window.visualViewport?.addEventListener('scroll', positionQuickStart, { passive: true });
-  const quickStartLayout = new ResizeObserver(positionQuickStart);
+  const quickStartLayout = new ResizeObserver(resizeQuickStart);
   quickStartLayout.observe(player);
   quickStartLayout.observe(quickStartTour);
   onBoardChange = () => { renderJourney(); renderQuickStart(); };
@@ -2218,7 +2238,7 @@
         item.dataset.effect = id;
         item.dataset.type = pedal.type;
         item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder"><svg aria-hidden="true" focusable="false" width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="4" r="1"/><circle cx="8" cy="4" r="1"/><circle cx="4" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="8" cy="12" r="1"/></svg></button>';
-        item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal, true); advanceQuickStart(3); };
+        item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal, true); advanceQuickStart(4); };
         item.querySelector('.pedal-edit').onclick = () => {
           pedal.enabled = !pedal.enabled;
           edited();
