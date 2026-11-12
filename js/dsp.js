@@ -985,10 +985,12 @@
         }
         if (mode === 3) {
           for (const a of this.springs) {
-            const b = a.buf[a.i];
-            a.buf[a.i] = s + b * 0.65;
+            // A true allpass: feed forward the value just stored, so the
+            // chirpy dispersion adds no gain (six stages used to add ~40 dB).
+            const b = a.buf[a.i], v = s + b * 0.65;
+            a.buf[a.i] = v;
             if (++a.i === a.buf.length) a.i = 0;
-            s = b - 0.65 * s;
+            s = b - 0.65 * v;
           }
         }
         if (mode === 4) {

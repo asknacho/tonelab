@@ -23,8 +23,10 @@ const added = addedIds.map(id => tones.find(tone => tone.id === id));
 
 function build(spec) {
   return spec.map(([descriptor, settings], i) => {
-    const [type, model] = descriptor.split(':');
+    const [type, named] = descriptor.split(':');
     const info = TL.Pedals.types[type];
+    assert.ok(info, descriptor);
+    const model = named || info.models[0].id;
     assert.ok(info, descriptor);
     assert.ok(info.models.some(item => item.id === model), descriptor);
     for (const [key, value] of Object.entries(settings)) {
@@ -93,4 +95,44 @@ test('every new learning explanation has Spanish copy', () => {
       assert.notEqual(TL.es[english], english);
     }
   }
+});
+
+test('every built-in tone uses supported pedals and settings, with Spanish copy', () => {
+  for (const tone of tones) {
+    assert.ok(TL.PATTERNS[tone.source.kind], tone.id);
+    build(tone.chain);
+    for (const variant of tone.whatIfs) build(variant.chain);
+    const copy = [tone.summary, tone.play, tone.tip, ...tone.chain.map(entry => entry[2]),
+      ...tone.whatIfs.flatMap(variant => [variant.label, variant.note])];
+    for (const english of copy) assert.ok(Object.hasOwn(TL.es, english), `${tone.id}: ${english}`);
+  }
+});
+
+test('corrected tones follow the documented rigs', () => {
+  const tone = id => tones.find(item => item.id === id);
+  const plain = value => JSON.parse(JSON.stringify(value));
+  const pedals = id => plain(tone(id).chain.map(([descriptor]) => descriptor));
+  const settings = (id, descriptor) => plain(tone(id).chain.filter(([d]) => d === descriptor).map(([, s]) => s));
+  // Tom Morello: Whammy two octaves up and a Boss delay; no chorus or reverb.
+  assert.deepEqual(pedals('audioslave-stone'), ['octave:whammy', 'drive:ocd', 'delay:dd3']);
+  assert.equal(settings('audioslave-stone', 'octave:whammy')[0].interval, 24);
+  // Stevie Ray Vaughan: Tube Screamer with Drive low and Level high; no compressor.
+  assert.ok(!pedals('srv-texas').some(d => d.startsWith('comp')));
+  assert.ok(settings('srv-texas', 'drive:ts9')[0].drive <= 5 && settings('srv-texas', 'drive:ts9')[0].level >= 5);
+  // Brian May: one-repeat echoes at 800 and 1600 ms (two 800 ms delays in series).
+  assert.deepEqual(settings('queen-layers', 'delay:dd3').map(s => [s.time, s.feedback]), [[800, 0], [800, 0]]);
+  // Randy Rhoads: distortion first, then a graphic EQ boosting the mids.
+  assert.deepEqual(pedals('rhoads-crazy-train').slice(0, 2), ['dist:rat', 'eq:ge7']);
+  // Santana: a parked wah and no compressor.
+  assert.equal(pedals('santana-black-magic')[0], 'wah:crybaby');
+  assert.ok(!pedals('santana-black-magic').some(d => d.startsWith('comp')));
+  // Zakk Wylde: the CH-1 chorus sat before the amps' distortion.
+  assert.ok(pedals('zakk-no-more-tears').indexOf('chorus:ce2w') < pedals('zakk-no-more-tears').indexOf('dist:heavy'));
+  // Johnny Marr: Boss chorus and the Twin's spring reverb. Andy Summers: Electric Mistress and a tape echo.
+  assert.deepEqual(pedals('marr-jangle').slice(1), ['chorus:ce2w', 'reverb:fender']);
+  assert.ok(pedals('summers-chorus').includes('chorus:flanger'));
+  assert.equal(settings('summers-chorus', 'delay:multi')[0].type, 2);
+  // Eddie Van Halen used an Echoplex tape echo; Gilmour's solo delay is about 480 ms.
+  assert.equal(settings('van-halen-eruption', 'delay:multi')[0].type, 2);
+  assert.equal(settings('gilmour-lead', 'delay')[0].time, 480);
 });

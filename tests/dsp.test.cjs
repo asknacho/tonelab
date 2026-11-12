@@ -413,6 +413,8 @@ test('reverb: pre-delay, low cut, and spring and shimmer modes', () => {
   assert(energyAt(shimmer, 660) / energyAt(shimmer, 330) > 2 * energyAt(room, 660) / energyAt(room, 330), 'shimmer adds the octave above');
   const spring = run('reverb', { ...p, mode: 3 }, long);
   assert(spring.every(Number.isFinite) && rmsOf(spring) > 0);
+  const plate = run('reverb', { ...p, mode: 2 }, long);
+  assert(rmsOf(spring) < 2 * rmsOf(plate), 'spring dispersion adds no large gain');
 });
 
 // ---- Playing patterns: strums, picking, single sustained notes, tweakable speed
