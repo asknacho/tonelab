@@ -39,6 +39,8 @@ The page starts with a compact header: the Tonelab name and the **I want to soun
 
 Sounds live in the `TONES` list in `js/app.js`: each has the playing pattern and noise floor, a short "how to play it", each pedal as `[type, settings, what it does]`, a tip, and its what-ifs (each with a chain and an explanation). The what-ifs were checked against Tonelab's own effects (for example, compressor-before-gate really does leave the gate open on hiss).
 
+The artist library also includes Dimebag Darrell (Walk), Tony Iommi (Iron Man), Tom Morello (Killing in the Name), Eddie Van Halen (Eruption / Jump guitar), Carlos Santana (Black Magic Woman / Samba Pa Ti), Mark Knopfler (Sultans of Swing), Angus & Malcolm Young (Back in Black), Slash (Sweet Child O’ Mine), B.B. King (The Thrill Is Gone), Zakk Wylde (No More Tears), Randy Rhoads (Crazy Train), Billy Gibbons (La Grange), Adam Jones (Schism), and Jack White (Seven Nation Army). These pedal approximations include playing advice and an A/B comparison in English and Spanish. Guitar pickups, tuning, finger technique, and amplifier/cabinet character still affect the result; the generic demo patterns do not transcribe the songs. Existing artist presets remain available.
+
 The **Playing** selector switches the synthesized guitar between free picking and steady, short eighth notes.
 
 ## What the guitar plays
