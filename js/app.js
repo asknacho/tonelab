@@ -459,6 +459,8 @@
   const mobileEditor = matchMedia('(max-width: 1023px)');
   const guideDialog = document.getElementById('pedal-guide-dialog');
   const guideContent = document.getElementById('inspector-guide');
+  const boardGuideDialog = document.getElementById('board-guide-dialog');
+  boardGuideDialog.querySelector('.sheet-close').onclick = () => boardGuideDialog.close();
   let guideSelected = false;
   const modelRow = settings.querySelector('.model-row');
   const moreSettings = settings.querySelector('.more-pedal-settings');
@@ -558,7 +560,7 @@
       settings.scrollTop = 0;
       document.querySelector('.workspace-side').scrollTop = 0;
       moreSettings.open = false;
-      document.getElementById('guide-settings').open = false;
+      document.getElementById('guide-settings').open = true;
     }
     selectedId = pedal.id;
     // Editing a pedal leaves the explicitly chosen listening point unchanged.
@@ -1833,6 +1835,7 @@
     const tone = toneOf(s);
     const { byPedal, missing } = differences(chain, banks[other], other);
     document.getElementById('journey-slot').textContent = activeBank + ' · ' + slotLabel(s);
+    document.getElementById('board-guide-tone').textContent = activeBank + ' · ' + slotLabel(s);
     const demoPattern = TL.PATTERNS[source.kind];
     const playsNote = demoPattern?.tempo
       ? ' The demo plays “' + demoPattern.label + '” at ' + Math.round(source.tempo) + ' BPM, a generic pattern in the spirit of the style, not the actual part. Change it with Playing and Speed.'
@@ -1855,7 +1858,11 @@
     // Notes are plain text: set them as text, not markup.
     journeyList.querySelectorAll('.journey-step').forEach((li, i) => { li.querySelector('.journey-note').textContent = noteFor(chain[i], chain); });
     journeyList.querySelectorAll('[data-edit]').forEach(button => {
-      button.onclick = () => openSettings(state.chain.find(p => p.id === button.dataset.edit), true);
+      button.onclick = () => {
+        boardGuideDialog.close();
+        showGuide(false);
+        openSettings(state.chain.find(p => p.id === button.dataset.edit), true);
+      };
     });
     if (!chain.length) journeyList.insertAdjacentHTML('beforeend', '<li class="journey-empty">No pedals yet: you hear your guitar just as it is. Pick a sound above or add pedals below.</li>');
     renderStrip();
@@ -1963,6 +1970,7 @@
     next.querySelector('svg').toggleAttribute('hidden', last);
   }
   function showGuide(show) {
+    if (show && !guideSelected) document.getElementById('guide-settings').open = true;
     guideSelected = show;
     document.getElementById('inspector-controls').hidden = show && !mobileEditor.matches;
     modelRow.hidden = show && !mobileEditor.matches;
@@ -1983,9 +1991,8 @@
   document.getElementById('tab-guide').onclick = () => showGuide(true);
   document.getElementById('tab-controls').onclick = () => showGuide(false);
   document.getElementById('start-guide').onclick = () => {
-    if (!state.chain.length) { announce('Add an effect to start the guide.'); return; }
-    openSettings(state.chain[0]);
-    showGuide(true);
+    renderJourney();
+    boardGuideDialog.showModal();
   };
   document.getElementById('guide-prev').onclick = () => {
     const index = state.chain.findIndex(p => p.id === selectedId);
@@ -2000,9 +2007,6 @@
     }
   };
   document.getElementById('print-guide').onclick = () => {
-    if (guideDialog.open) guideDialog.close();
-    const printGuide = document.querySelector('.full-guide');
-    printGuide.open = true;
     document.body.classList.add('printing-guide');
     window.print();
   };
@@ -2203,7 +2207,7 @@
         item = document.createElement('li');
         item.dataset.effect = id;
         item.dataset.type = pedal.type;
-        item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder">⠿</button>';
+        item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder"><svg aria-hidden="true" focusable="false" width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="4" r="1"/><circle cx="8" cy="4" r="1"/><circle cx="4" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="8" cy="12" r="1"/></svg></button>';
         item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal, true); advanceQuickStart(3); };
         item.querySelector('.pedal-edit').onclick = () => {
           pedal.enabled = !pedal.enabled;
@@ -2235,6 +2239,7 @@
           handle.setPointerCapture(e.pointerId);
           const r = item.getBoundingClientRect();
           drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, width: r.width, ghost: null };
+          item.classList.add('drag-ready');
         };
         handle.onpointerdown = e => {
           if (e.button !== 0) return;
@@ -2254,7 +2259,7 @@
           drag?.ghost?.remove();
           drag = null;
           document.body.classList.remove('pedal-drag-active');
-          item.classList.remove('dragging');
+          item.classList.remove('dragging', 'drag-ready');
           dropArea.classList.remove('drag-over', 'drag-out');
           orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
         };
@@ -2265,6 +2270,7 @@
           if (!drag.ghost) {
             if (Math.hypot(dx, dy) < 4) return; // a tap or tiny wobble isn't a drag
             const ghost = item.cloneNode(true);
+            ghost.classList.remove('drag-ready');
             ghost.classList.add('drag-ghost');
             ghost.removeAttribute('data-effect');
             ghost.setAttribute('aria-hidden', 'true');
@@ -2926,16 +2932,17 @@
         audioNode.connect(audioContext.destination);
       }
       if (listening) {
-        listening = false;
+        listening = state.playing = false;
+        sendAudioState();
         await audioContext.suspend();
       } else {
         input.fill(0);
         for (const history of Object.values(scopeHistory)) { history.input.fill(0); history.output.fill(0); }
-        listening = true;
+        // MessagePort copies this state, so set playing before sending it.
+        listening = state.playing = true;
         sendAudioState();
         await audioContext.resume();
       }
-      state.playing = listening;
       listen.setAttribute('aria-label', listening ? 'Pause' : 'Play');
       listen.setAttribute('aria-pressed', String(listening));
       listen.classList.toggle('playing', listening);

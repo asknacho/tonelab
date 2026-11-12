@@ -80,10 +80,10 @@ The waveform uses a fixed decibel scale and normal playback speed.
 ## DSP checks
 
 ```sh
-node --test tests/dsp.test.cjs
+node --test tests/*.test.cjs
 ```
 
-Checks cover independent duplicate compressors, bypass and empty chains, processor cleanup, streamed audio continuity, effect ordering, octave and harmonizer pitch accuracy, and fuzz clipping.
+Checks cover first-play and pause/resume through the real audio worklet, independent duplicate compressors, bypass and empty chains, processor cleanup, streamed audio continuity, effect ordering, octave and harmonizer pitch accuracy, and fuzz clipping.
 
 
 ## UX review updates
@@ -93,3 +93,5 @@ The player compares **Dry / A / B**. **Analyse** expands the waveform tools and 
 Save opens an inline name form, New board uses an in-app confirmation, and loading a sound remains reversible with Undo. Share opens a dialog with Copy feedback and a compressed, self-contained URL; legacy board links still open. Audio files stay local.
 
 The four-step Quick start follows the main loop. Effects are grouped by chain stage. Phone and tablet editors remain inline and include a selected-pedal preview. See `DESIGN_DECISIONS.md` for the accepted responsive behavior and review proposals still open.
+
+The Guide button beside Your pedalboard opens the full board guide separately. Each pedal’s Guide contains only that pedal’s explanation, playing advice, and settings (expanded by default), with Previous/Next navigation. Printing remains in the full board guide.

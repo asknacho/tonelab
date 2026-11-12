@@ -1,6 +1,6 @@
 # Accepted product decisions
 
-Updated 2026-11-11. These decisions came from the user's reviews of the mobile settings and guide, and the subsequent tablet/desktop review.
+Updated 2026-11-12. These decisions came from the user's reviews of the mobile settings and guide, and the subsequent tablet/desktop review.
 
 ## Page order and responsive layout
 
@@ -29,10 +29,11 @@ Updated 2026-11-11. These decisions came from the user's reviews of the mobile s
 - Show one pedal title and a small Pedal guide label in the popup.
 - Keep Previous, the position count, and Next together in a compact footer. Use Done on the last pedal.
 - Stay in Guide when navigating between pedals, including tapping a different pedal on the board. Switch to Controls only when requested, when starting a fresh edit after closing, or when finishing the guide.
-- Put parameter values and A/B differences under View settings.
+- Put parameter values and A/B differences under View settings, expanded by default when a pedal guide opens or navigates to another pedal. Users can collapse it.
 - Show useful playing guidance directly under How to play it; omit the section when no advice exists.
 - Remove playback and printing from the individual pedal guide. Printing belongs in the full board guide.
-- Offer Full board guide inside the current tone’s Guide view. Do not show it as a standalone element beneath the pedalboard.
+- The Guide button beside Your pedalboard opens only the Full board guide, in its own dialog, without selecting a pedal or opening its editor.
+- Each pedal’s Guide keeps its individual explanation, playing advice, settings and Previous/Next navigation. Do not include the Full board guide inside it. This replaces the earlier nested full-board disclosure (user follow-up, 2026-11-12).
 
 ## Development preview
 
@@ -49,7 +50,7 @@ Updated 2026-11-11. These decisions came from the user's reviews of the mobile s
 - Analyse expands the waveform tools and reveals intermediate listening points and input noise. Preserve the accepted expanded default on tablet/desktop and compact default on phones.
 - Below 1024 px, keep the inline editor beneath the board, with a live selected-pedal preview in its sticky heading. Keep Guide separate on these sizes. The review's bottom-sheet suggestion does not replace the previously selected inline editor.
 - Save, Guide and New board have text labels. Give New board horizontal padding so its label does not crowd the border. Help is in the header; the creator credit is in the footer. Use sans for text and mono for numeric readouts.
-- Pedal bypass and drag controls have at least 44 px touch targets. Show one On/Off label per card and keep both endpoint labels inside the scrollable board.
+- Pedal bypass and drag controls have at least 44 px touch targets. Center the grip in the pedal artwork’s bottom row on mobile and desktop; tilt the pedal slightly when dragging activates on any device (after a long press on touch, on handle press with mouse or pen), until release or cancellation (user follow-up, 2026-11-12). Show the red removal × only while the dragged pedal is outside the pedalboard; hide it again when it returns inside. Show one On/Off label per card and keep both endpoint labels inside the scrollable board.
 - More pedal settings is the single disclosure for extra controls and labeled pedal actions; there is no second Show all controls checkbox.
 - The effect library groups pedals by signal-chain stage. Chorus / flanger names both available model families; model-specific help only describes the offered options.
 - Quick start has four anchored steps: pick a sound, play, compare, open a pedal. Platform-specific audio tips appear only on the applicable devices.

@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=visible-model-1" />
+  <link rel="stylesheet" href="css/style.css?v=drag-feedback-2" />
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs><symbol id="icon-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2Z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/></symbol><symbol id="icon-share" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></symbol><symbol id="icon-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol><symbol id="icon-undo" viewBox="0 0 24 24"><path d="m9 4-5 5 5 5M4 9h9a7 7 0 0 1 0 14"/></symbol><symbol id="icon-book" viewBox="0 0 24 24"><path d="M12 5c-3-2-6-2-10-1v15c4-1 7-1 10 1 3-2 6-2 10-1V4c-4-1-7-1-10 1Zm0 0v15"/></symbol><symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol><symbol id="icon-left" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol><symbol id="icon-right" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></symbol><symbol id="icon-print" viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6zM18 12h.01"/></symbol><symbol id="icon-remove" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></symbol><symbol id="icon-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z"/></symbol><symbol id="icon-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></symbol><symbol id="icon-audio-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M12 18v-7l4-1v6"/><ellipse cx="10" cy="18" rx="2" ry="1.5"/><ellipse cx="14" cy="16" rx="2" ry="1.5"/></symbol></defs></svg>
@@ -62,7 +62,7 @@
 
     <section class="journey workspace" aria-labelledby="journey-title">
       <h2 id="journey-title" class="visually-hidden">Your signal</h2>
-      <header class="chain-heading"><div class="chain-title-actions"><h2 id="chain-title">Your pedalboard</h2><button id="save-tone" class="board-button labeled-action" aria-label="Save as my sound" title="Save as my sound"><svg class="action-icon" aria-hidden="true"><use href="#icon-save"/></svg><span>Save</span></button></div><div class="board-actions"><button type="button" id="start-guide" class="board-button labeled-action" aria-label="Pedal-by-pedal guide" title="Pedal-by-pedal guide"><svg class="action-icon" aria-hidden="true"><use href="#icon-book"/></svg><span>Guide</span></button><button id="share-board" class="board-button icon-button" aria-label="Share pedalboard" title="Share pedalboard"><svg class="action-icon" aria-hidden="true"><use href="#icon-share"/></svg></button></div></header>
+      <header class="chain-heading"><div class="chain-title-actions"><h2 id="chain-title">Your pedalboard</h2><button id="save-tone" class="board-button labeled-action" aria-label="Save as my sound" title="Save as my sound"><svg class="action-icon" aria-hidden="true"><use href="#icon-save"/></svg><span>Save</span></button></div><div class="board-actions"><button type="button" id="start-guide" class="board-button labeled-action" aria-label="Full board guide" title="Full board guide"><svg class="action-icon" aria-hidden="true"><use href="#icon-book"/></svg><span>Guide</span></button><button id="share-board" class="board-button icon-button" aria-label="Share pedalboard" title="Share pedalboard"><svg class="action-icon" aria-hidden="true"><use href="#icon-share"/></svg></button></div></header>
         <form id="save-sound-form" class="save-sound-form" hidden><label for="sound-name">Name your sound</label><input id="sound-name" maxlength="60" required autocomplete="off" /><button class="board-button" type="submit">Save sound</button><button class="board-button" type="button" id="cancel-save">Cancel</button></form>
         <section class="scope-disclosure" aria-label="Compare sound with and without effects">
         <div class="chain-strip-wrap">
@@ -154,18 +154,12 @@
             <h3 id="guide-playing-title">How to play it</h3>
             <p id="guide-intro"></p><p id="guide-tip"></p>
           </section>
-          <details id="guide-settings" class="guide-settings"><summary>View settings</summary><p id="guide-values" class="guide-values"></p><p id="guide-diff" class="journey-diff" hidden></p></details>
+          <details id="guide-settings" class="guide-settings" open><summary>View settings</summary><p id="guide-values" class="guide-values"></p><p id="guide-diff" class="journey-diff" hidden></p></details>
           <nav class="guide-navigation" aria-label="Pedal guide navigation">
             <button type="button" id="guide-prev" class="board-button"><svg class="action-icon" aria-hidden="true"><use href="#icon-left"/></svg><span>Previous</span></button>
             <span id="guide-position" role="status" aria-live="polite" aria-atomic="true"></span>
             <button type="button" id="guide-next" class="board-button"><span>Next</span><svg class="action-icon" aria-hidden="true"><use href="#icon-right"/></svg></button>
           </nav>
-          <details class="full-guide"><summary>Full board guide</summary>
-            <button type="button" id="print-guide" class="board-button"><svg class="action-icon" aria-hidden="true"><use href="#icon-print"/></svg> Print board guide</button>
-            <p id="journey-play" class="journey-play"></p>
-            <ol id="journey-steps" class="journey-steps" aria-label="Your signal, pedal by pedal"></ol>
-            <p id="journey-tip" class="journey-tip"></p>
-          </details>
         </div>
       </section>
 
@@ -192,6 +186,16 @@
       <div id="mobile-guide-content"></div>
     </dialog>
 
+    <dialog id="board-guide-dialog" class="effect-dialog board-guide-dialog" aria-labelledby="board-guide-title">
+      <header class="sheet-head"><div><h2 id="board-guide-title">Full board guide</h2><p id="board-guide-tone"></p></div><button type="button" class="sheet-close icon-button" aria-label="Close full board guide"><svg class="action-icon" aria-hidden="true"><use href="#icon-close"/></svg></button></header>
+      <div class="full-guide">
+        <button type="button" id="print-guide" class="board-button"><svg class="action-icon" aria-hidden="true"><use href="#icon-print"/></svg> Print board guide</button>
+        <p id="journey-play" class="journey-play"></p>
+        <ol id="journey-steps" class="journey-steps" aria-label="Your signal, pedal by pedal"></ol>
+        <p id="journey-tip" class="journey-tip"></p>
+      </div>
+    </dialog>
+
     <dialog id="effect-library" class="effect-dialog" aria-labelledby="library-title">
       <header class="sheet-head"><div><h2 id="library-title">Add an effect</h2><p>Every pedal has its own settings. Add any effect again.</p></div><button class="sheet-close icon-button" aria-label="Close effect library" title="Close effect library"><svg class="action-icon" aria-hidden="true"><use href="#icon-close"/></svg></button></header>
       <p class="library-hint">Grouped by signal-chain stage. Experiment with any order on your board.</p><div id="effect-choices"></div>
@@ -212,6 +216,6 @@
 
   <script src="js/dsp.js"></script>
   <script src="js/pedals.js"></script>
-  <script src="js/app.js?v=visible-model-1"></script>
+  <script src="js/app.js?v=drag-feedback-2"></script>
 </body>
 </html>
