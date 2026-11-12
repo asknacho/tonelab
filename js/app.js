@@ -2207,7 +2207,7 @@
         item = document.createElement('li');
         item.dataset.effect = id;
         item.dataset.type = pedal.type;
-        item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="Drag ' + pedalName(pedal) + ', or use arrow keys to reorder"><svg aria-hidden="true" focusable="false" width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="4" r="1"/><circle cx="8" cy="4" r="1"/><circle cx="4" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="8" cy="12" r="1"/></svg></button>';
+        item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="Edit ' + pedalName(pedal) + '">Edit</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="Hold anywhere on ' + pedalName(pedal) + ' to rearrange, or use arrow keys"><svg aria-hidden="true" focusable="false" width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="4" r="1"/><circle cx="8" cy="4" r="1"/><circle cx="4" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="8" cy="12" r="1"/></svg></button>';
         item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal, true); advanceQuickStart(3); };
         item.querySelector('.pedal-edit').onclick = () => {
           pedal.enabled = !pedal.enabled;
@@ -2215,7 +2215,7 @@
           announce(pedalName(pedal) + (pedal.enabled ? ' enabled' : ' bypassed'));
         };
         const handle = item.querySelector('.drag-handle');
-        handle.title = 'Hold to drag on touch screens, or use arrow keys to reorder';
+        handle.title = 'Hold anywhere on the pedal to rearrange, or use arrow keys to reorder';
         handle.onkeydown = e => {
           if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
           e.preventDefault();
@@ -2226,6 +2226,7 @@
         // Dragging: a copy of the pedal follows the pointer. Outside the
         // dashed board it turns red with an ✕, and letting go removes it.
         let drag = null, holdTimer = null, pendingDrag = null;
+        let suppressClick = false;
         const cancelHold = () => { clearTimeout(holdTimer); holdTimer = null; pendingDrag = null; };
         const outsideBoard = e => {
           const r = dropArea.getBoundingClientRect();
@@ -2236,24 +2237,25 @@
           handle.focus({ preventScroll: true });
           window.getSelection()?.removeAllRanges();
           document.body.classList.add('pedal-drag-active');
-          handle.setPointerCapture(e.pointerId);
+          item.setPointerCapture(e.pointerId);
           const r = item.getBoundingClientRect();
           drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, width: r.width, ghost: null };
           item.classList.add('drag-ready');
         };
-        handle.onpointerdown = e => {
+        item.onpointerdown = e => {
           if (e.button !== 0) return;
           cancelHold();
-          if (e.pointerType === 'touch') {
-            pendingDrag = { x: e.clientX, y: e.clientY };
-            holdTimer = setTimeout(() => beginDrag(e), 450);
-          } else {
-            e.preventDefault();
-            beginDrag(e);
-          }
+          pendingDrag = { x: e.clientX, y: e.clientY };
+          holdTimer = setTimeout(() => beginDrag(e), 450);
         };
-        handle.addEventListener('touchmove', e => { if (drag) e.preventDefault(); }, { passive: false });
-        handle.oncontextmenu = e => e.preventDefault();
+        item.addEventListener('touchmove', e => { if (drag) e.preventDefault(); }, { passive: false });
+        item.oncontextmenu = e => { if (drag) e.preventDefault(); };
+        item.addEventListener('click', e => {
+          if (!suppressClick) return;
+          suppressClick = false;
+          e.preventDefault();
+          e.stopPropagation();
+        }, true);
         const clearDrag = () => {
           cancelHold();
           drag?.ghost?.remove();
@@ -2263,9 +2265,9 @@
           dropArea.classList.remove('drag-over', 'drag-out');
           orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
         };
-        handle.onpointermove = e => {
+        item.onpointermove = e => {
           if (pendingDrag && Math.hypot(e.clientX - pendingDrag.x, e.clientY - pendingDrag.y) > 8) cancelHold();
-          if (!drag || !handle.hasPointerCapture(e.pointerId)) return;
+          if (!drag || !item.hasPointerCapture(e.pointerId)) return;
           const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
           if (!drag.ghost) {
             if (Math.hypot(dx, dy) < 4) return; // a tap or tiny wobble isn't a drag
@@ -2292,10 +2294,12 @@
           if (e.clientY > innerHeight - 65) window.scrollBy(0, 12);
           else if (e.clientY < 65) window.scrollBy(0, -12);
         };
-        handle.onpointerup = e => {
+        item.onpointerup = e => {
           cancelHold();
-          if (!drag || !handle.hasPointerCapture(e.pointerId)) return;
+          if (!drag || !item.hasPointerCapture(e.pointerId)) return;
           const moved = !!drag.ghost;
+          suppressClick = true;
+          setTimeout(() => { suppressClick = false; }, 0);
           const out = outsideBoard(e);
           const target = out ? null : document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-effect]');
           clearDrag();
@@ -2306,8 +2310,8 @@
           }
           else if (!target) moveEffect(id, state.chain.length - 1);
         };
-        handle.onpointercancel = clearDrag;
-        handle.onlostpointercapture = clearDrag;
+        item.onpointercancel = clearDrag;
+        item.onlostpointercapture = clearDrag;
       }
       item.classList.toggle('off', !pedal.enabled);
       item.classList.toggle('selected-pedal', pedal.id === selectedId);
