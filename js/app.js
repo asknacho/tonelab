@@ -459,6 +459,8 @@
   const mobileEditor = matchMedia('(max-width: 1023px)');
   const guideDialog = document.getElementById('pedal-guide-dialog');
   const guideContent = document.getElementById('inspector-guide');
+  const boardGuideDialog = document.getElementById('board-guide-dialog');
+  boardGuideDialog.querySelector('.sheet-close').onclick = () => boardGuideDialog.close();
   let guideSelected = false;
   const modelRow = settings.querySelector('.model-row');
   const moreSettings = settings.querySelector('.more-pedal-settings');
@@ -558,7 +560,7 @@
       settings.scrollTop = 0;
       document.querySelector('.workspace-side').scrollTop = 0;
       moreSettings.open = false;
-      document.getElementById('guide-settings').open = false;
+      document.getElementById('guide-settings').open = true;
     }
     selectedId = pedal.id;
     // Editing a pedal leaves the explicitly chosen listening point unchanged.
@@ -1833,6 +1835,7 @@
     const tone = toneOf(s);
     const { byPedal, missing } = differences(chain, banks[other], other);
     document.getElementById('journey-slot').textContent = activeBank + ' · ' + slotLabel(s);
+    document.getElementById('board-guide-tone').textContent = activeBank + ' · ' + slotLabel(s);
     const demoPattern = TL.PATTERNS[source.kind];
     const playsNote = demoPattern?.tempo
       ? ' The demo plays “' + demoPattern.label + '” at ' + Math.round(source.tempo) + ' BPM, a generic pattern in the spirit of the style, not the actual part. Change it with Playing and Speed.'
@@ -1855,7 +1858,11 @@
     // Notes are plain text: set them as text, not markup.
     journeyList.querySelectorAll('.journey-step').forEach((li, i) => { li.querySelector('.journey-note').textContent = noteFor(chain[i], chain); });
     journeyList.querySelectorAll('[data-edit]').forEach(button => {
-      button.onclick = () => openSettings(state.chain.find(p => p.id === button.dataset.edit), true);
+      button.onclick = () => {
+        boardGuideDialog.close();
+        showGuide(false);
+        openSettings(state.chain.find(p => p.id === button.dataset.edit), true);
+      };
     });
     if (!chain.length) journeyList.insertAdjacentHTML('beforeend', '<li class="journey-empty">No pedals yet: you hear your guitar just as it is. Pick a sound above or add pedals below.</li>');
     renderStrip();
@@ -1963,6 +1970,7 @@
     next.querySelector('svg').toggleAttribute('hidden', last);
   }
   function showGuide(show) {
+    if (show && !guideSelected) document.getElementById('guide-settings').open = true;
     guideSelected = show;
     document.getElementById('inspector-controls').hidden = show && !mobileEditor.matches;
     modelRow.hidden = show && !mobileEditor.matches;
@@ -1983,9 +1991,8 @@
   document.getElementById('tab-guide').onclick = () => showGuide(true);
   document.getElementById('tab-controls').onclick = () => showGuide(false);
   document.getElementById('start-guide').onclick = () => {
-    if (!state.chain.length) { announce('Add an effect to start the guide.'); return; }
-    openSettings(state.chain[0]);
-    showGuide(true);
+    renderJourney();
+    boardGuideDialog.showModal();
   };
   document.getElementById('guide-prev').onclick = () => {
     const index = state.chain.findIndex(p => p.id === selectedId);
@@ -2000,9 +2007,6 @@
     }
   };
   document.getElementById('print-guide').onclick = () => {
-    if (guideDialog.open) guideDialog.close();
-    const printGuide = document.querySelector('.full-guide');
-    printGuide.open = true;
     document.body.classList.add('printing-guide');
     window.print();
   };

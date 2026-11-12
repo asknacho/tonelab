@@ -1,6 +1,6 @@
 # Accepted product decisions
 
-Updated 2026-11-11. These decisions came from the user's reviews of the mobile settings and guide, and the subsequent tablet/desktop review.
+Updated 2026-11-12. These decisions came from the user's reviews of the mobile settings and guide, and the subsequent tablet/desktop review.
 
 ## Page order and responsive layout
 
@@ -29,10 +29,11 @@ Updated 2026-11-11. These decisions came from the user's reviews of the mobile s
 - Show one pedal title and a small Pedal guide label in the popup.
 - Keep Previous, the position count, and Next together in a compact footer. Use Done on the last pedal.
 - Stay in Guide when navigating between pedals, including tapping a different pedal on the board. Switch to Controls only when requested, when starting a fresh edit after closing, or when finishing the guide.
-- Put parameter values and A/B differences under View settings.
+- Put parameter values and A/B differences under View settings, expanded by default when a pedal guide opens or navigates to another pedal. Users can collapse it.
 - Show useful playing guidance directly under How to play it; omit the section when no advice exists.
 - Remove playback and printing from the individual pedal guide. Printing belongs in the full board guide.
-- Offer Full board guide inside the current tone’s Guide view. Do not show it as a standalone element beneath the pedalboard.
+- The Guide button beside Your pedalboard opens only the Full board guide, in its own dialog, without selecting a pedal or opening its editor.
+- Each pedal’s Guide keeps its individual explanation, playing advice, settings and Previous/Next navigation. Do not include the Full board guide inside it. This replaces the earlier nested full-board disclosure (user follow-up, 2026-11-12).
 
 ## Development preview
 
