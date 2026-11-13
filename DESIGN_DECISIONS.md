@@ -53,7 +53,7 @@ Updated 2026-11-13. These decisions came from the user's reviews of the mobile s
 ## UX review follow-up (2026-11-11)
 
 - Loading a sound uses Undo without a confirmation. Save uses an inline name form; New board uses an in-app confirmation with Undo; failed recordings show a dismissible in-app error.
-- Notifications float outside page layout and stay clear of the player. They must not add or remove a workspace row.
+- Notifications float outside page layout and stay clear of the player. They must not add or remove a workspace row. Undo notifications have a visible close × with a 44 px touch target, so users can dismiss them immediately without undoing the change or waiting for the timeout (user feedback, 2026-11-13).
 - Keep the waveform above the board. Use a lighter trace, a compact height, peak/RMS and headroom feedback, and freeze the time axis while playback is paused.
 - Use Dry / A / B in the player as the main comparison. Keep directional A-to-B / B-to-A copy text. Import stays beside the playing pattern.
 - Analyse expands the waveform tools and reveals intermediate listening points and input noise. Preserve the accepted expanded default on tablet/desktop and compact default on phones.
