@@ -798,7 +798,7 @@
     document.getElementById('settings-title').textContent = '';
     document.getElementById('settings-state').textContent = '';
     selectedId = null;
-    orderList.querySelectorAll('.selected-pedal').forEach(item => { item.classList.remove('selected-pedal'); item.querySelector('.pedal-toggle').setAttribute('aria-pressed', 'false'); });
+    orderList.querySelectorAll('.selected-pedal').forEach(item => { item.classList.remove('selected-pedal'); item.querySelector('.pedal-edit').setAttribute('aria-pressed', 'false'); });
     document.body.classList.remove('editing');
     renderStrip();
     if (!undoToast.hidden) placeUndo();
@@ -877,7 +877,7 @@
     orderList.querySelectorAll('[data-effect]').forEach(item => {
       const isSelected = item.dataset.effect === pedal.id;
       item.classList.toggle('selected-pedal', isSelected);
-      item.querySelector('.pedal-toggle').setAttribute('aria-pressed', String(isSelected));
+      item.querySelector('.pedal-edit').setAttribute('aria-pressed', String(isSelected));
     });
     if (!undoToast.hidden) placeUndo();
     updateAuditionButtons();
@@ -3157,7 +3157,7 @@
     { target: '#listen', title: 'Press Play', copy: 'Listen to the demo guitar, then try another pattern or upload your own recording.' },
     { target: '#dock-bank', title: 'Compare Dry, A and B', copy: 'Dry is your guitar without pedals. A and B let you compare two versions at matched volume.' },
     { target: '#scope-plot', title: 'See what changes', copy: 'Switch between Dry and B. Listen to the difference and watch how the waveform changes.' },
-    { target: '#effect-order li[data-effect]', title: 'Make it yours', copy: 'Open a pedal and change a control. Guide explains what to listen for and how to play it.', mobileBottom: true }
+    { target: '#effect-order li[data-effect]', title: 'Make it yours', copy: 'Tap a pedal to turn it on or off, or double-tap it to open it and change a control. Guide explains what to listen for and how to play it.', mobileBottom: true }
   ];
   I18n?.catalog(quickStartSteps);
   const quickStartTour = document.getElementById('quick-start-tour');
@@ -3371,7 +3371,14 @@
     dropArea.style.minHeight = Math.max(126, rows * (cardHeight + gap) - gap + 28) + 'px';
   }
   window.addEventListener('resize', reserveBoardHeight);
+  // Pedal gestures: tap = on/off, double-tap = edit, hold (touch) or press-and-move = drag.
+  const DOUBLE_TAP_MS = 300, HOLD_MS = 450;
+  const touchScreen = window.matchMedia('(pointer: coarse)');
+  const gesture = () => touchScreen.matches
+    ? { hint: tr('Tap a pedal to turn it on or off · double-tap to edit · hold to move'), tip: tr('Tap: on/off · double-tap: edit · hold: move') }
+    : { hint: tr('Click a pedal to turn it on or off · double-click to edit · drag to move'), tip: tr('Click: on/off · double-click: edit · drag: move') };
   function renderOrder() {
+    document.getElementById('chain-hint').textContent = gesture().hint;
     const previousList = rebuildOrder ? orderList : null;
     if (previousList) orderList = previousList.cloneNode(false);
     rebuildOrder = false;
@@ -3383,53 +3390,69 @@
         item = document.createElement('li');
         item.dataset.effect = id;
         item.dataset.type = pedal.type;
-        item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><button class="pedal-edit" aria-label="' + tr('Edit ') + pedalName(pedal) + '">' + tr('Edit') + '</button></div><button class="pedal-toggle"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><button class="drag-handle" aria-label="' + tr('Drag ') + pedalName(pedal) + tr(', or use arrow keys to reorder') + '"><svg aria-hidden="true" focusable="false" width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="4" r="1"/><circle cx="8" cy="4" r="1"/><circle cx="4" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="8" cy="12" r="1"/></svg></button>';
-        item.querySelector('.pedal-toggle').onclick = () => { openSettings(pedal, true); advanceQuickStart(4); };
-        item.querySelector('.pedal-edit').onclick = () => {
+        // The whole pedal is one control: tap = on/off, double-tap = edit, hold = drag.
+        // A hidden Edit button and arrow keys give keyboard and screen-reader users the same actions.
+        item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><span class="pedal-state" aria-hidden="true"></span></div><button type="button" class="pedal-toggle" aria-describedby="chain-hint"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><span class="pedal-grip" aria-hidden="true"><svg focusable="false" width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="4" r="1"/><circle cx="8" cy="4" r="1"/><circle cx="4" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="8" cy="12" r="1"/></svg></span><button type="button" class="pedal-edit"></button>';
+        const toggle = item.querySelector('.pedal-toggle');
+        item.querySelector('.pedal-edit').onclick = () => { openSettings(pedal, true); advanceQuickStart(4); };
+        // A tap turns the pedal on or off at once, so comparing stays instant. A second
+        // tap within DOUBLE_TAP_MS puts back what the first one did and opens settings.
+        let lastTap = null, suppressClick = false;
+        toggle.onclick = e => {
+          const keyboard = e.detail === 0;
+          if (suppressClick && !keyboard) { suppressClick = false; return; }
+          const now = performance.now();
+          if (!keyboard && lastTap && now - lastTap.time < DOUBLE_TAP_MS) {
+            const restored = lastTap.was !== pedal.enabled;
+            pedal.enabled = lastTap.was;
+            lastTap = null;
+            if (restored) edited();
+            openSettings(pedal, true);
+            advanceQuickStart(4);
+            return;
+          }
+          lastTap = keyboard ? null : { time: now, was: pedal.enabled };
           pedal.enabled = !pedal.enabled;
           edited();
           announce(pedalName(pedal) + (pedal.enabled ? tr(' enabled') : tr(' bypassed')));
         };
-        const handle = item.querySelector('.drag-handle');
-        handle.title = tr('Hold to drag on touch screens, or use arrow keys to reorder');
-        handle.onkeydown = e => {
+        toggle.onkeydown = e => {
           if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
           e.preventDefault();
           const earlier = ['ArrowLeft', 'ArrowUp'].includes(e.key);
           moveEffect(id, state.chain.indexOf(pedal) + (earlier ? -1 : 1));
-          handle.focus();
+          toggle.focus();
         };
         // Dragging: a copy of the pedal follows the pointer. Outside the
         // dashed board it turns red with an ✕, and letting go removes it.
+        // Touch: hold still for HOLD_MS, and the pedal tilts and follows your finger;
+        // moving first just scrolls the board. Mouse and pen: press and move.
         let drag = null, holdTimer = null, pendingDrag = null;
         const cancelHold = () => { clearTimeout(holdTimer); holdTimer = null; pendingDrag = null; };
         const outsideBoard = e => {
           const r = dropArea.getBoundingClientRect();
           return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
         };
-        const beginDrag = e => {
+        const beginDrag = (e, held) => {
           cancelHold();
-          handle.focus({ preventScroll: true });
           window.getSelection()?.removeAllRanges();
           document.body.classList.add('pedal-drag-active');
-          handle.setPointerCapture(e.pointerId);
+          toggle.setPointerCapture(e.pointerId);
           const r = item.getBoundingClientRect();
           drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, width: r.width, ghost: null };
-          item.classList.add('drag-ready');
+          if (held) { item.classList.add('drag-ready'); suppressClick = true; navigator.vibrate?.(8); }
         };
-        handle.onpointerdown = e => {
+        toggle.onpointerdown = e => {
           if (e.button !== 0) return;
           cancelHold();
+          suppressClick = false;
           if (e.pointerType === 'touch') {
             pendingDrag = { x: e.clientX, y: e.clientY };
-            holdTimer = setTimeout(() => beginDrag(e), 450);
-          } else {
-            e.preventDefault();
-            beginDrag(e);
-          }
+            holdTimer = setTimeout(() => beginDrag(e, true), HOLD_MS);
+          } else beginDrag(e, false);
         };
-        handle.addEventListener('touchmove', e => { if (drag) e.preventDefault(); }, { passive: false });
-        handle.oncontextmenu = e => e.preventDefault();
+        toggle.addEventListener('touchmove', e => { if (drag) e.preventDefault(); }, { passive: false });
+        toggle.oncontextmenu = e => e.preventDefault();
         const clearDrag = () => {
           cancelHold();
           drag?.ghost?.remove();
@@ -3439,12 +3462,15 @@
           dropArea.classList.remove('drag-over', 'drag-out');
           orderList.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
         };
-        handle.onpointermove = e => {
+        toggle.onpointermove = e => {
           if (pendingDrag && Math.hypot(e.clientX - pendingDrag.x, e.clientY - pendingDrag.y) > 8) cancelHold();
-          if (!drag || !handle.hasPointerCapture(e.pointerId)) return;
+          if (!drag || !toggle.hasPointerCapture(e.pointerId)) return;
           const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
           if (!drag.ghost) {
-            if (Math.hypot(dx, dy) < 4) return; // a tap or tiny wobble isn't a drag
+            if (Math.hypot(dx, dy) < 4) return; // a click or tiny wobble isn't a drag
+            // The pedal tilts as soon as it starts following the pointer, however it was grabbed.
+            item.classList.add('drag-ready');
+            suppressClick = true;
             const ghost = item.cloneNode(true);
             ghost.classList.remove('drag-ready');
             ghost.classList.add('drag-ghost');
@@ -3468,9 +3494,9 @@
           if (e.clientY > innerHeight - 65) window.scrollBy(0, 12);
           else if (e.clientY < 65) window.scrollBy(0, -12);
         };
-        handle.onpointerup = e => {
+        toggle.onpointerup = e => {
           cancelHold();
-          if (!drag || !handle.hasPointerCapture(e.pointerId)) return;
+          if (!drag || !toggle.hasPointerCapture(e.pointerId)) return;
           const moved = !!drag.ghost;
           const out = outsideBoard(e);
           const target = out ? null : document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-effect]');
@@ -3482,8 +3508,8 @@
           }
           else if (!target) moveEffect(id, state.chain.length - 1);
         };
-        handle.onpointercancel = clearDrag;
-        handle.onlostpointercapture = clearDrag;
+        toggle.onpointercancel = clearDrag;
+        toggle.onlostpointercapture = clearDrag;
       }
       item.classList.toggle('off', !pedal.enabled);
       item.classList.toggle('selected-pedal', pedal.id === selectedId);
@@ -3492,15 +3518,14 @@
       item.querySelector('.pedal-name').textContent = shortName(pedal) + ' ' + pedal.number;
       item.dataset.shape = modelOf(pedal).shape;
       const toggle = item.querySelector('.pedal-toggle');
-      toggle.setAttribute('aria-label', tr('Edit ') + pedalName(pedal));
-      toggle.setAttribute('aria-pressed', String(pedal.id === selectedId));
-      const bypass = item.querySelector('.pedal-edit');
-      bypass.textContent = pedal.enabled ? 'On' : 'Off';
-      bypass.setAttribute('aria-label', (pedal.enabled ? tr('Bypass ') : tr('Enable ')) + pedalName(pedal));
-      bypass.setAttribute('aria-pressed', String(pedal.enabled));
+      toggle.setAttribute('aria-label', (pedal.enabled ? tr('Bypass ') : tr('Enable ')) + pedalName(pedal));
+      toggle.setAttribute('aria-pressed', String(pedal.enabled));
+      toggle.title = gesture().tip;
+      item.querySelector('.pedal-state').textContent = pedal.enabled ? 'On' : 'Off';
+      const edit = item.querySelector('.pedal-edit');
+      edit.textContent = tr('Edit');
+      edit.setAttribute('aria-label', tr('Edit ') + pedalName(pedal));
       item.querySelector('.pedal-status').textContent = '';
-      item.querySelector('.drag-handle').setAttribute('aria-label', tr('Drag ') + pedalName(pedal) + tr(', or use arrow keys to reorder'));
-      item.querySelector('.drag-handle').title = tr('Hold to drag on touch screens, or use arrow keys to reorder');
       // Keep DOM nodes in place during playback and editing to preserve focus.
       if (orderList.querySelectorAll('[data-effect]')[index] !== item) {
         const nextEffect = orderList.querySelectorAll('[data-effect]')[index];

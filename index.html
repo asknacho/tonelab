@@ -109,7 +109,7 @@
 
       <div id="undo-toast" class="undo-toast" role="status" hidden><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5L20 7"></path></svg><span id="undo-text"></span><button id="undo-button" class="icon-button" aria-label="Undo last change" title="Undo last change"><svg class="action-icon" aria-hidden="true"><use href="#icon-undo"/></svg></button></div>
       <div class="comparison-bar" hidden><span id="board-slot" class="board-slot"></span><span id="save-status" class="visually-hidden" role="status"></span></div>
-      <p class="chain-hint visually-hidden">Select a pedal to edit · use On/Off to bypass · drag to reorder</p>
+      
       <div class="board-scroll" role="region" aria-label="Pedalboard: swipe horizontally to see more pedals" tabindex="0">
       <div class="signal-path">
         <svg id="cables" class="cables" aria-hidden="true"></svg>
@@ -119,6 +119,7 @@
         <div class="listening-points" role="group" aria-label="Listen between pedals"></div>
       </div>
       </div>
+      <p id="chain-hint" class="chain-hint"></p>
       <details class="board-noise"><summary>Input noise</summary><label class="field noise-control"><span class="field-label">Simulated noise <output id="noise-out">−48 dB</output></span><input type="range" id="noise" aria-label="Simulated input noise" min="-80" max="-20" step="1" value="-48" /><span class="noise-hint">Add background hiss to try the noise gate.</span></label></details>
       <p id="order-status" class="order-status visually-hidden" role="status" aria-live="polite"></p>
     </section>
