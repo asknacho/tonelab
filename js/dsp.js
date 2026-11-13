@@ -1056,6 +1056,23 @@
     return out;
   }
 
+  /* A phone or interface can deliver a very quiet signal, and a recorded riff
+   * would then play far below the built-in guitars (which peak near -3 dBFS).
+   * Level the take to the same peak after recording. The reference is the
+   * 99.95th-percentile magnitude, so a single bump or thump on the phone doesn't
+   * decide the gain; the few samples that exceed it are soft-clipped. A take
+   * quieter than -60 dBFS is treated as silence (returns null). */
+  function levelRiff(samples, targetDb = -3) {
+    const sorted = Float32Array.from(samples, Math.abs).sort();
+    const reference = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.9995))] || 0;
+    if (reference < dbToLin(-60)) return null;
+    const gain = dbToLin(targetDb) / reference, knee = 0.9;
+    return samples.map(v => {
+      const x = v * gain, a = Math.abs(x);
+      return a <= knee ? x : Math.sign(x) * (knee + (1 - knee) * Math.tanh((a - knee) / (1 - knee)));
+    });
+  }
+
   Object.assign(TL, { PATTERNS, SR, dbToLin, linToDb, Source, NoiseGate, Compressor, Overdrive, Fuzz, Octave, Harmonizer, Delay, EffectChain, compCurve,
-    Boost, Distortion, Tremolo, Swell, Reverb, Chorus, Phaser, Wah, Equalizer, eqResponse, diatonicShift, GRAPHIC, trimRiff });
+    Boost, Distortion, Tremolo, Swell, Reverb, Chorus, Phaser, Wah, Equalizer, eqResponse, diatonicShift, GRAPHIC, trimRiff, levelRiff });
 })((globalThis.TL = globalThis.TL || {}));
