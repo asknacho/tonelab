@@ -39,18 +39,12 @@
       <div class="dock-source" role="group" aria-label="Playing source">
         <label class="dock-pattern"><span class="visually-hidden">Playing pattern</span><select id="pattern"><option value="guitar">Free picking</option></select></label>
 
-        <label id="bring-your-own" class="audio-import" for="recording-file" tabindex="0" aria-label="Drop audio here or click to upload a playing pattern" title="Drop audio here or click to upload" aria-describedby="recording-help"><svg class="action-icon" aria-hidden="true"><use href="#icon-audio-file"/></svg><span>Drop audio or <u>upload</u></span></label>
+        <label id="bring-your-own" class="audio-import" for="recording-file" tabindex="0" aria-label="Drop audio here or click to upload a playing pattern" title="Drop audio here or click to upload" aria-describedby="recording-help"><svg class="action-icon" aria-hidden="true"><use href="#icon-audio-file"/></svg></label>
+        <button type="button" id="record-riff" class="dock-record" aria-pressed="false" aria-label="Record a riff" title="Record a riff to loop through the board"><span class="record-dot" aria-hidden="true"></span><span id="record-time" class="record-time" hidden>0:00</span></button>
         <span id="recording-help" class="visually-hidden">Open a local audio file. For iOS Voice Memos, share the recording, save it to Files, then choose it here. Audio stays on your device.</span>
       </div>
       <button id="dock-playing" class="dock-tempo" aria-expanded="false" aria-controls="inline-tempo"><span aria-hidden="true">♪</span> <span id="dock-playing-text">126 BPM</span></button>
       <label id="inline-tempo" class="field inline-player-control" hidden><span class="field-label">Tempo <output id="speed-out">126 BPM</output></span><input type="range" id="speed" min="40" max="220" step="1" value="126" /></label>
-      <button id="dock-live" class="dock-tempo dock-live" aria-expanded="false" aria-controls="inline-live" hidden><span class="live-dot" aria-hidden="true"></span> <span id="dock-live-text">Live</span></button>
-      <div id="inline-live" class="field inline-player-control live-control" hidden>
-        <label class="field-label" for="input-gain">Input gain <output id="input-gain-out">+0 dB</output></label>
-        <input type="range" id="input-gain" min="-12" max="24" step="0.5" value="0" />
-        <span class="live-meter" aria-hidden="true"><span id="live-meter-fill"></span></span>
-        <span id="live-note" class="live-note">Use headphones: speakers can feed back.</span>
-      </div>
       <span class="dock-compare-label">Compare</span><span class="dock-break" aria-hidden="true"></span>
 
       <div class="dock-secondary">

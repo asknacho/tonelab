@@ -533,3 +533,22 @@ test('recorded audio feeds both worklet banks and pauses without advancing', () 
   processor.port.onmessage({ data: { ...settings, kind: 'guitar' } });
   assert.equal(processor.source.kind, 'guitar');
 });
+
+test('a recorded riff starts on its first note and loops without clicks', () => {
+  const { trimRiff } = context.TL;
+  // 0.5 s of quiet hiss, a 1 s note, then 0.5 s of digital silence.
+  const riff = new Float32Array(Math.round(2 * SR));
+  let seed = 1;
+  for (let i = 0; i < riff.length; i++) {
+    seed = (seed * 16807) % 2147483647;
+    const hiss = 0.0005 * (seed / 2147483647 - 0.5);
+    riff[i] = i < 0.5 * SR ? hiss : i < 1.5 * SR ? 0.6 * Math.sin(i * 0.05) * Math.exp(-(i - 0.5 * SR) / SR) : 0;
+  }
+  const out = trimRiff(riff);
+  const firstLoud = out.findIndex(v => Math.abs(v) > 0.1);
+  assert(firstLoud >= 0 && firstLoud < 0.03 * SR, `the loop starts within 30 ms of the note (${(firstLoud / SR * 1000).toFixed(1)} ms)`);
+  assert(out.length < 1.15 * SR && out.length > 0.95 * SR, `leading hiss and trailing silence are cut (${(out.length / SR).toFixed(2)} s)`);
+  assert(Math.abs(out[0]) < 1e-3 && Math.abs(out.at(-1)) < 1e-3, 'both ends fade to zero');
+  const silent = trimRiff(new Float32Array(100));
+  assert.equal(silent.length, 100, 'silence is returned unchanged');
+});

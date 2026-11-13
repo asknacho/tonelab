@@ -20,10 +20,10 @@ Updated 2026-11-12. These decisions came from the user's reviews of the mobile s
 ## Playing source
 
 - Import audio is a way to choose the playing pattern. Keep it immediately beside the pattern selector in the same group at every screen size.
-- Present audio import as a borderless drop-or-click upload affordance, not a rounded button. Accept dropped audio through the same local recording flow as the file picker.
+- Present audio import as its icon alone, inside a dashed, semi-transparent rounded outline that reads as a drop target. Accept dropped audio through the same local recording flow as the file picker. This replaces the earlier borderless "Drop audio or upload" text (user follow-up, 2026-11-13).
 - Do not move importing into the A/B comparison or volume group when rearranging the player. A compact labeled icon is acceptable on phones.
-- Live input (a microphone or audio interface) is another option in the playing-pattern selector, not a separate control group. While it is active, a Live button takes the tempo button's place and opens an inline panel with input gain, a level meter and a headphones reminder. The latency estimate shows on that button. Live input is never restored on reload, because it needs a fresh permission; audio stays on the device (user request, 2026-11-13).
-- Pressing Play leaves an open player panel (tempo, volume, live input) open, so the button does not move out from under the tap (2026-11-13).
+- Record a riff with a Record button immediately beside Import, in the same group. Playback pauses while recording so speakers cannot feed back into the microphone. On stop, the take loops through the board as "Your recording", trimmed to start on its first note, and playback resumes if it was playing. Recordings stay on the device. Takes stop after one minute. This replaces live input: Tonelab is for hearing what effects change, not for live playing (user follow-up, 2026-11-13).
+- Pressing Play leaves an open player panel (tempo or volume) open, so the button does not move out from under the tap (2026-11-13).
 
 ## Mobile pedal settings
 
