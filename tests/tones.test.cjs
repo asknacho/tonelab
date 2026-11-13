@@ -75,8 +75,8 @@ test('requested missing tones are unique, complete and use supported settings', 
   }
 });
 
-test('new tones and their A/B comparisons render finite, audible, different audio', () => {
-  for (const tone of added) {
+test('every tone and its A/B comparisons render finite, audible, different audio', () => {
+  for (const tone of tones) {
     const baseline = render(tone, tone.chain);
     for (const variant of tone.whatIfs) {
       const comparison = render(tone, variant.chain);
