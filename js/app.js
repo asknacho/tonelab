@@ -349,69 +349,209 @@
   // speakers can't feed back into the microphone. Nothing leaves the device.
   const recordButton = document.getElementById('record-riff');
   const recordTime = document.getElementById('record-time');
-  const RIFF_MAX_SECONDS = 60;
-  let riff = null, riffCount = 0, riffStarting = false;
-  recordButton.hidden = !(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
-  recordButton.onclick = () => { if (riff) stopRiff(); else startRiff(); };
-  function showRiffState(recording) {
+  const countdownEl = document.getElementById('record-countdown');
+  const countdownNumber = document.getElementById('countdown-number');
+  const inputGain = document.getElementById('input-gain');
+  const inputGainOut = document.getElementById('input-gain-out');
+  const RIFF_MAX_SECONDS = 60, COUNTDOWN_SECONDS = 3, GAIN_KEY = 'tonelab-input-gain';
+  // idle → starting (microphone opening) → countdown → recording → idle
+  let riff = null, riffCount = 0, riffPhase = 'idle', riffResume = false, riffClipped = false, countdownCancel = null;
+  recordButton.hidden = document.getElementById('dock-gain').hidden = !(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+
+  // One microphone chain feeds the level meter and the recorder: input → gain →
+  // (meter, recorder). It is never connected to the speakers, so it cannot feed
+  // back. It stays open only while the gain panel, countdown or recording needs it.
+  let mic = null, micOpening = null, meterFrame = 0, meterLevel = 0;
+  const inputHolds = new Set();
+  try { const saved = Number(localStorage.getItem(GAIN_KEY)); if (Number.isFinite(saved)) inputGain.value = Math.max(-12, Math.min(24, saved)); } catch {}
+  const inputGainDb = () => Number(inputGain.value);
+  function syncInputGain() {
+    const db = inputGainDb();
+    inputGainOut.textContent = (db > 0 ? '+' : db < 0 ? '−' : '') + Math.abs(db) + ' dB';
+    mic?.gain.gain.setTargetAtTime(dbToLin(db), mic.ctx.currentTime, 0.01);
+    try { localStorage.setItem(GAIN_KEY, String(db)); } catch {}
+  }
+  inputGain.addEventListener('input', syncInputGain);
+  syncInputGain();
+  async function openInput() {
+    // Voice-call processing (echo cancellation, noise suppression, automatic
+    // gain) would squash and gate a guitar, so it is switched off.
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: {
+      echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioContext();
+    await ctx.resume().catch(() => {});
+    const gain = ctx.createGain();
+    gain.gain.value = dbToLin(inputGainDb());
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 1024;
+    const destination = ctx.createMediaStreamDestination();
+    ctx.createMediaStreamSource(stream).connect(gain);
+    gain.connect(analyser);
+    gain.connect(destination);
+    return { stream, ctx, gain, analyser, destination, buffer: new Float32Array(analyser.fftSize) };
+  }
+  function closeInput(chain) {
+    chain.stream.getTracks().forEach(track => track.stop());
+    chain.ctx.close().catch(() => {});
+  }
+  function holdInput(reason) {
+    inputHolds.add(reason);
+    if (mic) return Promise.resolve(mic);
+    micOpening ||= openInput().then(chain => {
+      micOpening = null;
+      if (!inputHolds.size) { closeInput(chain); return null; }
+      mic = chain;
+      runMeter();
+      return chain;
+    }, error => { micOpening = null; inputHolds.clear(); throw error; });
+    return micOpening;
+  }
+  function releaseInput(reason) {
+    inputHolds.delete(reason);
+    if (inputHolds.size || !mic) return;
+    closeInput(mic);
+    mic = null;
+    cancelAnimationFrame(meterFrame);
+    meterLevel = 0;
+    showInputPeak(0);
+  }
+  function showInputPeak(peak) {
+    meterLevel = Math.max(peak, meterLevel * 0.88);
+    const db = 20 * Math.log10(Math.max(meterLevel, 1e-5));
+    for (const bar of document.querySelectorAll('.input-meter > span')) {
+      bar.style.width = Math.max(0, Math.min(100, (db + 48) / 48 * 100)) + '%';
+      bar.classList.toggle('hot', db > -6 && db <= -1);
+      bar.classList.toggle('clip', db > -1);
+    }
+  }
+  function runMeter() {
+    cancelAnimationFrame(meterFrame);
+    const tick = () => {
+      if (!mic) return;
+      mic.analyser.getFloatTimeDomainData(mic.buffer);
+      let peak = 0;
+      for (const v of mic.buffer) peak = Math.max(peak, Math.abs(v));
+      if (riffPhase === 'recording' && peak >= 0.99) riffClipped = true;
+      showInputPeak(peak);
+      meterFrame = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+  function showInputError(error) {
+    const errorBox = document.getElementById('recording-error');
+    errorBox.querySelector('span').textContent = error?.name === 'NotAllowedError'
+      ? tr('Microphone access was blocked. Allow it in the browser’s site settings to record a riff.')
+      : tr('No microphone or audio interface could be opened.');
+    errorBox.hidden = false;
+  }
+
+  function showRiffState(phase, count) {
+    const recording = phase === 'recording', counting = phase === 'countdown';
     recordButton.classList.toggle('recording', recording);
-    recordButton.setAttribute('aria-pressed', String(recording));
-    recordButton.setAttribute('aria-label', recording ? tr('Stop recording') : tr('Record a riff'));
-    recordButton.title = recording ? tr('Stop recording and loop the riff') : tr('Record a riff to loop through the board');
-    recordTime.hidden = !recording;
-    recordTime.textContent = '0:00';
-    bringYourOwn.disabled = recording;
-    bringYourOwn.toggleAttribute('aria-disabled', recording);
+    recordButton.classList.toggle('counting', counting);
+    recordButton.setAttribute('aria-pressed', String(recording || counting));
+    recordButton.setAttribute('aria-label', recording ? tr('Stop recording') : counting ? tr('Cancel countdown') : tr('Record a riff'));
+    recordButton.title = recording ? tr('Stop recording and loop the riff (Space)') : counting ? tr('Cancel the countdown (Space)') : tr('Record a riff to loop through the board');
+    recordTime.hidden = !(recording || counting);
+    recordTime.textContent = counting ? String(count) : '0:00';
+    bringYourOwn.disabled = recording || counting;
+    bringYourOwn.toggleAttribute('aria-disabled', recording || counting);
+  }
+  recordButton.onclick = () => {
+    if (riffPhase === 'idle') startRiff();
+    else if (riffPhase === 'countdown') countdownCancel?.();
+    else if (riffPhase === 'recording') stopRiff();
+  };
+  countdownEl.addEventListener('click', () => countdownCancel?.());
+
+  // A big 3… 2… 1… in the middle of the screen. Resolves true when it reaches
+  // zero and false if it is cancelled.
+  function runCountdown() {
+    return new Promise(resolve => {
+      let n = COUNTDOWN_SECONDS, timer;
+      const show = () => {
+        countdownNumber.textContent = n;
+        countdownNumber.style.animation = 'none';
+        void countdownNumber.offsetWidth;
+        countdownNumber.style.animation = '';
+        showRiffState('countdown', n);
+      };
+      const finish = done => {
+        clearInterval(timer);
+        countdownCancel = null;
+        countdownEl.hidden = true;
+        resolve(done);
+      };
+      riffPhase = 'countdown';
+      countdownEl.hidden = false;
+      show();
+      timer = setInterval(() => { if (--n > 0) show(); else finish(true); }, 1000);
+      countdownCancel = () => finish(false);
+    });
   }
   async function startRiff() {
-    if (riffStarting) return;
-    riffStarting = true;
+    if (riffPhase !== 'idle') return;
+    riffPhase = 'starting';
     recordButton.disabled = true;
     document.getElementById('recording-error').hidden = true;
+    let chain = null;
     try {
-      // Voice-call processing (echo cancellation, noise suppression, automatic
-      // gain) would squash and gate a guitar, so it is switched off.
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: {
-        echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
-      const resume = listening;
+      chain = await holdInput('record');
+      if (!chain) { riffPhase = 'idle'; return; }
+      riffResume = listening;
       if (listening) await listen.onclick();
-      const recorder = new MediaRecorder(stream);
+      recordButton.disabled = false;
+      if (!await runCountdown()) {
+        riffPhase = 'idle';
+        showRiffState('idle');
+        releaseInput('record');
+        announce(tr('Recording cancelled'));
+        if (riffResume && !listening) listen.click();
+        return;
+      }
+      const recorder = new MediaRecorder(chain.destination.stream);
       const chunks = [];
       recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-      riff = { recorder, stream, chunks, resume, started: performance.now() };
+      riffClipped = false;
+      riff = { recorder, chunks, started: performance.now() };
       riff.timer = setInterval(() => {
         const seconds = Math.floor((performance.now() - riff.started) / 1000);
         recordTime.textContent = Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
         if (seconds >= RIFF_MAX_SECONDS) stopRiff();
       }, 250);
       recorder.start();
-      showRiffState(true);
-      announce(tr('Recording · play your riff, then press stop'));
+      riffPhase = 'recording';
+      showRiffState('recording');
+      announce(tr('Recording · play your riff, then press stop or Space'));
     } catch (error) {
-      const errorBox = document.getElementById('recording-error');
-      errorBox.querySelector('span').textContent = error?.name === 'NotAllowedError'
-        ? tr('Microphone access was blocked. Allow it in the browser’s site settings to record a riff.')
-        : tr('No microphone or audio interface could be opened.');
-      errorBox.hidden = false;
+      riffPhase = 'idle';
+      riff = null;
+      showRiffState('idle');
+      releaseInput('record');
+      showInputError(error);
     } finally {
-      riffStarting = false;
       recordButton.disabled = false;
     }
   }
   function stopRiff() {
     if (!riff) return;
-    const { recorder, stream, chunks, resume, timer } = riff;
+    const { recorder, chunks, timer } = riff;
+    const clipped = riffClipped;
     riff = null;
     clearInterval(timer);
-    showRiffState(false);
+    riffPhase = 'idle';
+    showRiffState('idle');
     recorder.onstop = async () => {
-      stream.getTracks().forEach(track => track.stop());
+      releaseInput('record');
       const type = recorder.mimeType || chunks[0]?.type || 'audio/webm';
       const file = new File([new Blob(chunks, { type })], tr('My riff') + ' ' + ++riffCount, { type });
       const loaded = await loadRecording(file, { riff: true });
+      if (!loaded) return;
       // Resume only if it was playing before; otherwise Play starts the loop.
-      if (loaded && resume && !listening) listen.click();
-      else if (loaded && !listening) announce(tr('Riff ready · press Play to loop it through the board'));
+      if (riffResume && !listening) listen.click();
+      else if (!listening) announce(clipped ? tr('Riff ready, but it clipped · lower the input gain · press Play to loop it') : tr('Riff ready · press Play to loop it through the board'));
+      if (clipped) announce(tr('Your riff clipped. Lower the input gain and record it again.'));
     };
     recorder.stop();
   }
@@ -437,14 +577,16 @@
   }
   // Temporary controls stay within the player bar and share the same behavior.
   let activePlayerControl = null;
-  function inlinePlayerControl(buttonId, fieldId, sliderId) {
+  function inlinePlayerControl(buttonId, fieldId, sliderId, { autoClose = true, onOpen, onClose } = {}) {
     const button = document.getElementById(buttonId);
     const field = document.getElementById(fieldId);
     const slider = document.getElementById(sliderId);
     let timer, dragging = false;
     const close = () => {
       clearTimeout(timer);
+      const wasOpen = !field.hidden;
       field.hidden = true;
+      if (wasOpen) onClose?.();
       button.setAttribute('aria-expanded', 'false');
       if (activePlayerControl?.close === close) {
         activePlayerControl = null;
@@ -454,7 +596,7 @@
     };
     const finish = () => {
       clearTimeout(timer);
-      if (!dragging) timer = setTimeout(close, 1500);
+      if (autoClose && !dragging) timer = setTimeout(close, 1500);
     };
     button.onclick = () => {
       if (!field.hidden) { close(); return; }
@@ -464,6 +606,7 @@
       button.setAttribute('aria-expanded', 'true');
       button.closest('.player-dock').classList.add('adjusting-player');
       slider.focus({ preventScroll: true });
+      onOpen?.(close);
     };
     slider.addEventListener('pointerdown', () => { dragging = true; clearTimeout(timer); });
     slider.addEventListener('input', finish);
@@ -475,12 +618,47 @@
   }
   inlinePlayerControl('dock-volume', 'inline-volume', 'volume');
   inlinePlayerControl('dock-playing', 'inline-tempo', 'speed');
+  // The gain panel stays open (no timer) so its meter can be watched while you
+  // play; the microphone is only open while it is shown.
+  inlinePlayerControl('dock-gain', 'inline-gain', 'input-gain', { autoClose: false,
+    onOpen: close => holdInput('panel').catch(error => { close(); showInputError(error); }),
+    onClose: () => releaseInput('panel') });
   // Play keeps an open panel open: you often adjust tempo or volume while
   // starting playback, and closing it would move Play out from under the tap.
-  const closesPlayerControl = (control, target) => control && !control.field.contains(target) && !control.button.contains(target) && !listen.contains(target);
+  const closesPlayerControl = (control, target) => control && !control.field.contains(target) && !control.button.contains(target) && !listen.contains(target) && !recordButton.contains(target);
   document.addEventListener('click', e => { if (closesPlayerControl(activePlayerControl, e.target)) activePlayerControl.close(); });
   document.addEventListener('focusin', e => { if (closesPlayerControl(activePlayerControl, e.target)) activePlayerControl.close(); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') activePlayerControl?.close(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (riffPhase === 'countdown') { countdownCancel?.(); return; }
+    activePlayerControl?.close();
+  });
+  // Space: stop a recording or cancel its countdown; otherwise play and stop the
+  // loop. Typing fields and open dialogs keep Space. A button you tabbed to
+  // keeps it too (so keyboard users can still press it), but a button you only
+  // clicked does not, so Space works right after any click. Chromium's
+  // :focus-visible is unreliable after script-driven focus, so track it here.
+  let swallowSpaceUp = false, keyboardNavigation = false;
+  document.addEventListener('pointerdown', () => { keyboardNavigation = false; }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Tab') keyboardNavigation = true; }, true);
+  document.addEventListener('keydown', e => {
+    if (e.code !== 'Space' || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    const busy = riffPhase === 'countdown' || riffPhase === 'recording';
+    if (e.defaultPrevented && !busy) return;
+    const target = e.target instanceof Element ? e.target : document.body;
+    if (target.closest('textarea, select, [contenteditable=""], [contenteditable="true"], input:not([type=range])')) return;
+    if (document.querySelector('dialog[open]')) return;
+    if (!busy && keyboardNavigation && target.closest('button, a[href], summary, [role=button], [role=tab]')) return;
+    if (riffPhase === 'starting') { e.preventDefault(); return; }
+    e.preventDefault();
+    swallowSpaceUp = true;
+    if (riffPhase === 'recording') stopRiff();
+    else if (riffPhase === 'countdown') countdownCancel?.();
+    else if (!listen.disabled) listen.click();
+  });
+  document.addEventListener('keyup', e => {
+    if (e.code === 'Space' && swallowSpaceUp) { swallowSpaceUp = false; e.preventDefault(); }
+  });
   patternSelect.onchange = () => {
     recordingLoad++;
     bringYourOwn.disabled = false;

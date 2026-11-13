@@ -1073,7 +1073,7 @@ button.endpoint:hover { color: var(--gate); }
   .dock-secondary .dock-whatif { display: block; flex: 1; min-width: 0; margin-left: 0; padding-left: 4px; font-size: 11px; }
   .dock-secondary #dock-volume { order: 0; flex: none; width: 40px; margin-left: auto; }
   .dock-secondary:has(#inline-volume:not([hidden])) { flex-wrap: wrap; }
-  .dock-bar #inline-tempo { grid-column: 1 / -1; grid-row: 3; margin: 0; }
+  .dock-bar #inline-tempo, .dock-bar #inline-gain { grid-column: 1 / -1; grid-row: 3; margin: 0; }
 }
 @media (max-width: 700px) {
   .dock-secondary #copy-bank { order: 0; }
@@ -1177,7 +1177,7 @@ body.pedal-guide-open { overflow: hidden; }
   .dock-secondary #dock-volume { margin-left: auto; }
   .dock-secondary:has(#inline-volume:not([hidden])) { flex-wrap: wrap; }
   .dock-secondary #inline-volume { flex: 1 0 100%; margin: 0; }
-  .dock-bar #inline-tempo { grid-column: 1 / -1; grid-row: 3; margin: 0; }
+  .dock-bar #inline-tempo, .dock-bar #inline-gain { grid-column: 1 / -1; grid-row: 3; margin: 0; }
 }
 @media screen and (min-width: 701px) and (max-width: 1023px) and (max-height: 500px) {
   .board-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; }
@@ -1204,8 +1204,8 @@ body.pedal-guide-open { overflow: hidden; }
   .dock-bar { grid-template-columns: 48px minmax(0, 1fr) 60px 36px; }
   .dock-source { grid-column: 2; grid-row: 1; }
   .dock-source .dock-pattern { padding: 0; }
-  .dock-source #bring-your-own, .dock-source .dock-record { min-width: 40px; width: 40px; height: 40px; min-height: 40px; padding: 0; }
-  .dock-source .dock-record.recording { width: auto; padding-inline: 8px; }
+  .dock-source #bring-your-own, .dock-source .dock-record, .dock-source .dock-gain { min-width: 36px; width: 36px; height: 40px; min-height: 40px; padding: 0; }
+  .dock-source .dock-record.recording, .dock-source .dock-record.counting { width: auto; padding-inline: 8px; }
   .player-dock #open-quick-start { width: 36px; min-width: 36px; }
   #dock-playing { font-size: 11px; padding-inline: 2px; }
 }
@@ -1392,4 +1392,28 @@ body.analysing .chain-strip-wrap { display: none; }
 .record-time[hidden] { display: none; }
 @keyframes record-pulse { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .dock-record.recording .record-dot { animation: none; } }
+
+/* Input gain: a small button after Record opens a panel with the gain slider
+   and a live level meter (the microphone is only open while it is shown). */
+.dock-source .dock-gain { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--ink-2); cursor: pointer; }
+.dock-gain:hover, .dock-gain[aria-expanded=true] { background: var(--grid, #ece5da); color: var(--ink); }
+.dock-gain:focus-visible { outline: 2px solid var(--gate); outline-offset: 2px; }
+.dock-bar .gain-control { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; max-width: 280px; }
+.dock-bar .gain-control[hidden] { display: none; }
+.gain-note { font: 500 12px var(--sans); color: var(--ink-2); }
+.input-meter { position: relative; display: block; height: 6px; border-radius: 3px; background: var(--grid, #e8e1d6); overflow: hidden; }
+.input-meter span { position: absolute; inset: 0 auto 0 0; width: 0; background: #185533; transition: width 60ms linear; }
+.input-meter span.hot { background: #b07a12; }
+.input-meter span.clip { background: #b3261e; }
+.dock-record.counting { background: #b07a1226; color: #7a5200; }
+.dock-record.counting .record-dot { display: none; }
+
+/* A big 3… 2… 1… in the middle of the screen before recording starts. */
+.record-countdown { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: color-mix(in srgb, var(--paper, #f6f1e8) 82%, transparent); backdrop-filter: blur(3px); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.record-countdown[hidden] { display: none; }
+.countdown-number { font: 700 clamp(140px, 34vmin, 320px)/1 var(--sans); color: #b3261e; font-variant-numeric: tabular-nums; animation: countdown-tick 1s cubic-bezier(.2, .8, .3, 1) both; }
+.countdown-meter { width: min(320px, 70vw); height: 8px; }
+.countdown-hint { font: 500 15px var(--sans); color: var(--ink-2); text-align: center; padding-inline: 24px; }
+@keyframes countdown-tick { from { transform: scale(1.35); opacity: 0; } 25% { opacity: 1; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .countdown-number { animation: none; } .input-meter span { transition: none; } }
 
