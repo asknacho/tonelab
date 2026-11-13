@@ -45,6 +45,8 @@ A second set of famous solo and riff tones covers Hotel California, November Rai
 
 The **Playing** selector switches the synthesized guitar between free picking and steady, short eighth notes.
 
+**Live input** (in the same selector) runs a real guitar through the board as you play. Pick it, allow the microphone or audio interface, put on headphones and press Play. The browser's voice processing (echo cancellation, noise suppression, automatic gain) is switched off, so the guitar arrives unaltered. The engine resamples the input to its 24 kHz rate and processes it in 32-sample blocks (about 1.8 ms added on top of the browser's own audio buffers). The Live button shows the estimated round-trip latency, and its panel has input gain and a level meter. Wired headphones and an audio interface keep latency lowest; Bluetooth headphones add too much delay to play along. Nothing is recorded or uploaded, and live input is not restored after a reload.
+
 ## What the guitar plays
 
 Use the **Bring your own recording** audio-file icon beside the pattern selector to open a local audio file. Recordings are decoded and mixed to mono at the pedal engine's sample rate entirely in the browser, then loop through the same A/B effects and live graph. Play/Pause works as usual; tempo and synthetic noise are disabled so the recording keeps its original speed and background noise. Switching presets keeps your recording active. Choose a built-in pattern to return to the demo, or the audio-file button again to replace the file.

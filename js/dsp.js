@@ -263,6 +263,8 @@
 
     // Write `count` new samples into `out` starting at `offset`.
     generate(out, offset, count) {
+      // Live input arrives from the microphone, so the generator stays silent.
+      if (this.kind === 'live') { out.fill(0, offset, offset + count); return; }
       if (this.kind === 'recording') {
         const clip = this.recording;
         for (let i = 0; i < count; i++) {
