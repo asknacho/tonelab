@@ -263,8 +263,6 @@
 
     // Write `count` new samples into `out` starting at `offset`.
     generate(out, offset, count) {
-      // Live input arrives from the microphone, so the generator stays silent.
-      if (this.kind === 'live') { out.fill(0, offset, offset + count); return; }
       if (this.kind === 'recording') {
         const clip = this.recording;
         for (let i = 0; i < count; i++) {
@@ -1037,6 +1035,27 @@
     }
   }
 
+  /* A recorded riff loops best when it starts on its first note: cut the
+   * silence before it (and pure silence after the last sound), keeping a
+   * 10 ms pre-roll, then fade both ends so the loop point doesn't click. */
+  function trimRiff(samples) {
+    let peak = 0;
+    for (const v of samples) peak = Math.max(peak, Math.abs(v));
+    if (peak < 1e-4) return samples.slice();
+    const onset = peak * dbToLin(-30), floor = peak * dbToLin(-50);
+    let start = 0;
+    while (start < samples.length && Math.abs(samples[start]) < onset) start++;
+    let end = samples.length;
+    while (end > start && Math.abs(samples[end - 1]) < floor) end--;
+    start = Math.max(0, start - Math.round(0.01 * SR));
+    end = Math.min(samples.length, end + Math.round(0.05 * SR));
+    const out = samples.slice(start, end);
+    const fadeIn = Math.min(Math.round(0.003 * SR), out.length >> 1), fadeOut = Math.min(Math.round(0.02 * SR), out.length >> 1);
+    for (let i = 0; i < fadeIn; i++) out[i] *= i / fadeIn;
+    for (let i = 0; i < fadeOut; i++) out[out.length - 1 - i] *= i / fadeOut;
+    return out;
+  }
+
   Object.assign(TL, { PATTERNS, SR, dbToLin, linToDb, Source, NoiseGate, Compressor, Overdrive, Fuzz, Octave, Harmonizer, Delay, EffectChain, compCurve,
-    Boost, Distortion, Tremolo, Swell, Reverb, Chorus, Phaser, Wah, Equalizer, eqResponse, diatonicShift, GRAPHIC });
+    Boost, Distortion, Tremolo, Swell, Reverb, Chorus, Phaser, Wah, Equalizer, eqResponse, diatonicShift, GRAPHIC, trimRiff });
 })((globalThis.TL = globalThis.TL || {}));

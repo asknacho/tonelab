@@ -131,7 +131,7 @@
   }
   function snapshot() {
     banks[activeBank] = clone(state.chain);
-    return { version: 1, active: activeBank, banks, noise: source.noiseDb, matchVolume, source: { kind: ['recording', 'live'].includes(source.kind) ? 'guitar' : source.kind, tempo: source.tempo }, slots };
+    return { version: 1, active: activeBank, banks, noise: source.noiseDb, matchVolume, source: { kind: source.kind === 'recording' ? 'guitar' : source.kind, tempo: source.tempo }, slots };
   }
   function saveBoard() {
     clearTimeout(saveTimer);
@@ -247,81 +247,6 @@
   }));
   const recordingGroup = document.createElement('optgroup');
   recordingGroup.label = tr('Your sound');
-  // Live input: a microphone or audio interface, processed while you play.
-  // The audio only goes to your speakers or headphones; nothing is uploaded.
-  const liveSupported = !!navigator.mediaDevices?.getUserMedia;
-  const liveGroup = document.createElement('optgroup');
-  liveGroup.label = tr('Live');
-  liveGroup.append(new Option(tr('Live input'), 'live'));
-  if (liveSupported) patternSelect.append(liveGroup);
-  let liveStream = null, liveSourceNode = null, liveRequest = 0;
-  const liveButton = document.getElementById('dock-live');
-  const inputGain = document.getElementById('input-gain');
-  const inputGainOut = document.getElementById('input-gain-out');
-  const liveMeter = document.getElementById('live-meter-fill');
-  // The engine processes live input in 32-sample blocks at 24 kHz, plus a small safety margin.
-  const LIVE_BUFFER_MS = 1000 * (32 * 2 + 8) / SR;
-  function liveLatencyMs() {
-    if (!audioContext) return null;
-    const track = liveStream?.getAudioTracks()[0];
-    const inputLatency = track?.getSettings?.().latency;
-    const output = (audioContext.baseLatency || 0) + (audioContext.outputLatency || 0);
-    if (!output && typeof inputLatency !== 'number') return null;
-    return Math.round(1000 * (output + (inputLatency || 0)) + LIVE_BUFFER_MS);
-  }
-  function connectLiveInput() {
-    if (!audioContext || !audioNode || !liveStream || liveSourceNode) return;
-    liveSourceNode = audioContext.createMediaStreamSource(liveStream);
-    liveSourceNode.connect(audioNode);
-  }
-  function stopLiveInput() {
-    liveRequest++;
-    liveSourceNode?.disconnect();
-    liveSourceNode = null;
-    liveStream?.getTracks().forEach(track => track.stop());
-    liveStream = null;
-  }
-  async function startLiveInput(previousKind) {
-    const request = ++liveRequest;
-    document.getElementById('recording-error').hidden = true;
-    try {
-      // Turn off voice-call processing: it would squash and gate a guitar.
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: {
-        echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1, latency: 0 } });
-      if (request !== liveRequest) { stream.getTracks().forEach(track => track.stop()); return; }
-      liveStream = stream;
-      source.setKind('live');
-      connectLiveInput();
-      syncPattern();
-      state.dirty = true;
-      sendAudioState();
-      liveButton.click();
-      announce(tr('Live input ready · use headphones · press Play to hear it'));
-    } catch (error) {
-      if (request !== liveRequest) return;
-      source.setKind(previousKind === 'live' ? 'guitar' : previousKind);
-      syncPattern();
-      const errorBox = document.getElementById('recording-error');
-      errorBox.querySelector('span').textContent = error?.name === 'NotAllowedError'
-        ? tr('Microphone access was blocked. Allow it in the browser’s site settings to use live input.')
-        : tr('No microphone or audio interface could be opened.');
-      errorBox.hidden = false;
-    }
-  }
-  function syncInputGain() {
-    const value = Number(inputGain.value);
-    inputGainOut.textContent = (value > 0 ? '+' : value < 0 ? '−' : '') + Math.abs(value) + ' dB';
-  }
-  inputGain.addEventListener('input', () => { syncInputGain(); sendAudioState(); });
-  syncInputGain();
-  let liveMeterLevel = 0;
-  function showInputPeak(peak) {
-    liveMeterLevel = Math.max(peak, liveMeterLevel * 0.85);
-    const db = 20 * Math.log10(Math.max(liveMeterLevel, 1e-5));
-    liveMeter.style.width = Math.max(0, Math.min(100, (db + 48) / 48 * 100)) + '%';
-    liveMeter.classList.toggle('hot', db > -6 && db <= -1);
-    liveMeter.classList.toggle('clip', db > -1);
-  }
   const bringYourOwn = document.getElementById('bring-your-own');
   const recordingFile = document.getElementById('recording-file');
   let recordingLoad = 0;
@@ -358,7 +283,9 @@
     if (!file) { syncPattern(); return; }
     await loadRecording(file);
   };
-  async function loadRecording(file) {
+  // Open a local audio file, or a riff just recorded (`riff` trims the silence
+  // before the first note so the loop starts on the attack). True on success.
+  async function loadRecording(file, { riff = false } = {}) {
     const load = ++recordingLoad;
     document.getElementById('recording-error').hidden = true;
     bringYourOwn.disabled = true;
@@ -373,11 +300,12 @@
       if (load !== recordingLoad) return;
       if (!decoded.length || decoded.duration > 600) throw new Error(tr('Choose a recording between a moment and 10 minutes long.'));
       // The pedal engine is mono. Decode/resample locally, then mix channels.
-      const samples = new Float32Array(decoded.length);
+      let samples = new Float32Array(decoded.length);
       for (let channel = 0; channel < decoded.numberOfChannels; channel++) {
         const data = decoded.getChannelData(channel);
         for (let i = 0; i < samples.length; i++) samples[i] += data[i] / decoded.numberOfChannels;
       }
+      if (riff) samples = TL.trimRiff(samples);
       localRecording = { samples, name: file.name };
       source.setRecording(samples);
       source.setKind('recording');
@@ -396,12 +324,16 @@
       saveBoard();
       sendAudioState();
       announce(tr('Recording ready · stays on this device · loops during playback'));
+      return true;
     } catch (error) {
-      if (load !== recordingLoad) return;
+      if (load !== recordingLoad) return false;
       syncPattern();
       const errorBox = document.getElementById('recording-error');
-      errorBox.querySelector('span').textContent = error.message?.startsWith(tr('Choose a recording')) ? error.message : tr('This audio file could not be opened. Try a WAV, MP3, or M4A recording.');
+      errorBox.querySelector('span').textContent = error.message?.startsWith(tr('Choose a recording')) ? error.message
+        : riff ? tr('Nothing usable was recorded. Check your microphone and try again.')
+        : tr('This audio file could not be opened. Try a WAV, MP3, or M4A recording.');
       errorBox.hidden = false;
+      return false;
     } finally {
       if (load === recordingLoad) {
         bringYourOwn.disabled = false;
@@ -412,6 +344,78 @@
       }
     }
   }
+  // Record a riff from the microphone or interface, then loop it through the
+  // board like an imported file. Playback pauses while recording, so the
+  // speakers can't feed back into the microphone. Nothing leaves the device.
+  const recordButton = document.getElementById('record-riff');
+  const recordTime = document.getElementById('record-time');
+  const RIFF_MAX_SECONDS = 60;
+  let riff = null, riffCount = 0, riffStarting = false;
+  recordButton.hidden = !(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+  recordButton.onclick = () => { if (riff) stopRiff(); else startRiff(); };
+  function showRiffState(recording) {
+    recordButton.classList.toggle('recording', recording);
+    recordButton.setAttribute('aria-pressed', String(recording));
+    recordButton.setAttribute('aria-label', recording ? tr('Stop recording') : tr('Record a riff'));
+    recordButton.title = recording ? tr('Stop recording and loop the riff') : tr('Record a riff to loop through the board');
+    recordTime.hidden = !recording;
+    recordTime.textContent = '0:00';
+    bringYourOwn.disabled = recording;
+    bringYourOwn.toggleAttribute('aria-disabled', recording);
+  }
+  async function startRiff() {
+    if (riffStarting) return;
+    riffStarting = true;
+    recordButton.disabled = true;
+    document.getElementById('recording-error').hidden = true;
+    try {
+      // Voice-call processing (echo cancellation, noise suppression, automatic
+      // gain) would squash and gate a guitar, so it is switched off.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: {
+        echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
+      const resume = listening;
+      if (listening) await listen.onclick();
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+      recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+      riff = { recorder, stream, chunks, resume, started: performance.now() };
+      riff.timer = setInterval(() => {
+        const seconds = Math.floor((performance.now() - riff.started) / 1000);
+        recordTime.textContent = Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+        if (seconds >= RIFF_MAX_SECONDS) stopRiff();
+      }, 250);
+      recorder.start();
+      showRiffState(true);
+      announce(tr('Recording · play your riff, then press stop'));
+    } catch (error) {
+      const errorBox = document.getElementById('recording-error');
+      errorBox.querySelector('span').textContent = error?.name === 'NotAllowedError'
+        ? tr('Microphone access was blocked. Allow it in the browser’s site settings to record a riff.')
+        : tr('No microphone or audio interface could be opened.');
+      errorBox.hidden = false;
+    } finally {
+      riffStarting = false;
+      recordButton.disabled = false;
+    }
+  }
+  function stopRiff() {
+    if (!riff) return;
+    const { recorder, stream, chunks, resume, timer } = riff;
+    riff = null;
+    clearInterval(timer);
+    showRiffState(false);
+    recorder.onstop = async () => {
+      stream.getTracks().forEach(track => track.stop());
+      const type = recorder.mimeType || chunks[0]?.type || 'audio/webm';
+      const file = new File([new Blob(chunks, { type })], tr('My riff') + ' ' + ++riffCount, { type });
+      const loaded = await loadRecording(file, { riff: true });
+      // Resume only if it was playing before; otherwise Play starts the loop.
+      if (loaded && resume && !listening) listen.click();
+      else if (loaded && !listening) announce(tr('Riff ready · press Play to loop it through the board'));
+    };
+    recorder.stop();
+  }
+
   // Free picking has no tempo; every other pattern follows the Speed slider.
   function syncPattern() {
     patternSelect.value = source.kind;
@@ -425,20 +429,9 @@
     tempoButton.disabled = free;
     tempoButton.title = free ? (source.kind === 'recording' ? tr('Recording plays at its original speed') : tr('No tempo for free picking')) : tr('Adjust tempo');
     tempoButton.setAttribute('aria-label', free ? tempoButton.title : tr('Adjust tempo: ') + tempo + ' BPM');
-    patternSelect.title = source.kind === 'recording' ? localRecording.name + tr(' · local recording · loops during playback')
-      : source.kind === 'live' ? tr('Microphone or audio interface · audio stays on this device') : '';
-    const live = source.kind === 'live';
-    tempoButton.hidden = live;
-    liveButton.hidden = !live;
-    if (!live && !document.getElementById('inline-live').hidden) activePlayerControl?.close();
-    const latency = live ? liveLatencyMs() : null;
-    document.getElementById('dock-live-text').textContent = latency ? tr('Live · ') + latency + ' ms' : tr('Live');
-    liveButton.setAttribute('aria-label', tr('Live input settings') + (latency ? tr(', about ') + latency + tr(' ms latency') : ''));
-    liveButton.title = latency ? tr('Estimated round-trip latency: about ') + latency + ' ms' : tr('Live input settings');
-    document.getElementById('noise').disabled = source.kind === 'recording' || live;
-    document.querySelector('.noise-hint').textContent = live
-      ? tr('Live input keeps your own noise floor. Try the noise gate on it.')
-      : source.kind === 'recording'
+    patternSelect.title = source.kind === 'recording' ? localRecording.name + tr(' · local recording · loops during playback') : '';
+    document.getElementById('noise').disabled = source.kind === 'recording';
+    document.querySelector('.noise-hint').textContent = source.kind === 'recording'
       ? tr('Your recording keeps its own background noise.')
       : tr('Add background hiss to try the noise gate.');
   }
@@ -482,19 +475,13 @@
   }
   inlinePlayerControl('dock-volume', 'inline-volume', 'volume');
   inlinePlayerControl('dock-playing', 'inline-tempo', 'speed');
-  inlinePlayerControl('dock-live', 'inline-live', 'input-gain');
-  // Play keeps an open panel open: you often adjust input gain or volume while
+  // Play keeps an open panel open: you often adjust tempo or volume while
   // starting playback, and closing it would move Play out from under the tap.
   const closesPlayerControl = (control, target) => control && !control.field.contains(target) && !control.button.contains(target) && !listen.contains(target);
   document.addEventListener('click', e => { if (closesPlayerControl(activePlayerControl, e.target)) activePlayerControl.close(); });
   document.addEventListener('focusin', e => { if (closesPlayerControl(activePlayerControl, e.target)) activePlayerControl.close(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') activePlayerControl?.close(); });
   patternSelect.onchange = () => {
-    if (patternSelect.value === 'live') {
-      if (source.kind !== 'live') startLiveInput(source.kind);
-      return;
-    }
-    if (source.kind === 'live') stopLiveInput();
     recordingLoad++;
     bringYourOwn.disabled = false;
     bringYourOwn.removeAttribute('aria-disabled');
@@ -2484,7 +2471,7 @@
       noiseOut.textContent = fmtDb(noiseDb);
     }
     if (tempo) source.tempo = tempo;
-    if (kind && source.kind !== kind && !['recording', 'live'].includes(source.kind)) source.setKind(kind);
+    if (kind && source.kind !== kind && source.kind !== 'recording') source.setKind(kind);
     syncPattern();
   }
 
@@ -3903,8 +3890,7 @@
   function sendAudioState() {
     banks[activeBank] = clone(state.chain);
     audioNode?.port.postMessage({ type: 'settings', state: { playing: state.playing, speed: state.speed, chain: state.chain }, kind: source.kind, tempo: source.tempo,
-      noiseDb: source.noiseDb, banks, activeBank, inspectId, inspectByBank, matchVolume, monitor, volume: Number(document.getElementById('volume').value),
-      inputGain: Number(document.getElementById('input-gain')?.value || 0) });
+      noiseDb: source.noiseDb, banks, activeBank, inspectId, inspectByBank, matchVolume, monitor, volume: Number(document.getElementById('volume').value) });
   }
   segmented('monitor', v => { monitor = v; refreshInspect(); updateAuditionButtons(); sendAudioState(); });
   document.getElementById('volume').oninput = sendAudioState;
@@ -3915,16 +3901,13 @@
     try {
       if (!audioContext) {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
-        audioContext = new AudioContext({ latencyHint: 'interactive' });
+        audioContext = new AudioContext();
         await audioContext.resume();
         await audioContext.audioWorklet.addModule('js/audio-worklet.js');
-        audioNode = new AudioWorkletNode(audioContext, 'tonelab-audio', { numberOfInputs: 1, outputChannelCount: [1],
-          channelCount: 1, channelCountMode: 'explicit', channelInterpretation: 'speakers' });
+        audioNode = new AudioWorkletNode(audioContext, 'tonelab-audio', { outputChannelCount: [1] });
         sendRecording();
-        connectLiveInput();
         audioNode.port.onmessage = ({ data }) => {
           if (!listening || !state.playing || !data.samples) return;
-          if (typeof data.inputPeak === 'number') showInputPeak(data.inputPeak);
           const samples = data.samples;
           input.copyWithin(0, samples.length);
           input.set(samples, N - samples.length);
@@ -3954,10 +3937,9 @@
         await audioContext.resume();
       }
       listen.setAttribute('aria-label', listening ? tr('Pause') : tr('Play'));
-      if (source.kind === 'live') syncPattern();
       listen.setAttribute('aria-pressed', String(listening));
       listen.classList.toggle('playing', listening);
-      audioStatus.textContent = listening ? (source.kind === 'live' ? tr('Live input · use headphones · tap a dot on the chain to hear that point') : tr('Listening · tap a dot on the chain to hear that point')) : source.kind === 'live' ? tr('Live input paused') : source.kind === 'recording' ? tr('Recording paused') : tr('Synthesized guitar');
+      audioStatus.textContent = listening ? tr('Listening · tap a dot on the chain to hear that point') : source.kind === 'recording' ? tr('Recording paused') : tr('Synthesized guitar');
       if (!listening) audition = null;
       updateAuditionButtons();
     } catch (error) {
@@ -3978,7 +3960,7 @@
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
-    if (state.playing && !listening && !['recording', 'live'].includes(source.kind)) {
+    if (state.playing && !listening && source.kind !== 'recording') {
       carry += dt * SR * state.speed;
       const n = Math.floor(carry);
       carry -= n;
@@ -4015,7 +3997,6 @@
       // Refresh the UI in place: recordings, playback, edits and tour progress stay live.
       for (const group of patternSelect.querySelectorAll('optgroup')) {
         if (group === recordingGroup) { group.label = tr('Your sound'); continue; }
-        if (group === liveGroup) { group.label = tr('Live'); group.querySelector('option').textContent = tr('Live input'); continue; }
         const pattern = TL.PATTERNS[group.querySelector('option')?.value];
         if (pattern) group.label = pattern.group;
         for (const option of group.children) option.textContent = TL.PATTERNS[option.value].label;
@@ -4036,7 +4017,7 @@
       updateAuditionButtons();
       syncPattern();
       listen.setAttribute('aria-label', listening ? tr('Pause') : tr('Play'));
-      audioStatus.textContent = listening ? (source.kind === 'live' ? tr('Live input · use headphones · tap a dot on the chain to hear that point') : tr('Listening · tap a dot on the chain to hear that point')) : source.kind === 'live' ? tr('Live input paused') : source.kind === 'recording' ? tr('Recording paused') : tr('Synthesized guitar');
+      audioStatus.textContent = listening ? tr('Listening · tap a dot on the chain to hear that point') : source.kind === 'recording' ? tr('Recording paused') : tr('Synthesized guitar');
       renderQuickStart();
       state.dirty = true;
     });

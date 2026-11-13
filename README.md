@@ -45,7 +45,7 @@ A second set of famous solo and riff tones covers Hotel California, November Rai
 
 The **Playing** selector switches the synthesized guitar between free picking and steady, short eighth notes.
 
-**Live input** (in the same selector) runs a real guitar through the board as you play. Pick it, allow the microphone or audio interface, put on headphones and press Play. The browser's voice processing (echo cancellation, noise suppression, automatic gain) is switched off, so the guitar arrives unaltered. The engine resamples the input to its 24 kHz rate and processes it in 32-sample blocks (about 1.8 ms added on top of the browser's own audio buffers). The Live button shows the estimated round-trip latency, and its panel has input gain and a level meter. Wired headphones and an audio interface keep latency lowest; Bluetooth headphones add too much delay to play along. Nothing is recorded or uploaded, and live input is not restored after a reload.
+**Record a riff** with the red button beside Import: allow the microphone or audio interface, play, then press stop. Playback pauses while you record, so nothing can feed back. The take then loops through the board like an imported file, trimmed to start on its first note, so you can try pedals and compare Dry / A / B on your own playing. The browser's voice processing (echo cancellation, noise suppression, automatic gain) is switched off so the guitar is captured unaltered. Takes stop after one minute and stay on the device; like imports, they are not kept after a reload.
 
 ## What the guitar plays
 
