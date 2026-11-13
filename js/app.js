@@ -388,7 +388,7 @@
     const gain = ctx.createGain();
     gain.gain.value = dbToLin(inputGainDb());
     const analyser = ctx.createAnalyser();
-    analyser.fftSize = 1024;
+    analyser.fftSize = 4096; // about 85 ms, enough to catch up between frames
     const destination = ctx.createMediaStreamDestination();
     ctx.createMediaStreamSource(stream).connect(gain);
     gain.connect(analyser);
@@ -518,6 +518,10 @@
       const chunks = [];
       recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
       riffClipped = false;
+      // Start the waveform fresh; it then follows the microphone (see frame()).
+      input.fill(0);
+      for (const history of Object.values(scopeHistory)) { history.input.fill(0); history.output.fill(0); }
+      state.dirty = true;
       riff = { recorder, chunks, started: performance.now() };
       riff.timer = setInterval(() => {
         const seconds = Math.floor((performance.now() - riff.started) / 1000);
@@ -4139,9 +4143,32 @@
   let carry = 0;
   let lastDraw = 0;
 
+  // While recording, the scope follows the microphone: take the samples that
+  // arrived since the last frame from the level meter's analyser, average them
+  // down to the engine's sample rate and slide them into the scope's input, so
+  // the waveform (and the pedals' effect on it) updates as you play.
+  function feedScopeFromMic(dt) {
+    const rate = mic.ctx.sampleRate, ratio = rate / SR;
+    mic.analyser.getFloatTimeDomainData(mic.buffer);
+    const available = Math.min(mic.buffer.length, Math.round(dt * rate));
+    const count = Math.min(N, Math.floor(available / ratio));
+    if (count < 1) return;
+    const first = mic.buffer.length - Math.round(count * ratio);
+    input.copyWithin(0, count);
+    for (let i = 0; i < count; i++) {
+      const lo = first + Math.floor(i * ratio), hi = Math.max(lo + 1, first + Math.floor((i + 1) * ratio));
+      let sum = 0;
+      for (let j = lo; j < hi; j++) sum += mic.buffer[j];
+      input[N - count + i] = sum / (hi - lo);
+    }
+    total += count;
+    state.dirty = true;
+  }
+
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
+    if (riffPhase === 'recording' && mic) feedScopeFromMic(dt);
     if (state.playing && !listening && source.kind !== 'recording') {
       carry += dt * SR * state.speed;
       const n = Math.floor(carry);
