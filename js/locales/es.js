@@ -1451,4 +1451,9 @@
   "Tap: on/off · double-tap: edit · hold: move": "Toque: activar/desactivar · doble toque: editar · mantener: mover",
   "Click: on/off · double-click: edit · drag: move": "Clic: activar/desactivar · doble clic: editar · arrastrar: mover",
   "Tap a pedal to turn it on or off, or double-tap it to open it and change a control. Guide explains what to listen for and how to play it.": "Toca un pedal para activarlo o desactivarlo, o tócalo dos veces para abrirlo y cambiar un control. La Guía explica qué escuchar y cómo tocarlo.",
+  "Starting sounds": "Sonidos para empezar",
+  "Or start with a sound": "O empieza con un sonido",
+  "Clean & spacious": "Limpio y espacioso",
+  "Crunch rhythm": "Rítmica con crunch",
+  "Singing lead": "Solo melódico",
 };

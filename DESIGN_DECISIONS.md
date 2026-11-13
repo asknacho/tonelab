@@ -1,6 +1,6 @@
 # Accepted product decisions
 
-Updated 2026-11-12. These decisions came from the user's reviews of the mobile settings and guide, and the subsequent tablet/desktop review.
+Updated 2026-11-13. These decisions came from the user's reviews of the mobile settings and guide, and the subsequent tablet/desktop review.
 
 ## Page order and responsive layout
 
@@ -60,12 +60,18 @@ Updated 2026-11-12. These decisions came from the user's reviews of the mobile s
 - Below 1024 px, keep the inline editor beneath the board, with a live selected-pedal preview in its sticky heading. Keep Guide separate on these sizes. The review's bottom-sheet suggestion does not replace the previously selected inline editor.
 - Save, Guide and New board have text labels. Give New board horizontal padding so its label does not crowd the border. Help is in the header; the creator credit is in the footer. Use sans for text and mono for numeric readouts.
 - The whole pedal card is one control, instead of separate On/Off, edit and drag sections (user request, 2026-11-13): a tap (click) turns it on or off at once, a quick second tap within 300 ms puts that back and opens its settings, and holding for about 450 ms on touch (or pressing and moving with a mouse or pen) drags it. Moving more than about 8 px before the hold finishes scrolls the board instead. The pedal tilts slightly as soon as it follows the pointer, until release or cancellation, and the red removal × shows only while it is outside the pedalboard. Holding without moving does nothing. The same gestures apply on every screen size and input type.
-- Cards show state instead of buttons: a read-only On/Off label, the LED, and a dimmed bypassed pedal. A faint grip stays at the bottom as a cue that the pedal can move. A visible hint under the board spells out the gestures (tap or click wording by input type). Keyboard and screen-reader users keep real controls: the card is a Bypass/Enable button (arrow keys reorder it), and a hidden Edit button appears on focus and opens settings. Keep the 44 px minimum touch target: the whole card is the target. Show one On/Off label per card and keep both endpoint labels inside the scrollable board.
+- Cards show state instead of buttons: a read-only On/Off label, the LED, and a dimmed bypassed pedal. A faint grip stays at the bottom as a cue that the pedal can move. A visible hint under the board spells out the gestures (tap or click wording by input type). Keyboard and screen-reader users keep real controls: the card is a Bypass/Enable button (arrow keys reorder it), and an Edit button below each pedal opens settings. Edit is always visible on touch devices and appears on hover or keyboard focus on desktop (accepted refinement, 2026-11-13). Keep the 44 px minimum touch target: the whole card is the target. Show one On/Off label per card and keep both endpoint labels inside the scrollable board.
 - More pedal settings is the single disclosure for extra controls and labeled pedal actions; there is no second Show all controls checkbox.
 - The effect library groups pedals by signal-chain stage. Chorus / flanger names both available model families; model-specific help only describes the offered options.
 - Quick start has five anchored steps: pick a sound, play, compare, watch the waveform, open a pedal. The waveform step asks users to switch between Dry and B, listen, and watch for changes. On mobile, the final Make it yours card sits immediately above the player, with the whole pedal highlighted and scrolled into view above the card. This replaces the four-step sequence (user follow-up, 2026-11-12). Platform-specific audio tips appear only on the applicable devices.
 - Open Quick start automatically on the first visit. Remember locally when it has been shown so closing it, finishing it, or returning later does not reopen it automatically. The header help button can restart it at any time (user follow-up, 2026-11-12).
 - Share offers a Copy button and Copied feedback. Compress the self-contained board link and continue reading existing links; no link-shortening service is required.
+
+## Design refinement follow-up (2026-11-13)
+
+- Give pedal bypass immediate LED/state and pressed feedback. Keep the visible gesture hint and existing tap/double-tap/hold behavior; illustrated knobs remain decorative.
+- On an empty board, keep Add a pedal as the main action and offer Clean & spacious, Crunch rhythm and Singing lead beneath it. These load existing curated sounds with the usual A/B comparison and Undo. Hide these suggestions as soon as the board contains a pedal.
+- Use the asymmetric wave from `assets/logo/asymmetric.svg` as the logo mark in the app header and favicon, with the existing DM Sans wordmark and warm palette (user selection, 2026-11-13). Keep the mark single-color near-black, without a highlight. The rounded and clipped variants remain archived explorations in the comparison page.
 
 ### Review proposals left open
 

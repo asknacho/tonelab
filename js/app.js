@@ -2759,6 +2759,12 @@
     offerUndo(label + ' loaded', () => applyBoard(before));
     advanceQuickStart(0);
   };
+  // Use the same A/B lesson, source selection and Undo as the main sound picker.
+  for (const button of document.querySelectorAll('[data-starter]')) button.onclick = () => {
+    heroSelect.value = 'tone:' + button.dataset.starter;
+    heroSelect.dispatchEvent(new Event('change'));
+    orderList.querySelector('.pedal-toggle')?.focus({ preventScroll: true });
+  };
   /* Searchable "I want to sound like…": a text box over the sound list. The
    * hidden <select> stays the source of truth, so choosing an item fires the
    * same change as before. */
@@ -3368,7 +3374,7 @@
     const columns = Math.max(1, Math.floor((orderList.clientWidth + gap) / (cardWidth + gap)));
     const other = activeBank === 'A' ? 'B' : 'A';
     const rows = getComputedStyle(orderList).flexWrap === 'nowrap' ? 1 : Math.ceil(Math.max(state.chain.length, banks[other].length) / columns);
-    dropArea.style.minHeight = Math.max(126, rows * (cardHeight + gap) - gap + 28) + 'px';
+    dropArea.style.minHeight = Math.max(152, rows * (cardHeight + gap) - gap + 54) + 'px';
   }
   window.addEventListener('resize', reserveBoardHeight);
   // Pedal gestures: tap = on/off, double-tap = edit, hold (touch) or press-and-move = drag.
@@ -3391,7 +3397,7 @@
         item.dataset.effect = id;
         item.dataset.type = pedal.type;
         // The whole pedal is one control: tap = on/off, double-tap = edit, hold = drag.
-        // A hidden Edit button and arrow keys give keyboard and screen-reader users the same actions.
+        // A visible Edit affordance and arrow keys provide alternatives to the gestures.
         item.innerHTML = artSvg(pedal, 'pedal-art') + '<div class="pedal-top"><span class="pedal-position"></span><span class="pedal-state" aria-hidden="true"></span></div><button type="button" class="pedal-toggle" aria-describedby="chain-hint"><span class="pedal-label"><span class="pedal-name"></span><span class="pedal-status"></span></span></button><span class="pedal-grip" aria-hidden="true"><svg focusable="false" width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="4" r="1"/><circle cx="8" cy="4" r="1"/><circle cx="4" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="8" cy="12" r="1"/></svg></span><button type="button" class="pedal-edit"></button>';
         const toggle = item.querySelector('.pedal-toggle');
         item.querySelector('.pedal-edit').onclick = () => { openSettings(pedal, true); advanceQuickStart(4); };
@@ -3549,6 +3555,7 @@
     orderList.appendChild(addTile);
     if (previousList) previousList.replaceWith(orderList);
     document.getElementById('empty-chain').hidden = true;
+    document.getElementById('empty-board-starts').hidden = state.chain.length > 0;
     if (!settings.hidden && !selectedId) document.getElementById('inspector-empty').hidden = state.chain.length > 0;
     reserveBoardHeight();
     drawCables();
