@@ -1456,4 +1456,5 @@
   "Clean & spacious": "Limpio y espacioso",
   "Crunch rhythm": "Rítmica con crunch",
   "Singing lead": "Solo melódico",
+  "Dismiss notification": "Cerrar notificación",
 };

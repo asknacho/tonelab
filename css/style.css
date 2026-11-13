@@ -1434,3 +1434,9 @@ body.analysing .chain-strip-wrap { display: none; }
 @media (max-width: 700px) {
   .empty-board-starts p { flex-basis: 100%; }
 }
+
+/* Keep Undo and dismiss distinct, with full-size touch targets on narrow screens. */
+.undo-toast.floating #undo-text { min-width: 0; }
+.undo-toast.floating #dismiss-undo { border: 0; }
+.undo-toast.floating button .action-icon { color: inherit; }
+.undo-toast.floating button:hover { background: #ffffff1a; }

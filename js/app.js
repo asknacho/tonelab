@@ -963,6 +963,7 @@
     action?.();
   }
   document.getElementById('undo-button').onclick = undo;
+  document.getElementById('dismiss-undo').onclick = hideUndo;
   document.addEventListener('keydown', e => {
     if (!undoAction || e.key.toLowerCase() !== 'z' || !(e.ctrlKey || e.metaKey) || e.shiftKey) return;
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
