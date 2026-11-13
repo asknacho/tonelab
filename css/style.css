@@ -124,9 +124,18 @@ canvas { display: block; width: 100%; }
 #effect-order li > .pedal-toggle { position: absolute; inset: 0; z-index: 2; grid-template-rows: minmax(0, 48fr) minmax(0, 32fr) minmax(0, 60fr); border-radius: 6px; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #effect-order li > .pedal-toggle:focus-visible { outline: 2px solid var(--gate); outline-offset: 3px; }
 #effect-order li.drag-ready > .pedal-toggle { cursor: grabbing; }
-/* Edit: a keyboard and screen-reader stand-in for the double tap. Hidden until focused. */
-#effect-order li > .pedal-edit { position: absolute; z-index: 3; left: 50%; bottom: 4px; translate: -50% 0; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-#effect-order li > .pedal-edit:focus-visible { width: auto; height: 28px; padding: 0 12px; overflow: visible; clip-path: none; border: 1px solid var(--rule); border-radius: 14px; background: var(--card); color: var(--ink); font: 600 12px var(--sans); outline: 2px solid var(--gate); }
+/* Edit is separate from the bypass target; its label sits below the artwork. */
+#effect-order li > .pedal-edit { position: absolute; z-index: 3; left: 50%; bottom: -38px; translate: -50% 0; min-width: 52px; height: 44px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); font: 600 11px var(--sans); opacity: 0; pointer-events: none; }
+#effect-order li:hover > .pedal-edit, #effect-order li:focus-within > .pedal-edit { opacity: 1; pointer-events: auto; }
+#effect-order li > .pedal-edit:hover { color: var(--gate); background: var(--gate-soft); }
+#effect-order li > .pedal-edit:focus-visible { outline: 2px solid var(--gate); outline-offset: -2px; }
+@media (any-pointer: coarse), (hover: none) {
+  #effect-order li > .pedal-edit { opacity: 1; pointer-events: auto; }
+}
+@media (hover: hover) {
+  #effect-order li:not(.drag-ready):has(> .pedal-toggle:hover) { filter: drop-shadow(0 2px 3px #211d1b18); }
+}
+#effect-order li > .pedal-toggle:active { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .drag-ghost .pedal-edit { display: none; }
 /* A faint grip: it hints that the pedal can be moved; the whole card does the work. */
 .pedal-grip { position: absolute !important; left: 0; bottom: calc(9.285714% - 22px); display: grid; place-items: center; width: 100%; height: 44px; color: var(--ink-3); opacity: .6; pointer-events: none; }
@@ -621,7 +630,7 @@ html, body { overflow-x: clip; }
 body { font-family: var(--sans); }
 .masthead { max-width: 1448px; padding: 16px 24px; gap: 20px; }
 .masthead h1 { display: flex; align-items: center; gap: 8px; font: 700 32px/1 var(--sans); letter-spacing: -.04em; }
-.brand-mark { color: #195637; font: 700 46px/.7 var(--sans); }
+.brand-mark { display: block; flex: none; width: 38px; height: auto; }
 .masthead .tone-hero { max-width: 620px; }
 .header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .header-actions > button, .header-menu > summary { width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font-size: 25px; cursor: pointer; list-style: none; }
@@ -646,7 +655,7 @@ body { font-family: var(--sans); }
 @media (max-width: 700px) {
   .masthead { padding: 12px 16px; gap: 8px; }
   .masthead h1 { font-size: 22px; }
-  .brand-mark { font-size: 32px; }
+  .brand-mark { width: 30px; }
   .header-actions { gap: 0; }
   .header-actions > button, .header-menu > summary { width: 36px; font-size: 21px; }
   .header-actions > #header-undo, .header-actions > #header-settings { display: none; }
@@ -1416,3 +1425,12 @@ body.analysing .chain-strip-wrap { display: none; }
 @keyframes countdown-tick { from { transform: scale(1.35); opacity: 0; } 25% { opacity: 1; } to { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .countdown-number { animation: none; } .input-meter span { transition: none; } }
 
+
+/* Starter sounds belong only to an empty board, outside its scroll region. */
+.empty-board-starts { margin: 8px 0 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.empty-board-starts p { margin: 0 4px 0 0; color: var(--ink-2); font-size: 13px; }
+.empty-board-starts button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--card); color: var(--ink); font-size: 13px; }
+.empty-board-starts button:hover { border-color: var(--gate); background: var(--gate-soft); }
+@media (max-width: 700px) {
+  .empty-board-starts p { flex-basis: 100%; }
+}
