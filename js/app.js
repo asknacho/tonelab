@@ -305,7 +305,11 @@
         const data = decoded.getChannelData(channel);
         for (let i = 0; i < samples.length; i++) samples[i] += data[i] / decoded.numberOfChannels;
       }
-      if (riff) samples = TL.trimRiff(samples);
+      if (riff) {
+        // Level the take like the built-in guitars, whatever level the phone delivered.
+        samples = TL.levelRiff(TL.trimRiff(samples));
+        if (!samples) throw new Error('silent riff');
+      }
       localRecording = { samples, name: file.name };
       source.setRecording(samples);
       source.setKind('recording');
@@ -330,7 +334,7 @@
       syncPattern();
       const errorBox = document.getElementById('recording-error');
       errorBox.querySelector('span').textContent = error.message?.startsWith(tr('Choose a recording')) ? error.message
-        : riff ? tr('Nothing usable was recorded. Check your microphone and try again.')
+        : riff ? tr('Nothing usable was recorded. Check your microphone or raise the input gain, then try again.')
         : tr('This audio file could not be opened. Try a WAV, MP3, or M4A recording.');
       errorBox.hidden = false;
       return false;
@@ -363,7 +367,7 @@
   // back. It stays open only while the gain panel, countdown or recording needs it.
   let mic = null, micOpening = null, meterFrame = 0, meterLevel = 0;
   const inputHolds = new Set();
-  try { const saved = Number(localStorage.getItem(GAIN_KEY)); if (Number.isFinite(saved)) inputGain.value = Math.max(-12, Math.min(24, saved)); } catch {}
+  try { const saved = Number(localStorage.getItem(GAIN_KEY)); if (Number.isFinite(saved)) inputGain.value = Math.max(-12, Math.min(36, saved)); } catch {}
   const inputGainDb = () => Number(inputGain.value);
   function syncInputGain() {
     const db = inputGainDb();

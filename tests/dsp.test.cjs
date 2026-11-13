@@ -552,3 +552,21 @@ test('a recorded riff starts on its first note and loops without clicks', () => 
   const silent = trimRiff(new Float32Array(100));
   assert.equal(silent.length, 100, 'silence is returned unchanged');
 });
+
+test('a recorded riff is leveled to the built-in guitar level, whatever the phone delivered', () => {
+  const { levelRiff } = context.TL;
+  const peakDb = b => 20 * Math.log10(b.reduce((m, v) => Math.max(m, Math.abs(v)), 0));
+  const rmsDb = b => 10 * Math.log10(b.reduce((s, v) => s + v * v, 0) / b.length);
+  const riff = amp => Float32Array.from({ length: SR * 2 }, (_, i) => amp * Math.sin(i * 0.07) * Math.exp(-(i % 6000) / 2500));
+  for (const amp of [0.004, 0.05, 0.9]) {
+    const out = levelRiff(riff(amp));
+    assert(Math.abs(peakDb(out) - -3) < 0.6, `peak ${peakDb(out).toFixed(2)} dB for a riff at ${amp}`);
+  }
+  assert(Math.abs(rmsDb(levelRiff(riff(0.004))) - rmsDb(levelRiff(riff(0.5)))) < 0.5, 'quiet and loud takes end up equally loud');
+  // A single bump must not decide the gain: the riff still comes out at a usable level.
+  const bumped = riff(0.01); bumped[1000] = 0.9;
+  const out = levelRiff(bumped);
+  assert(rmsDb(out) > -22, `a thump doesn't leave the riff quiet (${rmsDb(out).toFixed(1)} dB RMS)`);
+  assert(out.every(v => Math.abs(v) <= 1), 'nothing exceeds full scale');
+  assert.equal(levelRiff(new Float32Array(1000).fill(0.0001)), null, 'near-silence is rejected');
+});
