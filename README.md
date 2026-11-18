@@ -39,6 +39,8 @@ The page starts with a compact header: the Tonelab name and the **I want to soun
 
 Sounds live in the `TONES` list in `js/app.js`: each has the playing pattern and noise floor, a short "how to play it", each pedal as `[type, settings, what it does]`, a tip, and its what-ifs (each with a chain and an explanation). The what-ifs were checked against Tonelab's own effects (for example, compressor-before-gate really does leave the gate open on hiss).
 
+The artist library also includes Dimebag Darrell (Walk), Tony Iommi (Iron Man), Tom Morello (Killing in the Name), Eddie Van Halen (Eruption / Jump guitar), Carlos Santana (Black Magic Woman / Samba Pa Ti), Mark Knopfler (Sultans of Swing), Angus & Malcolm Young (Back in Black), Slash (Sweet Child O’ Mine), B.B. King (The Thrill Is Gone), Zakk Wylde (No More Tears), Randy Rhoads (Crazy Train), Billy Gibbons (La Grange), Adam Jones (Schism), and Jack White (Seven Nation Army). These pedal approximations include playing advice and an A/B comparison in English and Spanish. Guitar pickups, tuning, finger technique, and amplifier/cabinet character still affect the result; the generic demo patterns do not transcribe the songs. Existing artist presets remain available.
+
 The **Playing** selector switches the synthesized guitar between free picking and steady, short eighth notes.
 
 ## What the guitar plays
@@ -92,6 +94,8 @@ The player compares **Dry / A / B**. **Analyse** expands the waveform tools and 
 
 Save opens an inline name form, New board uses an in-app confirmation, and loading a sound remains reversible with Undo. Share opens a dialog with Copy feedback and a compressed, self-contained URL; legacy board links still open. Audio files stay local.
 
-The four-step Quick start follows the main loop. Effects are grouped by chain stage. Phone and tablet editors remain inline and include a selected-pedal preview. See `DESIGN_DECISIONS.md` for the accepted responsive behavior and review proposals still open.
+The five-step Quick start follows the main loop, including listening and watching the waveform before editing a pedal. Effects are grouped by chain stage. Phone and tablet editors remain inline and include a selected-pedal preview. See `DESIGN_DECISIONS.md` for the accepted responsive behavior and review proposals still open.
 
 The Guide button beside Your pedalboard opens the full board guide separately. Each pedal’s Guide contains only that pedal’s explanation, playing advice, and settings (expanded by default), with Previous/Next navigation. Printing remains in the full board guide.
+
+The interface, Quick start, pedal guides, and sound lessons are available in English and Spanish. Pedal/effect names, knob labels, switch options, and parameter value formats retain the standard English terminology used on physical pedals. The first supported browser language is selected by default (English fallback); the globe beside header help switches languages immediately and remembers the choice on this device. Audio, recordings, board edits, and tutorial progress stay in place. Translation strings live in `js/locales/es.js`; `js/i18n.js` provides the language selection and reactive catalog helpers.

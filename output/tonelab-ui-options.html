@@ -1,0 +1,154 @@
+<div id="tl-options" class="viz-carousel viz-dotted-background" aria-label="Tonelab interface options">
+  <section data-variant="Pedal strip" aria-label="Pedal strip design"><div class="tl-product" data-layout="strip"></div></section>
+  <section data-variant="Studio inspector" aria-label="Studio inspector design" hidden><div class="tl-product" data-layout="studio"></div></section>
+  <section data-variant="Focus editor" aria-label="Focus editor design" hidden><div class="tl-product" data-layout="focus"></div></section>
+</div>
+<style>
+#tl-options .tl-product{--tl-paper:light-dark(#f6f3eb,#201f1b);--tl-card:light-dark(#fbf9f4,#2b2924);--tl-ink:light-dark(#24221c,#f2eee4);--tl-muted:light-dark(#696459,#beb7a9);--tl-rule:light-dark(#d9d3c6,#575248);--tl-dry:light-dark(#cec8b9,#6e685d);--tl-green:light-dark(#23756b,#81c9b7);--tl-green-soft:light-dark(#edf2eb,#263d35);--tl-accent:light-dark(#c2482b,#ee967d);background:var(--tl-paper);color:var(--tl-ink);font:14px/1.5 'IBM Plex Sans',system-ui,sans-serif;max-width:780px;margin:auto;min-height:740px;position:relative;overflow:hidden;text-align:left}
+#tl-options .tl-product *{box-sizing:border-box}
+#tl-options .tl-product button,#tl-options .tl-product input{font:inherit}
+#tl-options .tl-product button{color:inherit;cursor:pointer}
+#tl-options .tl-header{padding:25px 24px 15px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+#tl-options .tl-brand{font:500 31px/1.1 Georgia,serif;letter-spacing:-1px}
+#tl-options .tl-subtitle{font-size:12px;color:var(--tl-muted);margin-top:6px}
+#tl-options .tl-tag{font:11px/1.2 ui-monospace,monospace;text-transform:uppercase;letter-spacing:1px;color:var(--tl-muted)}
+#tl-options .tl-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:0 24px 18px}
+#tl-options .tl-listen{background:var(--tl-ink);color:var(--tl-paper)!important;border:1px solid var(--tl-ink);border-radius:6px;padding:9px 16px;min-height:40px}
+#tl-options .tl-compare{display:flex;border:1px solid var(--tl-rule);border-radius:6px;overflow:hidden}
+#tl-options .tl-compare button{border:0;background:transparent;padding:9px 10px;font-size:12px}
+#tl-options .tl-compare button[aria-pressed=true]{background:var(--tl-card);box-shadow:inset 0 -2px var(--tl-ink)}
+#tl-options .tl-volume{display:flex;gap:6px;align-items:center;color:var(--tl-muted);font-size:12px;margin-left:auto}
+#tl-options .tl-volume input{width:65px;accent-color:var(--tl-ink)}
+#tl-options .tl-wave{border-block:1px solid var(--tl-rule);background:var(--tl-card);position:relative}
+#tl-options .tl-wave svg{display:block;width:100%;height:180px}
+#tl-options .tl-wave .tl-grid{stroke:var(--tl-rule);stroke-width:1;fill:none}
+#tl-options .tl-wave .tl-wave-dry{fill:var(--tl-dry)}
+#tl-options .tl-wave .tl-wave-wet{fill:var(--tl-ink)}
+#tl-options .tl-legend{padding:8px 24px;color:var(--tl-muted);display:flex;gap:16px;font-size:11px}
+#tl-options .tl-legend span{display:flex;align-items:center;gap:5px}
+#tl-options .tl-legend i{width:12px;height:6px;background:var(--tl-ink);display:inline-block}
+#tl-options .tl-legend span:first-child i{background:var(--tl-dry)}
+#tl-options .tl-chain-section{padding:18px 20px 12px}
+#tl-options .tl-section-heading{display:flex;justify-content:space-between;align-items:center;margin:0 0 12px;font-size:12px;gap:8px}
+#tl-options .tl-section-heading b{font-weight:500}
+#tl-options .tl-section-heading small{color:var(--tl-muted);font-size:11px}
+#tl-options .tl-signal{display:grid;grid-template-columns:38px minmax(0,1fr) 38px;align-items:center;gap:6px}
+#tl-options .tl-endpoint{text-align:center;font:10px/1.5 ui-monospace,monospace;color:var(--tl-muted);text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:5px}
+#tl-options .tl-port{height:13px;width:13px;border:2px solid var(--tl-muted);border-radius:50%;box-shadow:inset 0 0 0 2px var(--tl-paper)}
+#tl-options .tl-dropzone{border:1.5px dashed var(--tl-rule);padding:14px 10px;min-width:0;position:relative}
+#tl-options .tl-dropzone:before{content:'';position:absolute;top:50%;left:-8px;right:-8px;border-top:1px solid var(--tl-rule);pointer-events:none}
+#tl-options .tl-pedals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;position:relative}
+#tl-options .tl-pedal{position:relative;border:1px solid var(--tl-rule);border-radius:5px;background:var(--tl-card);min-width:0;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 2px 0 var(--tl-rule)}
+#tl-options .tl-pedal[data-on=true]{border-top:3px solid var(--tl-green)}
+#tl-options .tl-pedal[data-on=false]{border-top:3px solid var(--tl-rule)}
+#tl-options .tl-pedal-head{height:28px;display:flex;align-items:center;justify-content:space-between;padding-left:8px;color:var(--tl-muted)}
+#tl-options .tl-led{width:6px;height:6px;border-radius:50%;background:var(--tl-green)}
+#tl-options .tl-pedal[data-on=false] .tl-led{background:var(--tl-rule)}
+#tl-options .tl-edit{display:grid;place-items:center;border:0;background:transparent;width:30px;height:28px;color:var(--tl-muted)!important;padding:0}
+#tl-options .tl-edit svg{width:13px;height:13px}
+#tl-options .tl-toggle{border:0;background:transparent;min-height:70px;display:flex;align-items:center;flex-direction:column;justify-content:center;gap:6px;padding:5px 2px}
+#tl-options .tl-name{font-size:12px;font-weight:500;white-space:nowrap}
+#tl-options .tl-state{font:9px/1 ui-monospace,monospace;text-transform:uppercase;color:var(--tl-muted)}
+#tl-options .tl-switch{height:15px;width:15px;border:1px solid var(--tl-rule);border-radius:50%;background:var(--tl-paper);box-shadow:0 2px var(--tl-rule)}
+#tl-options .tl-grip{border:0;border-top:1px solid var(--tl-rule);background:transparent;height:26px;cursor:grab!important;touch-action:none;color:var(--tl-muted)!important;letter-spacing:2px;font-size:14px}
+#tl-options .tl-pedal.dragging{opacity:.45}
+#tl-options .tl-pedal.target{outline:2px solid var(--tl-green);outline-offset:2px}
+#tl-options .tl-helper{font-size:11px;color:var(--tl-muted);padding:12px 24px 0;margin:0;text-align:center}
+#tl-options .tl-caption{padding:18px 24px;font-family:Georgia,serif;font-size:22px;line-height:1.35;max-width:480px}
+#tl-options .tl-caption small{display:block;font:12px/1.5 system-ui,sans-serif;margin-top:8px;color:var(--tl-muted)}
+#tl-options .tl-settings{background:var(--tl-card);color:var(--tl-ink);padding:20px;border-top:1px solid var(--tl-rule)}
+#tl-options .tl-settings[hidden]{display:none}
+#tl-options .tl-settings-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px}
+#tl-options .tl-settings-title{font:500 23px Georgia,serif}
+#tl-options .tl-close{border:1px solid var(--tl-rule);border-radius:5px;background:transparent;padding:7px 12px;min-height:38px}
+#tl-options .tl-knob{display:block;margin-top:12px}
+#tl-options .tl-param-title{display:flex;justify-content:space-between;gap:8px;font-size:12px}
+#tl-options .tl-knob input{display:block;width:100%;margin:9px 0 0;accent-color:var(--tl-green)}
+#tl-options .tl-param-help{font-size:11px;color:var(--tl-muted);margin:12px 0 0}
+#tl-options .tl-overlay{position:absolute;inset:0;background:light-dark(#24221c35,#0007);z-index:3;display:flex;align-items:flex-end}
+#tl-options .tl-overlay[hidden]{display:none}
+#tl-options .tl-overlay .tl-settings{width:100%;border-radius:16px 16px 0 0;padding:24px;box-shadow:0 -8px 30px light-dark(#24221c12,#0005)}
+#tl-options .tl-studio-main{display:grid;grid-template-columns:minmax(0,1fr) 215px}
+#tl-options .tl-studio-main .tl-settings{border-top:0;border-left:1px solid var(--tl-rule)}
+#tl-options [data-layout=studio] .tl-signal{grid-template-columns:1fr;gap:9px}
+#tl-options [data-layout=studio] .tl-endpoint{flex-direction:row;justify-content:center;gap:8px}
+#tl-options [data-layout=studio] .tl-dropzone:before{display:none}
+#tl-options [data-layout=studio] .tl-caption{font-size:19px;padding-top:22px}
+#tl-options .tl-focus-editor{position:absolute;inset:0;z-index:4;background:var(--tl-paper);padding:24px;display:flex;flex-direction:column;gap:24px}
+#tl-options .tl-focus-editor[hidden]{display:none}
+#tl-options .tl-focus-editor .tl-settings{border:0;background:transparent;padding:0}
+#tl-options .tl-focus-editor .tl-editor-curve{height:150px;background:var(--tl-card);border-block:1px solid var(--tl-rule);padding:16px 0}
+#tl-options .tl-focus-editor svg{width:100%;height:100%;stroke:var(--tl-green);fill:none;stroke-width:2}
+#tl-options [data-layout=focus] .tl-wave svg{height:220px}
+#tl-options [data-layout=focus] .tl-toggle{min-height:48px}
+#tl-options [data-layout=focus] .tl-switch{display:none}
+#tl-options [data-layout=focus] .tl-pedal-head{height:28px}
+@media(max-width:600px){
+#tl-options .tl-product{min-height:840px}
+#tl-options .tl-header{padding:22px 16px 14px}
+#tl-options .tl-controls{padding:0 16px 16px;gap:8px}
+#tl-options .tl-volume{margin-left:0}
+#tl-options .tl-chain-section{padding:18px 8px 8px}
+#tl-options .tl-signal{grid-template-columns:30px minmax(0,1fr) 30px;gap:3px}
+#tl-options .tl-endpoint{font-size:9px}
+#tl-options .tl-dropzone{padding:10px 5px}
+#tl-options .tl-pedals{gap:5px}
+#tl-options .tl-name{font-size:11px}
+#tl-options .tl-pedal-head{height:35px;padding-left:5px}
+#tl-options .tl-edit{width:34px;height:35px}
+#tl-options .tl-toggle{min-height:62px;gap:7px}
+#tl-options .tl-grip{height:34px}
+#tl-options .tl-section-heading{padding-inline:8px}
+#tl-options .tl-section-heading small{font-size:10px}
+#tl-options .tl-caption{font-size:21px;padding:22px 16px}
+#tl-options .tl-studio-main{grid-template-columns:1fr}
+#tl-options .tl-studio-main .tl-settings{border-left:0;border-top:1px solid var(--tl-rule);padding:16px}
+#tl-options .tl-studio-main .tl-caption{display:none}
+#tl-options [data-layout=studio] .tl-signal{grid-template-columns:1fr}
+#tl-options [data-layout=studio] .tl-dropzone{padding:10px}
+#tl-options [data-layout=studio] .tl-toggle{min-height:45px}
+#tl-options [data-layout=studio] .tl-switch{display:none}
+#tl-options [data-layout=studio] .tl-grip{height:26px}
+#tl-options [data-layout=studio] .tl-wave svg{height:120px}
+#tl-options .tl-settings-title{font-size:21px}
+}
+@media(pointer:coarse){#tl-options .tl-edit{min-height:44px;width:44px}#tl-options .tl-pedal-head{height:44px}#tl-options .tl-grip{min-height:44px}}
+</style>
+<script>
+(()=>{
+const root=document.getElementById('tl-options');
+const effects=[{id:'gate',name:'Gate',full:'Noise gate',on:true,params:[['Threshold',-36,-70,0,'dB'],['Release',120,5,1500,'ms']]},{id:'comp',name:'Comp',full:'Compressor',on:true,params:[['Threshold',-22,-60,0,'dB'],['Ratio',4,1,20,':1']]},{id:'drive',name:'Drive',full:'Overdrive',on:true,params:[['Drive',8,0,30,'dB'],['Mix',40,0,100,'%']]},{id:'delay',name:'Delay',full:'Delay',on:false,params:[['Time',300,60,700,'ms'],['Feedback',35,0,75,'%']]}];
+function wave(){let dry=[],wet=[];for(let i=0;i<=400;i++){const x=i*2;const phase=i%112;const env=Math.exp(-phase/29);const noise=Math.sin(i*2.7)*Math.sin(i*.77);const d=(8+env*61)*Math.abs(noise);const w=phase>86?0:d*.64;dry.push([x,d]);wet.push([x,w]);}const path=arr=>'M '+arr.map(([x,y])=>x+','+(90-y)).join(' L ')+' L '+arr.slice().reverse().map(([x,y])=>x+','+(90+y)).join(' L ')+' Z';return `<div class="tl-wave"><svg viewBox="0 0 800 180" preserveAspectRatio="none" role="img" aria-label="Dry guitar waveform and processed output preview"><path class="tl-grid" d="M0 30H800 M0 60H800 M0 90H800 M0 120H800 M0 150H800 M100 0V180 M200 0V180 M300 0V180 M400 0V180 M500 0V180 M600 0V180 M700 0V180"/><path class="tl-wave-dry" d="${path(dry)}"/><path class="tl-wave-wet" d="${path(wet)}"/></svg></div><div class="tl-legend"><span><i></i>Dry guitar</span><span><i></i>With effects</span></div>`;}
+root.querySelectorAll('.tl-product').forEach(product=>{
+const layout=product.dataset.layout, local=effects.map(e=>({...e,params:e.params.map(p=>[...p])}));
+const saved=window.openai?.widgetState?.modelContent?.[layout]; if(saved?.order){local.sort((a,b)=>saved.order.indexOf(a.id)-saved.order.indexOf(b.id));local.forEach(e=>{if(typeof saved.enabled?.[e.id]==='boolean')e.on=saved.enabled[e.id]});}
+const header=`<header class="tl-header"><div><div class="tl-brand">Tonelab</div><div class="tl-subtitle">See and hear what effects do.</div></div><span class="tl-tag">Guitar lab</span></header><div class="tl-controls"><button class="tl-listen" type="button" aria-pressed="false">Listen</button><div class="tl-compare" aria-label="Audio comparison"><button type="button" aria-pressed="false">Dry</button><button type="button" aria-pressed="true">Effects</button></div><label class="tl-volume">Volume <input type="range" min="0" max="100" value="25" aria-label="Volume"/></label></div>`;
+const endpoint=(name)=>`<div class="tl-endpoint"><span class="tl-port"></span>${name}</div>`;
+const board=`<div class="tl-chain-section"><div class="tl-section-heading"><b>Effect chain</b><small>Tap to bypass · drag to reorder</small></div><div class="tl-signal">${endpoint('Input')}<div class="tl-dropzone" aria-label="Effect drop area"><div class="tl-pedals"></div></div>${endpoint('Output')}</div></div>`;
+const settings='<div class="tl-settings" aria-label="Effect settings"></div>';
+product.innerHTML=header+wave()+(layout==='studio'?`<div class="tl-studio-main"><div>${board}</div>${settings}</div>`:board)+(layout==='strip'?`<div class="tl-overlay" hidden>${settings}</div>`:layout==='focus'?`<div class="tl-focus-editor" hidden>${settings}<div class="tl-editor-curve"><svg viewBox="0 0 300 100" role="img" aria-label="Effect transfer curve illustration"><path d="M0 95 L140 60 Q180 50 200 47 L300 25"/></svg></div><p class="tl-param-help">Adjust the effect, then return to the pedalboard.</p></div>`:'');
+const pedals=product.querySelector('.tl-pedals');
+function persist(){const existing=window.openai?.widgetState?.modelContent||{};window.openai?.setWidgetState?.({modelContent:{...existing,[layout]:{order:local.map(e=>e.id),enabled:Object.fromEntries(local.map(e=>[e.id,e.on]))}}})?.catch(()=>{});}
+function reorder(id,target){const from=local.findIndex(e=>e.id===id),to=local.findIndex(e=>e.id===target);if(from<0||to<0||from===to)return;const [item]=local.splice(from,1);local.splice(to,0,item);render();persist();}
+function render(){pedals.innerHTML='';local.forEach(effect=>{
+const box=document.createElement('div');box.className='tl-pedal';box.dataset.effect=effect.id;box.dataset.on=String(effect.on);
+box.innerHTML=`<div class="tl-pedal-head"><i class="tl-led" aria-hidden="true"></i><button class="tl-edit" type="button" aria-label="Edit ${effect.full}" data-tooltip="Edit ${effect.full}"><i data-lucide="pencil" aria-hidden="true"></i></button></div><button class="tl-toggle" type="button" aria-label="${effect.full}" aria-pressed="${effect.on}"><span class="tl-name">${effect.name}</span><span class="tl-state">${effect.on?'On':'Bypassed'}</span><span class="tl-switch" aria-hidden="true"></span></button><button class="tl-grip" type="button" aria-label="Drag ${effect.full}; arrow keys reorder">⠿</button>`;
+box.querySelector('.tl-toggle').onclick=()=>{effect.on=!effect.on;box.dataset.on=String(effect.on);box.querySelector('.tl-toggle').setAttribute('aria-pressed',effect.on);box.querySelector('.tl-state').textContent=effect.on?'On':'Bypassed';persist();};
+box.querySelector('.tl-edit').onclick=()=>edit(effect);
+const grip=box.querySelector('.tl-grip');
+grip.onkeydown=e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();const index=local.indexOf(effect)+(e.key==='ArrowLeft'?-1:1);if(local[index]){reorder(effect.id,local[index].id);pedals.querySelector(`[data-effect="${effect.id}"] .tl-grip`).focus();}};
+grip.onpointerdown=e=>{if(e.button!==0)return;grip.setPointerCapture(e.pointerId);box.classList.add('dragging');};
+grip.onpointermove=e=>{if(!grip.hasPointerCapture(e.pointerId))return;pedals.querySelectorAll('.target').forEach(el=>el.classList.remove('target'));const hit=document.elementFromPoint(e.clientX,e.clientY)?.closest('.tl-pedal');if(hit&&pedals.contains(hit)&&hit!==box)hit.classList.add('target');};
+grip.onpointerup=e=>{if(!grip.hasPointerCapture(e.pointerId))return;const hit=document.elementFromPoint(e.clientX,e.clientY)?.closest('.tl-pedal');box.classList.remove('dragging');pedals.querySelectorAll('.target').forEach(el=>el.classList.remove('target'));if(hit&&pedals.contains(hit)&&hit!==box)reorder(effect.id,hit.dataset.effect);};
+grip.onpointercancel=()=>{box.classList.remove('dragging');pedals.querySelectorAll('.target').forEach(el=>el.classList.remove('target'));};
+pedals.appendChild(box);
+});globalThis.lucide?.createIcons();}
+function edit(effect){const panel=product.querySelector('.tl-settings');const opener=product.querySelector(`[data-effect="${effect.id}"] .tl-edit`);panel.innerHTML=`<div class="tl-settings-head"><div><div class="tl-tag">${effect.on?'Enabled':'Bypassed'}</div><div class="tl-settings-title">${effect.full}</div></div>${layout==='studio'?'':`<button class="tl-close" type="button">${layout==='focus'?'Back to chain':'Done'}</button>`}</div>`;effect.params.forEach(param=>{const row=document.createElement('label');row.className='tl-knob';row.innerHTML=`<span class="tl-param-title"><span>${param[0]}</span><output>${param[1]} ${param[4]}</output></span><input type="range" min="${param[2]}" max="${param[3]}" value="${param[1]}" aria-label="${effect.full} ${param[0]}"/>`;row.querySelector('input').oninput=e=>{param[1]=Number(e.target.value);row.querySelector('output').textContent=param[1]+' '+param[4];};panel.appendChild(row);});const helper=document.createElement('p');helper.className='tl-param-help';helper.textContent='Settings apply to this pedal only.';panel.appendChild(helper);
+const overlay=product.querySelector('.tl-overlay, .tl-focus-editor');if(overlay){overlay.hidden=false;const done=panel.querySelector('.tl-close');done.onclick=()=>{overlay.hidden=true;opener.focus();};done.focus();overlay.onkeydown=e=>{if(e.key==='Escape'){overlay.hidden=true;opener.focus();}};}}
+product.querySelector('.tl-listen').onclick=e=>{const on=e.target.getAttribute('aria-pressed')!=='true';e.target.setAttribute('aria-pressed',on);e.target.textContent=on?'Stop':'Listen';};
+product.querySelectorAll('.tl-compare button').forEach(button=>button.onclick=()=>product.querySelectorAll('.tl-compare button').forEach(b=>b.setAttribute('aria-pressed',String(b===button))));
+render();if(layout==='studio')edit(local[1]);
+if(globalThis.Tweak){const design={density:10};const tweak=new Tweak({container:product,onChange:()=>{pedals.style.gap=design.density+'px';}});tweak.addSlider(design,'density',{label:'Space between pedals',min:4,max:16,unit:'px'});}
+});
+})();
+</script>

@@ -1315,6 +1315,7 @@ button.endpoint { min-width: 44px; font: 11px/1.3 var(--sans); }
 }
 @media screen and (max-width: 700px) {
   body { height: auto; min-height: 100dvh; padding-bottom: calc(var(--player-height, 125px) + env(safe-area-inset-bottom) + 12px); }
+  body.quick-start-pedal-step { padding-bottom: calc(var(--player-height, 125px) + var(--quick-start-card-height, 210px) + env(safe-area-inset-bottom) + 36px); }
   main { flex: none; height: auto; }
   .masthead { flex-wrap: wrap; gap: 8px; }
   .masthead h1 { margin-right: auto; }
@@ -1371,3 +1372,32 @@ body.analysing .chain-strip-wrap { display: none; }
   #effect-order li { transition: none; }
 }
 #effect-order li.drag-ready > .drag-handle { outline: none; }
+
+/* Desktop and landscape tablet pedal editor prototype: overlay the board area
+   without changing the workspace width or document flow. */
+@media screen and (min-width: 1024px), screen and (min-width: 701px) and (orientation: landscape) and (min-height: 501px) {
+  body.editing.pedal-drawer-open .journey.workspace {
+    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; gap: 16px 24px;
+  }
+  body.editing.pedal-drawer-open .journey.workspace > .chain-heading { grid-column: 1; grid-row: 1; }
+  body.editing.pedal-drawer-open .journey.workspace > .scope-disclosure { grid-column: 1; grid-row: 2; }
+  body.editing.pedal-drawer-open .journey.workspace > .workspace-top { grid-column: 1; grid-row: 3; }
+  body.pedal-drawer-open .journey.workspace > .workspace-side {
+    position: fixed; z-index: 45; top: var(--pedal-drawer-top, 180px);
+    right: max(16px, calc((100vw - 1448px) / 2 + 24px)); bottom: calc(var(--player-height, 96px) + 16px);
+    width: 420px; max-width: calc(100vw - 32px); max-height: none; overflow: auto; overscroll-behavior: contain;
+    padding: 0; background: transparent;
+  }
+  body.pedal-drawer-open .workspace-side > #effect-settings {
+    max-width: none; max-height: none; overflow: visible; margin: 0;
+    border-top-width: 4px; box-shadow: 0 18px 56px #211d1b38;
+  }
+  body.pedal-drawer-open #effect-settings .sheet-head { position: sticky; top: 0; }
+}
+
+/* Header help and language stay together on every screen size. */
+.header-help { display: flex; align-items: center; gap: 2px; margin-left: auto; flex: none; }
+.masthead .header-help #open-quick-start { margin: 0; }
+.language-switch { position: relative; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; color: var(--ink); }
+.language-switch:hover { color: var(--gate); }
+#language-code { position: absolute; right: 0; bottom: 0; padding: 1px 2px; border-radius: 3px; background: var(--paper); font: 600 9px/1 var(--sans); }

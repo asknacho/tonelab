@@ -12,6 +12,11 @@ Updated 2026-11-12. These decisions came from the user's reviews of the mobile s
 - On tablet and desktop, the pedalboard fills the same available width as the waveform. Start with details closed; only narrow the workspace when a pedal is explicitly selected. Closing details restores full width. The waveform keeps its full width when details open; the board and editor share the row beneath it.
 - Use available width to balance the controls and eliminate awkward empty space. Exact column breakpoints are implementation choices, not permission to change page order.
 
+## Language
+
+- Offer interface and learning explanations in English and Spanish. Keep pedal/effect names, knob labels, option names, and parameter value formats in English, following the terminology printed on guitar pedals (user clarification, 2026-11-12). Choose the first supported browser language on the first visit, falling back to English. Remember an explicit language choice locally.
+- Put a globe button immediately beside the header Quick start icon to switch languages. Switch in place, preserving playback, local recordings, board edits, and tutorial progress. Keep song titles, pedal model names, and user-saved names intact. (User follow-up, 2026-11-12.)
+
 ## Playing source
 
 - Import audio is a way to choose the playing pattern. Keep it immediately beside the pattern selector in the same group at every screen size.
@@ -53,10 +58,12 @@ Updated 2026-11-12. These decisions came from the user's reviews of the mobile s
 - Pedal bypass and drag controls have at least 44 px touch targets. Center the grip in the pedal artwork’s bottom row on mobile and desktop. A 450 ms long press anywhere on a pedal starts rearranging on touch, mouse, and pen; tilt the pedal until release or cancellation. Show the red removal × only while the dragged pedal is outside the pedalboard; hide it again when it returns inside. Show one On/Off label per card and keep both endpoint labels inside the scrollable board. (User follow-up, 2026-11-12.)
 - More pedal settings is the single disclosure for extra controls and labeled pedal actions; there is no second Show all controls checkbox.
 - The effect library groups pedals by signal-chain stage. Chorus / flanger names both available model families; model-specific help only describes the offered options.
-- Quick start has four anchored steps: pick a sound, play, compare, open a pedal. Platform-specific audio tips appear only on the applicable devices.
+- Quick start has five anchored steps: pick a sound, play, compare, watch the waveform, open a pedal. The waveform step asks users to switch between Dry and B, listen, and watch for changes. On mobile, the final Make it yours card sits immediately above the player, with the whole pedal highlighted and scrolled into view above the card. This replaces the four-step sequence (user follow-up, 2026-11-12). Platform-specific audio tips appear only on the applicable devices.
+- Open Quick start automatically on the first visit. Remember locally when it has been shown so closing it, finishing it, or returning later does not reopen it automatically. The header help button can restart it at any time (user follow-up, 2026-11-12).
 - Share offers a Copy button and Copied feedback. Compress the self-contained board link and continue reading existing links; no link-shortening service is required.
 
 ### Review proposals left open
 
+- Right-side overlay pedal editor on desktop and landscape tablets, while keeping the phone editor inline, to avoid workspace reflow when selecting a pedal (local prototype requested 2026-11-12; not yet accepted).
 - Turning knobs directly on pedal artwork or using its footswitch for bypass requires a separate interaction design; the current labeled controls remain the editing surface.
 - A bottom sheet, a permanently reserved desktop panel column, and moving the board above the waveform remain alternatives to the accepted layout, not accepted replacements.
